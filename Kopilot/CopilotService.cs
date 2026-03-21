@@ -156,6 +156,21 @@ public sealed class CopilotService : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Resets the client state so a new connection can be established
+    /// (e.g. after DisposeAsync to reconnect with a different working directory).
+    /// </summary>
+    public void Reset()
+    {
+        _lifecycleSubscription?.Dispose();
+        _lifecycleSubscription = null;
+        _sessions.Clear();
+        _mainSession = null;
+        _pendingToolNames.Clear();
+        _client = null;
+        ConnectionStateChanged?.Invoke(this, "Not connected");
+    }
+
     private void HandleSessionEvent(string sessionId, SessionEvent evt)
     {
         switch (evt)

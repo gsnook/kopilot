@@ -25,6 +25,7 @@ public partial class MainForm : Form
         buttonAddFile.Click += ButtonAddFile_Click;
         buttonAddFolder.Click += ButtonAddFolder_Click;
         buttonNewSession.Click += async (_, _) => await NewSessionAsync();
+        buttonOpenFolder.Click += async (_, _) => await OpenFolderAndConnectAsync();
         richTextBoxPrompt.KeyDown += RichTextBoxPrompt_KeyDown;
 
         checkBoxAutoApprove.CheckedChanged += (_, _) =>
@@ -106,6 +107,46 @@ public partial class MainForm : Form
         {
             MessageBox.Show($"Failed to reset session: {ex.Message}", "Error",
                 MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    private async Task OpenFolderAndConnectAsync()
+    {
+        using var dialog = new FolderBrowserDialog
+        {
+            Description = "Select the project root folder for Copilot",
+            UseDescriptionForTitle = true,
+            SelectedPath = _copilot.WorkingDirectory ?? "",
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+        // If already connected, tear down first so the new CWD takes effect
+        if (_copilot.IsConnected)
+        {
+            await _copilot.DisposeAsync();
+            _copilot.Reset();
+        }
+
+        _copilot.WorkingDirectory = dialog.SelectedPath;
+        buttonOpenFolder.Enabled = false;
+        toolStripStatusLabelSession.Text = dialog.SelectedPath;
+
+        try
+        {
+            await _copilot.EnsureStartedAsync();
+        }
+        catch (Exception ex)
+        {
+            buttonOpenFolder.Enabled = true;
+            MessageBox.Show(
+                $"Failed to connect to Copilot CLI:\n\n{ex.Message}\n\n" +
+                "Make sure 'copilot' is installed and authenticated (run 'copilot auth login').",
+                "Connection Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            buttonOpenFolder.Enabled = true;
         }
     }
 
@@ -302,7 +343,7 @@ public partial class MainForm : Form
 
     private void SetSendingState(bool isSending)
     {
-        buttonSend.Enabled = !isSending;
+        buttonSend.Enabled = !isSending && _copilot.IsConnected;
         buttonStop.Enabled = isSending;
         toolStripStatusLabelConnection.Text = isSending ? "Working…" :
             (_copilot.IsConnected ? "Connected" : "Not connected");
@@ -311,6 +352,9 @@ public partial class MainForm : Form
     private void UpdateConnectionStatus(string status)
     {
         toolStripStatusLabelConnection.Text = status;
+        // Enable Send as soon as the CLI server is up
+        if (status == "Connected")
+            buttonSend.Enabled = true;
     }
 
     // ── Permission / input dialogs ────────────────────────────────────────────

@@ -41,6 +41,7 @@ partial class MainForm
         labelModel                = new System.Windows.Forms.Label();
         comboBoxModel             = new System.Windows.Forms.ComboBox();
         buttonNewSession          = new System.Windows.Forms.Button();
+        buttonOpenFolder          = new System.Windows.Forms.Button();
         buttonStop                = new System.Windows.Forms.Button();
         buttonSend                = new System.Windows.Forms.Button();
         statusStrip               = new System.Windows.Forms.StatusStrip();
@@ -166,6 +167,7 @@ partial class MainForm
         panelActions.Controls.Add(checkBoxAutoApprove);
         panelActions.Controls.Add(labelModel);
         panelActions.Controls.Add(comboBoxModel);
+        panelActions.Controls.Add(buttonOpenFolder);
         panelActions.Controls.Add(buttonNewSession);
         panelActions.Controls.Add(buttonStop);
         panelActions.Controls.Add(buttonSend);
@@ -212,6 +214,20 @@ partial class MainForm
         comboBoxModel.Size = new System.Drawing.Size(175, 23);
         comboBoxModel.TabIndex = 2;
 
+        // buttonOpenFolder
+        buttonOpenFolder.BackColor = System.Drawing.Color.FromArgb(0, 120, 212);
+        buttonOpenFolder.FlatAppearance.BorderSize = 0;
+        buttonOpenFolder.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        buttonOpenFolder.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
+        buttonOpenFolder.ForeColor = System.Drawing.Color.White;
+        buttonOpenFolder.Location = new System.Drawing.Point(388, 8);
+        buttonOpenFolder.Name = "buttonOpenFolder";
+        buttonOpenFolder.Size = new System.Drawing.Size(130, 28);
+        buttonOpenFolder.TabIndex = 6;
+        buttonOpenFolder.Text = "📂 Open Folder…";
+        buttonOpenFolder.UseVisualStyleBackColor = false;
+        toolTipMain.SetToolTip(buttonOpenFolder, "Select a project folder and connect to Copilot");
+
         // buttonNewSession
         buttonNewSession.Anchor = System.Windows.Forms.AnchorStyles.Right;
         buttonNewSession.Font = new System.Drawing.Font("Segoe UI", 9F);
@@ -238,6 +254,7 @@ partial class MainForm
         // buttonSend
         buttonSend.Anchor = System.Windows.Forms.AnchorStyles.Right;
         buttonSend.BackColor = System.Drawing.Color.FromArgb(0, 120, 212);
+        buttonSend.Enabled = false;
         buttonSend.FlatAppearance.BorderSize = 0;
         buttonSend.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         buttonSend.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
@@ -315,6 +332,7 @@ partial class MainForm
     private System.Windows.Forms.CheckBox checkBoxAutoApprove;
     private System.Windows.Forms.Label labelModel;
     private System.Windows.Forms.ComboBox comboBoxModel;
+    private System.Windows.Forms.Button buttonOpenFolder;
     private System.Windows.Forms.Button buttonNewSession;
     private System.Windows.Forms.Button buttonStop;
     private System.Windows.Forms.Button buttonSend;

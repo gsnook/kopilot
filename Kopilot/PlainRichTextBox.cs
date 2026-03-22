@@ -3,7 +3,7 @@ using System.Runtime.InteropServices;
 namespace Kopilot;
 
 /// <summary>
-/// A RichTextBox that enforces a single fixed color scheme (white-on-black)
+/// A RichTextBox that enforces a single fixed color scheme
 /// and always pastes as plain text, stripping all formatting.
 ///
 /// Two-layer defence:
@@ -11,6 +11,10 @@ namespace Kopilot;
 ///      always inserted as plain text with the control's own font/color.
 ///   2. OnTextChanged normalizes every character's formatting after any edit,
 ///      catching any pathway that bypasses the paste intercept.
+///
+/// Drag-and-drop of FILES is accepted and surfaced via FilesDropped; all
+/// other drag sources (text, RTF, etc.) are rejected so formatting can't
+/// be introduced via drag.
 /// </summary>
 internal sealed class PlainRichTextBox : RichTextBox
 {
@@ -23,11 +27,29 @@ internal sealed class PlainRichTextBox : RichTextBox
 
     private bool _normalizing;
 
+    /// <summary>Raised when one or more files (or folders) are dropped onto the editor.</summary>
+    public event EventHandler<IReadOnlyList<string>>? FilesDropped;
+
     public PlainRichTextBox()
     {
         BackColor = AppTheme.InputBox;
         ForeColor = AppTheme.TextPrimary;
-        AllowDrop = false;
+        AllowDrop = true;
+    }
+
+    protected override void OnDragEnter(DragEventArgs e)
+    {
+        e.Effect = e.Data?.GetDataPresent(DataFormats.FileDrop) == true
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
+        // Do NOT call base — prevents RichTextBox accepting text/RTF drags
+    }
+
+    protected override void OnDragDrop(DragEventArgs e)
+    {
+        if (e.Data?.GetData(DataFormats.FileDrop) is string[] paths && paths.Length > 0)
+            FilesDropped?.Invoke(this, paths);
+        // Do NOT call base — prevents any text insertion from the drag source
     }
 
     protected override void WndProc(ref Message m)

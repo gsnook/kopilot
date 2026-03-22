@@ -27,6 +27,11 @@ public partial class MainForm : Form
         buttonAddFolder.Click += ButtonAddFolder_Click;
         buttonOpenFolder.Click += async (_, _) => await OpenFolderAndConnectAsync();
         richTextBoxPrompt.KeyDown += RichTextBoxPrompt_KeyDown;
+        richTextBoxPrompt.FilesDropped += (_, paths) =>
+        {
+            foreach (var path in paths)
+                AddAttachment(path);
+        };
 
         buttonHelp.Click += async (_, _) => await SendQuickCommandAsync(
             "What can you help me with? Give a brief overview of your capabilities.");

@@ -174,35 +174,28 @@ public partial class MainForm : Form
 
         const string backupPrompt =
             """
-            Please write a comprehensive session-resume document in Markdown format.
-            The goal is to allow someone (or yourself in a new session) to quickly pick up exactly where we left off.
-            
-            Include all of the following that are relevant:
-            
-            # Session Resume Document
-            
-            ## Project Overview
-            Brief description of the project, its purpose, and tech stack.
-            
-            ## Work Completed This Session
-            Bullet-point summary of everything accomplished.
-            
+            Write a brief session-resume note in Markdown — use ONLY what is already in our conversation history. Do NOT use any tools, do NOT read any files or directories.
+
+            Structure it as:
+
+            # Session Resume
+
+            ## Goal
+            One or two sentences: what we set out to accomplish.
+
+            ## What Was Done
+            Short bullet list of the key things completed or decided this session.
+
             ## Current State
-            What is the exact current state of the codebase / work? What was the last thing done?
-            
-            ## Open Tasks & Next Steps
-            Numbered list of what still needs to be done, in priority order.
-            
-            ## Key Decisions & Context
-            Important decisions made, trade-offs, constraints, or context that the next session must know.
-            
-            ## Important File Paths & Commands
-            Any specific files, directories, commands, or configurations that are critical.
-            
-            ## How to Resume
-            Step-by-step instructions for starting the next session, including any commands to run first.
-            
-            Write the full document now — do not truncate or summarise sections.
+            One paragraph describing exactly where things stand right now.
+
+            ## Next Step
+            The single most important thing to do when resuming.
+
+            ## Context to Remember
+            Any non-obvious decisions, constraints, or gotchas a new session needs to know.
+
+            Keep the whole document under one page. Draw entirely from our conversation — do not invoke tools.
             """;
 
         try

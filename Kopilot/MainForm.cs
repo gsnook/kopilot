@@ -369,7 +369,11 @@ public partial class MainForm : Form
             ? $"Sub-agent {++_subAgentCount}"
             : "Session";
 
-        var tabPage = new TabPage(tabTitle) { Name = sessionId };
+        var tabPage = new TabPage(tabTitle)
+        {
+            Name = sessionId,
+            BackColor = AppTheme.OutputBox,
+        };
 
         var outputFont = new Font("Cascadia Code", 10F);
         if (outputFont.Name != "Cascadia Code")

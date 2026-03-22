@@ -85,7 +85,7 @@ partial class MainForm
         splitContainerMain.Panel2.Controls.Add(tableLayoutPanelPrompt);
 
         // ── tabControlSessions ──────────────────────────────────────────────
-        tabControlSessions.BackColor = AppTheme.Surface;
+        tabControlSessions.BackColor = AppTheme.OutputBox;
         tabControlSessions.Dock = System.Windows.Forms.DockStyle.Fill;
         tabControlSessions.Font = new System.Drawing.Font("Segoe UI", 9F);
         tabControlSessions.Location = new System.Drawing.Point(0, 0);

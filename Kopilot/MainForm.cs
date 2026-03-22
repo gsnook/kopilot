@@ -78,13 +78,13 @@ public partial class MainForm : Form
             // Echo user message after session tab exists (tab is created synchronously
             // inside SendMessageAsync via SessionCreated → InvokeOnUI → AddSessionTab)
             if (_mainSessionId != null)
-                AppendToSession(_mainSessionId, $"👤 You: {prompt}\r\n\r\n", Color.FromArgb(100, 160, 220));
+                AppendToSession(_mainSessionId, $"👤 You: {prompt}\r\n\r\n", AppTheme.ColorUser);
         }
         catch (Exception ex)
         {
             SetSendingState(false);
             if (_mainSessionId != null)
-                AppendToSession(_mainSessionId, $"\r\n❌ Error sending: {ex.Message}\r\n", Color.FromArgb(220, 80, 80));
+                AppendToSession(_mainSessionId, $"\r\n❌ Error sending: {ex.Message}\r\n", AppTheme.ColorError);
         }
     }
 
@@ -180,14 +180,17 @@ public partial class MainForm : Form
         {
             Text = Path.GetFileName(path) + "  ✕",
             AutoSize = true,
+            BackColor = AppTheme.ButtonBg,
             FlatStyle = FlatStyle.Flat,
             Font = new Font("Segoe UI", 8.5F),
+            ForeColor = AppTheme.TextPrimary,
             Margin = new Padding(2, 2, 2, 2),
             Padding = new Padding(6, 2, 6, 2),
             Tag = path,
             Height = 24,
+            UseVisualStyleBackColor = false,
         };
-        chip.FlatAppearance.BorderColor = Color.FromArgb(180, 180, 180);
+        chip.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
         chip.FlatAppearance.BorderSize = 1;
         toolTipMain.SetToolTip(chip, path);
         chip.Click += (_, _) => RemoveAttachment(path, chip);
@@ -227,8 +230,8 @@ public partial class MainForm : Form
             Dock = DockStyle.Fill,
             ReadOnly = true,
             Font = outputFont,
-            BackColor = Color.FromArgb(30, 30, 30),
-            ForeColor = Color.FromArgb(212, 212, 212),
+            BackColor = AppTheme.OutputBox,
+            ForeColor = AppTheme.TextPrimary,
             ScrollBars = RichTextBoxScrollBars.Vertical,
             DetectUrls = false,
         };
@@ -239,7 +242,7 @@ public partial class MainForm : Form
         _sessionOutputs[sessionId] = outputBox;
 
         AppendColoredText(outputBox, $"[Session {sessionId[..Math.Min(8, sessionId.Length)]}... started]\r\n\r\n",
-            Color.FromArgb(100, 100, 100));
+            AppTheme.ColorMeta);
 
         toolStripStatusLabelSession.Text =
             $"Session: {sessionId[..Math.Min(8, sessionId.Length)]}…";
@@ -256,39 +259,39 @@ public partial class MainForm : Form
             case MessageKind.AssistantDelta:
                 if (!_streamingSessions.Contains(args.SessionId))
                 {
-                    AppendColoredText(box, "🤖 Assistant:\r\n", Color.FromArgb(106, 200, 106));
+                    AppendColoredText(box, "🤖 Assistant:\r\n", AppTheme.ColorAssistant);
                     _streamingSessions.Add(args.SessionId);
                 }
-                AppendColoredText(box, args.Content, Color.FromArgb(212, 212, 212));
+                AppendColoredText(box, args.Content, AppTheme.ColorDefault);
                 break;
 
             case MessageKind.AssistantFinal:
                 // In streaming mode the deltas already rendered; do nothing.
                 // In non-streaming mode, render the full content now.
                 if (!_streamingSessions.Contains(args.SessionId))
-                    AppendColoredText(box, $"🤖 Assistant:\r\n{args.Content}\r\n\r\n", Color.FromArgb(106, 200, 106));
+                    AppendColoredText(box, $"🤖 Assistant:\r\n{args.Content}\r\n\r\n", AppTheme.ColorAssistant);
                 break;
 
             case MessageKind.Reasoning:
                 AppendColoredText(box, $"💭 Reasoning:\r\n{args.Content}\r\n\r\n",
-                    Color.FromArgb(150, 150, 210));
+                    AppTheme.ColorReasoning);
                 break;
 
             case MessageKind.ToolStart:
                 if (_streamingSessions.Remove(args.SessionId))
-                    AppendColoredText(box, "\r\n", Color.FromArgb(212, 212, 212));
-                AppendColoredText(box, $"  🔧 {args.Content}…  ", Color.FromArgb(210, 190, 100));
+                    AppendColoredText(box, "\r\n", AppTheme.ColorDefault);
+                AppendColoredText(box, $"  🔧 {args.Content}…  ", AppTheme.ColorTool);
                 break;
 
             case MessageKind.ToolComplete:
-                AppendColoredText(box, "✓\r\n", Color.FromArgb(106, 200, 106));
+                AppendColoredText(box, "✓\r\n", AppTheme.ColorAssistant);
                 break;
 
             case MessageKind.Error:
                 if (_streamingSessions.Remove(args.SessionId))
-                    AppendColoredText(box, "\r\n", Color.FromArgb(212, 212, 212));
+                    AppendColoredText(box, "\r\n", AppTheme.ColorDefault);
                 AppendColoredText(box, $"\r\n❌ Error: {args.Content}\r\n\r\n",
-                    Color.FromArgb(220, 80, 80));
+                    AppTheme.ColorError);
                 break;
         }
 
@@ -300,7 +303,7 @@ public partial class MainForm : Form
         if (_streamingSessions.Remove(sessionId))
         {
             if (_sessionOutputs.TryGetValue(sessionId, out var box))
-                AppendColoredText(box, "\r\n\r\n", Color.FromArgb(212, 212, 212));
+                AppendColoredText(box, "\r\n\r\n", AppTheme.ColorDefault);
         }
 
         if (sessionId == _mainSessionId)

@@ -39,6 +39,7 @@ partial class UserInputDialog
         labelHeading.AutoSize = false;
         labelHeading.Dock = System.Windows.Forms.DockStyle.Top;
         labelHeading.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+        labelHeading.ForeColor = AppTheme.TextPrimary;
         labelHeading.Location = new System.Drawing.Point(16, 16);
         labelHeading.Name = "labelHeading";
         labelHeading.Padding = new System.Windows.Forms.Padding(0, 0, 0, 4);
@@ -50,6 +51,7 @@ partial class UserInputDialog
         labelQuestion.AutoSize = false;
         labelQuestion.Dock = System.Windows.Forms.DockStyle.Top;
         labelQuestion.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+        labelQuestion.ForeColor = AppTheme.TextPrimary;
         labelQuestion.Location = new System.Drawing.Point(16, 50);
         labelQuestion.MaximumSize = new System.Drawing.Size(448, 60);
         labelQuestion.Name = "labelQuestion";
@@ -59,8 +61,11 @@ partial class UserInputDialog
         labelQuestion.Text = "";
 
         // listBoxChoices
+        listBoxChoices.BackColor = AppTheme.InputBox;
+        listBoxChoices.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
         listBoxChoices.Dock = System.Windows.Forms.DockStyle.Top;
         listBoxChoices.Font = new System.Drawing.Font("Segoe UI", 9F);
+        listBoxChoices.ForeColor = AppTheme.TextPrimary;
         listBoxChoices.IntegralHeight = false;
         listBoxChoices.Location = new System.Drawing.Point(16, 102);
         listBoxChoices.Name = "listBoxChoices";
@@ -71,7 +76,7 @@ partial class UserInputDialog
         labelOrType.AutoSize = false;
         labelOrType.Dock = System.Windows.Forms.DockStyle.Top;
         labelOrType.Font = new System.Drawing.Font("Segoe UI", 9F);
-        labelOrType.ForeColor = System.Drawing.SystemColors.GrayText;
+        labelOrType.ForeColor = AppTheme.TextMuted;
         labelOrType.Location = new System.Drawing.Point(16, 200);
         labelOrType.Name = "labelOrType";
         labelOrType.Padding = new System.Windows.Forms.Padding(0, 4, 0, 2);
@@ -80,8 +85,11 @@ partial class UserInputDialog
         labelOrType.Text = "Or type a custom answer:";
 
         // textBoxAnswer
+        textBoxAnswer.BackColor = AppTheme.InputBox;
+        textBoxAnswer.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
         textBoxAnswer.Dock = System.Windows.Forms.DockStyle.Top;
         textBoxAnswer.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+        textBoxAnswer.ForeColor = AppTheme.TextPrimary;
         textBoxAnswer.Location = new System.Drawing.Point(16, 230);
         textBoxAnswer.Name = "textBoxAnswer";
         textBoxAnswer.Size = new System.Drawing.Size(448, 24);
@@ -90,6 +98,7 @@ partial class UserInputDialog
 
         // panelButtons
         panelButtons.Controls.Add(buttonSubmit);
+        panelButtons.BackColor = AppTheme.Background;
         panelButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
         panelButtons.Location = new System.Drawing.Point(0, 270);
         panelButtons.Name = "panelButtons";
@@ -99,11 +108,11 @@ partial class UserInputDialog
 
         // buttonSubmit
         buttonSubmit.Anchor = System.Windows.Forms.AnchorStyles.Right;
-        buttonSubmit.BackColor = System.Drawing.Color.FromArgb(0, 120, 212);
+        buttonSubmit.BackColor = AppTheme.AccentBg;
         buttonSubmit.FlatAppearance.BorderSize = 0;
         buttonSubmit.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         buttonSubmit.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-        buttonSubmit.ForeColor = System.Drawing.Color.White;
+        buttonSubmit.ForeColor = AppTheme.AccentText;
         buttonSubmit.Location = new System.Drawing.Point(372, 8);
         buttonSubmit.Name = "buttonSubmit";
         buttonSubmit.Size = new System.Drawing.Size(96, 32);
@@ -115,6 +124,7 @@ partial class UserInputDialog
         // UserInputDialog
         this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+        this.BackColor = AppTheme.Background;
         this.ClientSize = new System.Drawing.Size(480, 320);
         this.Controls.Add(panelButtons);
         this.Controls.Add(textBoxAnswer);

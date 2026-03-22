@@ -38,6 +38,7 @@ partial class PermissionDialog
         labelTitle.AutoSize = false;
         labelTitle.Dock = System.Windows.Forms.DockStyle.Top;
         labelTitle.Font = new System.Drawing.Font("Segoe UI", 10F, System.Drawing.FontStyle.Bold);
+        labelTitle.ForeColor = AppTheme.TextPrimary;
         labelTitle.Location = new System.Drawing.Point(16, 16);
         labelTitle.Name = "labelTitle";
         labelTitle.Padding = new System.Windows.Forms.Padding(0, 0, 0, 4);
@@ -49,6 +50,7 @@ partial class PermissionDialog
         labelKind.AutoSize = false;
         labelKind.Dock = System.Windows.Forms.DockStyle.Top;
         labelKind.Font = new System.Drawing.Font("Segoe UI", 9.5F);
+        labelKind.ForeColor = AppTheme.TextPrimary;
         labelKind.Location = new System.Drawing.Point(16, 52);
         labelKind.Name = "labelKind";
         labelKind.Padding = new System.Windows.Forms.Padding(0, 4, 0, 0);
@@ -58,10 +60,11 @@ partial class PermissionDialog
 
         // labelDetails
         labelDetails.AutoSize = false;
-        labelDetails.BackColor = System.Drawing.SystemColors.ControlLight;
+        labelDetails.BackColor = AppTheme.OutputBox;
         labelDetails.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
         labelDetails.Dock = System.Windows.Forms.DockStyle.Top;
         labelDetails.Font = new System.Drawing.Font("Consolas", 9F);
+        labelDetails.ForeColor = AppTheme.TextPrimary;
         labelDetails.Location = new System.Drawing.Point(16, 88);
         labelDetails.MaximumSize = new System.Drawing.Size(428, 72);
         labelDetails.Name = "labelDetails";
@@ -73,6 +76,7 @@ partial class PermissionDialog
         // panelButtons
         panelButtons.Controls.Add(buttonDeny);
         panelButtons.Controls.Add(buttonAllow);
+        panelButtons.BackColor = AppTheme.Background;
         panelButtons.Dock = System.Windows.Forms.DockStyle.Bottom;
         panelButtons.Location = new System.Drawing.Point(0, 176);
         panelButtons.Name = "panelButtons";
@@ -82,11 +86,11 @@ partial class PermissionDialog
 
         // buttonAllow
         buttonAllow.Anchor = System.Windows.Forms.AnchorStyles.Right;
-        buttonAllow.BackColor = System.Drawing.Color.FromArgb(0, 120, 212);
+        buttonAllow.BackColor = AppTheme.AccentBg;
         buttonAllow.FlatAppearance.BorderSize = 0;
         buttonAllow.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         buttonAllow.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-        buttonAllow.ForeColor = System.Drawing.Color.White;
+        buttonAllow.ForeColor = AppTheme.AccentText;
         buttonAllow.Location = new System.Drawing.Point(268, 8);
         buttonAllow.Name = "buttonAllow";
         buttonAllow.Size = new System.Drawing.Size(88, 32);
@@ -97,17 +101,23 @@ partial class PermissionDialog
 
         // buttonDeny
         buttonDeny.Anchor = System.Windows.Forms.AnchorStyles.Right;
+        buttonDeny.BackColor = AppTheme.ButtonBg;
+        buttonDeny.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
+        buttonDeny.FlatAppearance.BorderSize = 1;
+        buttonDeny.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        buttonDeny.ForeColor = AppTheme.TextPrimary;
         buttonDeny.Location = new System.Drawing.Point(362, 8);
         buttonDeny.Name = "buttonDeny";
         buttonDeny.Size = new System.Drawing.Size(88, 32);
         buttonDeny.TabIndex = 1;
         buttonDeny.Text = "✗ Deny";
-        buttonDeny.UseVisualStyleBackColor = true;
+        buttonDeny.UseVisualStyleBackColor = false;
         buttonDeny.Click += ButtonDeny_Click;
 
         // PermissionDialog
         this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+        this.BackColor = AppTheme.Background;
         this.ClientSize = new System.Drawing.Size(460, 226);
         this.Controls.Add(panelButtons);
         this.Controls.Add(labelDetails);

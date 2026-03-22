@@ -25,8 +25,8 @@ internal sealed class PlainRichTextBox : RichTextBox
 
     public PlainRichTextBox()
     {
-        BackColor = Color.Black;
-        ForeColor = Color.White;
+        BackColor = AppTheme.InputBox;
+        ForeColor = AppTheme.TextPrimary;
         AllowDrop = false;
     }
 

@@ -60,6 +60,7 @@ partial class MainForm
         this.SuspendLayout();
 
         // ── splitContainerMain ──────────────────────────────────────────────
+        splitContainerMain.BackColor = AppTheme.Background;
         splitContainerMain.Dock = System.Windows.Forms.DockStyle.Fill;
         splitContainerMain.Location = new System.Drawing.Point(0, 0);
         splitContainerMain.Name = "splitContainerMain";
@@ -73,6 +74,7 @@ partial class MainForm
         splitContainerMain.Panel2.Controls.Add(tableLayoutPanelPrompt);
 
         // ── tabControlSessions ──────────────────────────────────────────────
+        tabControlSessions.BackColor = AppTheme.Surface;
         tabControlSessions.Dock = System.Windows.Forms.DockStyle.Fill;
         tabControlSessions.Font = new System.Drawing.Font("Segoe UI", 9F);
         tabControlSessions.Location = new System.Drawing.Point(0, 0);
@@ -81,6 +83,7 @@ partial class MainForm
         tabControlSessions.TabIndex = 0;
 
         // ── tableLayoutPanelPrompt ──────────────────────────────────────────
+        tableLayoutPanelPrompt.BackColor = AppTheme.Background;
         tableLayoutPanelPrompt.ColumnCount = 1;
         tableLayoutPanelPrompt.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
         tableLayoutPanelPrompt.Controls.Add(panelAttachments, 0, 0);
@@ -101,6 +104,7 @@ partial class MainForm
         panelAttachments.Controls.Add(buttonAddFolder);
         panelAttachments.Controls.Add(buttonAddFile);
         panelAttachments.Controls.Add(labelAttach);
+        panelAttachments.BackColor = AppTheme.Background;
         panelAttachments.Dock = System.Windows.Forms.DockStyle.Fill;
         panelAttachments.Location = new System.Drawing.Point(0, 0);
         panelAttachments.Name = "panelAttachments";
@@ -110,6 +114,7 @@ partial class MainForm
         // labelAttach
         labelAttach.AutoSize = true;
         labelAttach.Font = new System.Drawing.Font("Segoe UI", 9F);
+        labelAttach.ForeColor = AppTheme.TextMuted;
         labelAttach.Location = new System.Drawing.Point(6, 10);
         labelAttach.Name = "labelAttach";
         labelAttach.Size = new System.Drawing.Size(76, 15);
@@ -117,32 +122,39 @@ partial class MainForm
         labelAttach.Text = "Attachments:";
 
         // buttonAddFile
-        buttonAddFile.FlatAppearance.BorderSize = 0;
+        buttonAddFile.BackColor = AppTheme.ButtonBg;
+        buttonAddFile.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
+        buttonAddFile.FlatAppearance.BorderSize = 1;
         buttonAddFile.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         buttonAddFile.Font = new System.Drawing.Font("Segoe UI", 9F);
+        buttonAddFile.ForeColor = AppTheme.TextPrimary;
         buttonAddFile.Location = new System.Drawing.Point(90, 6);
         buttonAddFile.Name = "buttonAddFile";
         buttonAddFile.Size = new System.Drawing.Size(88, 26);
         buttonAddFile.TabIndex = 1;
         buttonAddFile.Text = "📄 Add File";
-        buttonAddFile.UseVisualStyleBackColor = true;
+        buttonAddFile.UseVisualStyleBackColor = false;
         toolTipMain.SetToolTip(buttonAddFile, "Attach a file to the prompt");
 
         // buttonAddFolder
-        buttonAddFolder.FlatAppearance.BorderSize = 0;
+        buttonAddFolder.BackColor = AppTheme.ButtonBg;
+        buttonAddFolder.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
+        buttonAddFolder.FlatAppearance.BorderSize = 1;
         buttonAddFolder.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         buttonAddFolder.Font = new System.Drawing.Font("Segoe UI", 9F);
+        buttonAddFolder.ForeColor = AppTheme.TextPrimary;
         buttonAddFolder.Location = new System.Drawing.Point(183, 6);
         buttonAddFolder.Name = "buttonAddFolder";
         buttonAddFolder.Size = new System.Drawing.Size(100, 26);
         buttonAddFolder.TabIndex = 2;
         buttonAddFolder.Text = "📁 Add Folder";
-        buttonAddFolder.UseVisualStyleBackColor = true;
+        buttonAddFolder.UseVisualStyleBackColor = false;
         toolTipMain.SetToolTip(buttonAddFolder, "Attach a folder to the prompt");
 
         // flowLayoutPanelChips
         flowLayoutPanelChips.AutoSize = true;
         flowLayoutPanelChips.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
+        flowLayoutPanelChips.BackColor = AppTheme.Background;
         flowLayoutPanelChips.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight;
         flowLayoutPanelChips.Location = new System.Drawing.Point(290, 6);
         flowLayoutPanelChips.Name = "flowLayoutPanelChips";
@@ -152,8 +164,8 @@ partial class MainForm
 
         // ── richTextBoxPrompt ───────────────────────────────────────────────
         richTextBoxPrompt.AcceptsTab = true;
-        richTextBoxPrompt.BackColor = System.Drawing.Color.Black;
-        richTextBoxPrompt.ForeColor = System.Drawing.Color.White;
+        richTextBoxPrompt.BackColor = AppTheme.InputBox;
+        richTextBoxPrompt.ForeColor = AppTheme.TextPrimary;
         richTextBoxPrompt.Dock = System.Windows.Forms.DockStyle.Fill;
         richTextBoxPrompt.Font = new System.Drawing.Font("Segoe UI", 11F);
         richTextBoxPrompt.Location = new System.Drawing.Point(3, 41);
@@ -171,6 +183,7 @@ partial class MainForm
         panelActions.Controls.Add(buttonOpenFolder);
         panelActions.Controls.Add(buttonStop);
         panelActions.Controls.Add(buttonSend);
+        panelActions.BackColor = AppTheme.Background;
         panelActions.Dock = System.Windows.Forms.DockStyle.Fill;
         panelActions.Location = new System.Drawing.Point(0, 214);
         panelActions.Name = "panelActions";
@@ -180,7 +193,9 @@ partial class MainForm
 
         // checkBoxAutoApprove
         checkBoxAutoApprove.AutoSize = true;
+        checkBoxAutoApprove.BackColor = System.Drawing.Color.Transparent;
         checkBoxAutoApprove.Font = new System.Drawing.Font("Segoe UI", 9F);
+        checkBoxAutoApprove.ForeColor = AppTheme.TextPrimary;
         checkBoxAutoApprove.Location = new System.Drawing.Point(8, 12);
         checkBoxAutoApprove.Name = "checkBoxAutoApprove";
         checkBoxAutoApprove.Size = new System.Drawing.Size(136, 19);
@@ -192,6 +207,7 @@ partial class MainForm
         // labelModel
         labelModel.AutoSize = true;
         labelModel.Font = new System.Drawing.Font("Segoe UI", 9F);
+        labelModel.ForeColor = AppTheme.TextPrimary;
         labelModel.Location = new System.Drawing.Point(158, 14);
         labelModel.Name = "labelModel";
         labelModel.Size = new System.Drawing.Size(42, 15);
@@ -199,8 +215,11 @@ partial class MainForm
         labelModel.Text = "Model:";
 
         // comboBoxModel
+        comboBoxModel.BackColor = AppTheme.InputBox;
         comboBoxModel.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+        comboBoxModel.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         comboBoxModel.Font = new System.Drawing.Font("Segoe UI", 9F);
+        comboBoxModel.ForeColor = AppTheme.TextPrimary;
         comboBoxModel.FormattingEnabled = true;
         comboBoxModel.Items.AddRange(new object[] {
             "gpt-4.1",
@@ -215,11 +234,11 @@ partial class MainForm
         comboBoxModel.TabIndex = 2;
 
         // buttonOpenFolder
-        buttonOpenFolder.BackColor = System.Drawing.Color.FromArgb(0, 120, 212);
+        buttonOpenFolder.BackColor = AppTheme.AccentBg;
         buttonOpenFolder.FlatAppearance.BorderSize = 0;
         buttonOpenFolder.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         buttonOpenFolder.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-        buttonOpenFolder.ForeColor = System.Drawing.Color.White;
+        buttonOpenFolder.ForeColor = AppTheme.AccentText;
         buttonOpenFolder.Location = new System.Drawing.Point(388, 8);
         buttonOpenFolder.Name = "buttonOpenFolder";
         buttonOpenFolder.Size = new System.Drawing.Size(130, 28);
@@ -230,24 +249,29 @@ partial class MainForm
 
         // buttonStop
         buttonStop.Anchor = System.Windows.Forms.AnchorStyles.Right;
+        buttonStop.BackColor = AppTheme.ButtonBg;
         buttonStop.Enabled = false;
+        buttonStop.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
+        buttonStop.FlatAppearance.BorderSize = 1;
+        buttonStop.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         buttonStop.Font = new System.Drawing.Font("Segoe UI", 9F);
+        buttonStop.ForeColor = AppTheme.TextPrimary;
         buttonStop.Location = new System.Drawing.Point(1066, 8);
         buttonStop.Name = "buttonStop";
         buttonStop.Size = new System.Drawing.Size(60, 28);
         buttonStop.TabIndex = 4;
         buttonStop.Text = "⬛ Stop";
-        buttonStop.UseVisualStyleBackColor = true;
+        buttonStop.UseVisualStyleBackColor = false;
         toolTipMain.SetToolTip(buttonStop, "Stop the current Copilot response");
 
         // buttonSend
         buttonSend.Anchor = System.Windows.Forms.AnchorStyles.Right;
-        buttonSend.BackColor = System.Drawing.Color.FromArgb(0, 120, 212);
+        buttonSend.BackColor = AppTheme.AccentBg;
         buttonSend.Enabled = false;
         buttonSend.FlatAppearance.BorderSize = 0;
         buttonSend.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         buttonSend.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-        buttonSend.ForeColor = System.Drawing.Color.White;
+        buttonSend.ForeColor = AppTheme.AccentText;
         buttonSend.Location = new System.Drawing.Point(1132, 8);
         buttonSend.Name = "buttonSend";
         buttonSend.Size = new System.Drawing.Size(60, 28);
@@ -262,18 +286,23 @@ partial class MainForm
             toolStripStatusLabelSep,
             toolStripStatusLabelSession,
         });
+        statusStrip.BackColor = AppTheme.StatusBar;
         statusStrip.Location = new System.Drawing.Point(0, 778);
         statusStrip.Name = "statusStrip";
+        statusStrip.RenderMode = System.Windows.Forms.ToolStripRenderMode.System;
         statusStrip.Size = new System.Drawing.Size(1200, 22);
         statusStrip.TabIndex = 1;
 
+        toolStripStatusLabelConnection.ForeColor = AppTheme.TextPrimary;
         toolStripStatusLabelConnection.Name = "toolStripStatusLabelConnection";
         toolStripStatusLabelConnection.Size = new System.Drawing.Size(89, 17);
         toolStripStatusLabelConnection.Text = "Not connected";
 
+        toolStripStatusLabelSep.ForeColor = AppTheme.TextMuted;
         toolStripStatusLabelSep.Name = "toolStripStatusLabelSep";
         toolStripStatusLabelSep.Size = new System.Drawing.Size(6, 17);
 
+        toolStripStatusLabelSession.ForeColor = AppTheme.TextMuted;
         toolStripStatusLabelSession.Name = "toolStripStatusLabelSession";
         toolStripStatusLabelSession.Size = new System.Drawing.Size(0, 17);
         toolStripStatusLabelSession.Spring = true;
@@ -282,6 +311,7 @@ partial class MainForm
         // ── MainForm ────────────────────────────────────────────────────────
         this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
         this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+        this.BackColor = AppTheme.Background;
         this.ClientSize = new System.Drawing.Size(1200, 800);
         this.Controls.Add(splitContainerMain);
         this.Controls.Add(statusStrip);

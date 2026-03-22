@@ -4,10 +4,8 @@ public partial class MainForm : Form
 {
     private readonly CopilotService _copilot = new();
     private readonly List<string> _attachments = new();
-    private readonly Dictionary<string, RichTextBox> _sessionOutputs = new();
     private readonly HashSet<string> _streamingSessions = new();
     private string? _mainSessionId;
-    private int _subAgentCount = 0;
 
     public MainForm()
     {
@@ -53,7 +51,7 @@ public partial class MainForm : Form
             InvokeOnUI(() => UpdateConnectionStatus(state));
 
         _copilot.SessionCreated += (_, args) =>
-            InvokeOnUI(() => AddSessionTab(args.SessionId, args.IsSubAgent));
+            InvokeOnUI(() => OnSessionCreated(args.SessionId, args.IsSubAgent));
 
         _copilot.MessageReceived += (_, args) =>
             InvokeOnUI(() => AppendMessage(args));
@@ -91,16 +89,15 @@ public partial class MainForm : Form
             var attachmentsCopy = _attachments.ToList();
             await _copilot.SendMessageAsync(prompt, attachmentsCopy);
 
-            // Echo user message after session tab exists (tab is created synchronously
-            // inside SendMessageAsync via SessionCreated → InvokeOnUI → AddSessionTab)
+            // Echo user message
             if (_mainSessionId != null)
-                AppendToSession(_mainSessionId, $"👤 You: {prompt}\r\n\r\n", AppTheme.ColorUser);
+                AppendOutput($"👤 You: {prompt}\r\n\r\n", AppTheme.ColorUser);
         }
         catch (Exception ex)
         {
             SetSendingState(false);
             if (_mainSessionId != null)
-                AppendToSession(_mainSessionId, $"\r\n❌ Error sending: {ex.Message}\r\n", AppTheme.ColorError);
+                AppendOutput($"\r\n❌ Error sending: {ex.Message}\r\n", AppTheme.ColorError);
         }
     }
 
@@ -122,13 +119,7 @@ public partial class MainForm : Form
         await SendPromptAsync();
     }
 
-    private void ClearActiveOutput()
-    {
-        var activeTab = tabControlSessions.SelectedTab;
-        if (activeTab == null) return;
-        if (_sessionOutputs.TryGetValue(activeTab.Name, out var box))
-            box.Clear();
-    }
+    private void ClearActiveOutput() => richTextBoxOutput.Clear();
 
     private async Task ApplyModeChangeAsync()
     {
@@ -144,10 +135,9 @@ public partial class MainForm : Form
         // session (and tab) will be created on the next send.
         if (_copilot.IsConnected && _mainSessionId != null)
         {
-            if (_sessionOutputs.TryGetValue(_mainSessionId, out var box))
-                AppendColoredText(box,
-                    $"\r\n[Mode changed to {mode} — new session will start on next send]\r\n\r\n",
-                    AppTheme.ColorMeta);
+            AppendOutput(
+                $"\r\n[Mode changed to {mode} — new session will start on next send]\r\n\r\n",
+                AppTheme.ColorMeta);
 
             await _copilot.ResetSessionAsync();
             _mainSessionId = null;
@@ -218,15 +208,13 @@ public partial class MainForm : Form
             SetSendingState(true);
 
             // Echo the backup request in the output
-            if (_sessionOutputs.TryGetValue(_mainSessionId, out var box))
-                AppendColoredText(box, "💾 Generating session backup document…\r\n\r\n", AppTheme.ColorMeta);
+            AppendOutput("💾 Generating session backup document…\r\n\r\n", AppTheme.ColorMeta);
 
             var markdown = await _copilot.SendAndCaptureResponseAsync(backupPrompt, TimeSpan.FromMinutes(5));
 
             await File.WriteAllTextAsync(filePath, markdown);
 
-            if (_sessionOutputs.TryGetValue(_mainSessionId ?? "", out var box2))
-                AppendColoredText(box2, $"[Backup saved to: {filePath}]\r\n\r\n", AppTheme.ColorMeta);
+            AppendOutput($"[Backup saved to: {filePath}]\r\n\r\n", AppTheme.ColorMeta);
 
             MessageBox.Show($"Session backup saved to:\n{filePath}",
                 "Backup Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -358,47 +346,15 @@ public partial class MainForm : Form
         chip.Dispose();
     }
 
-    // ── Session tabs ─────────────────────────────────────────────────────────
+    // ── Session ───────────────────────────────────────────────────────────────
 
-    private void AddSessionTab(string sessionId, bool isSubAgent)
+    private void OnSessionCreated(string sessionId, bool isSubAgent)
     {
         if (!isSubAgent)
             _mainSessionId = sessionId;
 
-        var tabTitle = isSubAgent
-            ? $"Sub-agent {++_subAgentCount}"
-            : "Session";
-
-        var tabPage = new TabPage(tabTitle)
-        {
-            Name = sessionId,
-            BackColor = AppTheme.OutputBox,
-        };
-
-        var outputFont = new Font("Cascadia Code", 10F);
-        if (outputFont.Name != "Cascadia Code")
-        {
-            outputFont.Dispose();
-            outputFont = new Font("Consolas", 10F);
-        }
-
-        var outputBox = new RichTextBox
-        {
-            Dock = DockStyle.Fill,
-            ReadOnly = true,
-            Font = outputFont,
-            BackColor = AppTheme.OutputBox,
-            ForeColor = AppTheme.TextPrimary,
-            ScrollBars = RichTextBoxScrollBars.Vertical,
-            DetectUrls = false,
-        };
-
-        tabPage.Controls.Add(outputBox);
-        tabControlSessions.TabPages.Add(tabPage);
-        tabControlSessions.SelectedTab = tabPage;
-        _sessionOutputs[sessionId] = outputBox;
-
-        AppendColoredText(outputBox, $"[Session {sessionId[..Math.Min(8, sessionId.Length)]}... started]\r\n\r\n",
+        var label = isSubAgent ? "Sub-agent" : "Session";
+        AppendOutput($"[{label} {sessionId[..Math.Min(8, sessionId.Length)]}… started]\r\n\r\n",
             AppTheme.ColorMeta);
 
         toolStripStatusLabelSession.Text =
@@ -409,69 +365,59 @@ public partial class MainForm : Form
 
     private void AppendMessage(SessionMessageEventArgs args)
     {
-        if (!_sessionOutputs.TryGetValue(args.SessionId, out var box)) return;
-
         switch (args.Kind)
         {
             case MessageKind.AssistantDelta:
                 if (!_streamingSessions.Contains(args.SessionId))
                 {
-                    AppendColoredText(box, "🤖 Assistant:\r\n", AppTheme.ColorAssistant);
+                    AppendOutput("🤖 Assistant:\r\n", AppTheme.ColorAssistant);
                     _streamingSessions.Add(args.SessionId);
                 }
-                AppendColoredText(box, args.Content, AppTheme.ColorDefault);
+                AppendOutput(args.Content, AppTheme.ColorDefault);
                 break;
 
             case MessageKind.AssistantFinal:
-                // In streaming mode the deltas already rendered; do nothing.
-                // In non-streaming mode, render the full content now.
                 if (!_streamingSessions.Contains(args.SessionId))
-                    AppendColoredText(box, $"🤖 Assistant:\r\n{args.Content}\r\n\r\n", AppTheme.ColorAssistant);
+                    AppendOutput($"🤖 Assistant:\r\n{args.Content}\r\n\r\n", AppTheme.ColorAssistant);
                 break;
 
             case MessageKind.Reasoning:
-                AppendColoredText(box, $"💭 Reasoning:\r\n{args.Content}\r\n\r\n",
-                    AppTheme.ColorReasoning);
+                AppendOutput($"💭 Reasoning:\r\n{args.Content}\r\n\r\n", AppTheme.ColorReasoning);
                 break;
 
             case MessageKind.ToolStart:
                 if (_streamingSessions.Remove(args.SessionId))
-                    AppendColoredText(box, "\r\n", AppTheme.ColorDefault);
-                AppendColoredText(box, $"  🔧 {args.Content}…  ", AppTheme.ColorTool);
+                    AppendOutput("\r\n", AppTheme.ColorDefault);
+                AppendOutput($"  🔧 {args.Content}…  ", AppTheme.ColorTool);
                 break;
 
             case MessageKind.ToolComplete:
-                AppendColoredText(box, "✓\r\n", AppTheme.ColorAssistant);
+                AppendOutput("✓\r\n", AppTheme.ColorAssistant);
                 break;
 
             case MessageKind.Error:
                 if (_streamingSessions.Remove(args.SessionId))
-                    AppendColoredText(box, "\r\n", AppTheme.ColorDefault);
-                AppendColoredText(box, $"\r\n❌ Error: {args.Content}\r\n\r\n",
-                    AppTheme.ColorError);
+                    AppendOutput("\r\n", AppTheme.ColorDefault);
+                AppendOutput($"\r\n❌ Error: {args.Content}\r\n\r\n", AppTheme.ColorError);
                 break;
         }
 
-        box.ScrollToCaret();
+        richTextBoxOutput.ScrollToCaret();
     }
 
     private void OnSessionIdle(string sessionId)
     {
         if (_streamingSessions.Remove(sessionId))
-        {
-            if (_sessionOutputs.TryGetValue(sessionId, out var box))
-                AppendColoredText(box, "\r\n\r\n", AppTheme.ColorDefault);
-        }
+            AppendOutput("\r\n\r\n", AppTheme.ColorDefault);
 
         if (sessionId == _mainSessionId)
             SetSendingState(false);
     }
 
-    private void AppendToSession(string sessionId, string text, Color color)
+    private void AppendOutput(string text, Color color)
     {
-        if (!_sessionOutputs.TryGetValue(sessionId, out var box)) return;
-        AppendColoredText(box, text, color);
-        box.ScrollToCaret();
+        AppendColoredText(richTextBoxOutput, text, color);
+        richTextBoxOutput.ScrollToCaret();
     }
 
     private static void AppendColoredText(RichTextBox box, string text, Color color)

@@ -28,7 +28,7 @@ partial class MainForm
         components = new System.ComponentModel.Container();
 
         splitContainerMain        = new System.Windows.Forms.SplitContainer();
-        tabControlSessions        = new System.Windows.Forms.TabControl();
+        richTextBoxOutput         = new System.Windows.Forms.RichTextBox();
         panelQuickCommands        = new System.Windows.Forms.Panel();
         buttonHelp                = new System.Windows.Forms.Button();
         buttonCommands            = new System.Windows.Forms.Button();
@@ -80,18 +80,24 @@ partial class MainForm
         splitContainerMain.Size = new System.Drawing.Size(1200, 778);
         splitContainerMain.SplitterDistance = 520;
         splitContainerMain.TabIndex = 0;
-        splitContainerMain.Panel1.Controls.Add(tabControlSessions);
+        splitContainerMain.Panel1.Controls.Add(richTextBoxOutput);
         splitContainerMain.Panel1.Controls.Add(panelQuickCommands);
         splitContainerMain.Panel2.Controls.Add(tableLayoutPanelPrompt);
 
-        // ── tabControlSessions ──────────────────────────────────────────────
-        tabControlSessions.BackColor = AppTheme.OutputBox;
-        tabControlSessions.Dock = System.Windows.Forms.DockStyle.Fill;
-        tabControlSessions.Font = new System.Drawing.Font("Segoe UI", 9F);
-        tabControlSessions.Location = new System.Drawing.Point(0, 0);
-        tabControlSessions.Name = "tabControlSessions";
-        tabControlSessions.Size = new System.Drawing.Size(1200, 520);
-        tabControlSessions.TabIndex = 0;
+        // ── richTextBoxOutput ───────────────────────────────────────────────
+        richTextBoxOutput.BackColor = AppTheme.OutputBox;
+        richTextBoxOutput.BorderStyle = System.Windows.Forms.BorderStyle.None;
+        richTextBoxOutput.DetectUrls = false;
+        richTextBoxOutput.Dock = System.Windows.Forms.DockStyle.Fill;
+        richTextBoxOutput.Font = new System.Drawing.Font("Consolas", 10F);
+        richTextBoxOutput.ForeColor = AppTheme.TextPrimary;
+        richTextBoxOutput.Location = new System.Drawing.Point(0, 0);
+        richTextBoxOutput.Name = "richTextBoxOutput";
+        richTextBoxOutput.ReadOnly = true;
+        richTextBoxOutput.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Vertical;
+        richTextBoxOutput.Size = new System.Drawing.Size(1200, 520);
+        richTextBoxOutput.TabIndex = 0;
+        richTextBoxOutput.Text = "";
 
         // ── panelQuickCommands ──────────────────────────────────────────────
         panelQuickCommands.BackColor = AppTheme.Surface;
@@ -477,7 +483,7 @@ partial class MainForm
     #endregion
 
     private System.Windows.Forms.SplitContainer splitContainerMain;
-    private System.Windows.Forms.TabControl tabControlSessions;
+    private System.Windows.Forms.RichTextBox richTextBoxOutput;
     private System.Windows.Forms.Panel panelQuickCommands;
     private System.Windows.Forms.Button buttonHelp;
     private System.Windows.Forms.Button buttonCommands;

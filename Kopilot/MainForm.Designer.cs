@@ -29,6 +29,11 @@ partial class MainForm
 
         splitContainerMain        = new System.Windows.Forms.SplitContainer();
         tabControlSessions        = new System.Windows.Forms.TabControl();
+        panelQuickCommands        = new System.Windows.Forms.Panel();
+        buttonHelp                = new System.Windows.Forms.Button();
+        buttonCommands            = new System.Windows.Forms.Button();
+        buttonSummarize           = new System.Windows.Forms.Button();
+        buttonClearOutput         = new System.Windows.Forms.Button();
         tableLayoutPanelPrompt    = new System.Windows.Forms.TableLayoutPanel();
         panelAttachments          = new System.Windows.Forms.Panel();
         labelAttach               = new System.Windows.Forms.Label();
@@ -40,11 +45,14 @@ partial class MainForm
         checkBoxAutoApprove       = new System.Windows.Forms.CheckBox();
         labelModel                = new System.Windows.Forms.Label();
         comboBoxModel             = new System.Windows.Forms.ComboBox();
+        labelMode                 = new System.Windows.Forms.Label();
+        comboBoxMode              = new System.Windows.Forms.ComboBox();
         buttonOpenFolder          = new System.Windows.Forms.Button();
         buttonStop                = new System.Windows.Forms.Button();
         buttonSend                = new System.Windows.Forms.Button();
         statusStrip               = new System.Windows.Forms.StatusStrip();
         toolStripStatusLabelConnection = new System.Windows.Forms.ToolStripStatusLabel();
+        toolStripStatusLabelVersion = new System.Windows.Forms.ToolStripStatusLabel();
         toolStripStatusLabelSep   = new System.Windows.Forms.ToolStripSeparator();
         toolStripStatusLabelSession = new System.Windows.Forms.ToolStripStatusLabel();
         toolTipMain               = new System.Windows.Forms.ToolTip(components);
@@ -56,6 +64,7 @@ partial class MainForm
         tableLayoutPanelPrompt.SuspendLayout();
         panelAttachments.SuspendLayout();
         panelActions.SuspendLayout();
+        panelQuickCommands.SuspendLayout();
         statusStrip.SuspendLayout();
         this.SuspendLayout();
 
@@ -71,6 +80,7 @@ partial class MainForm
         splitContainerMain.SplitterDistance = 520;
         splitContainerMain.TabIndex = 0;
         splitContainerMain.Panel1.Controls.Add(tabControlSessions);
+        splitContainerMain.Panel1.Controls.Add(panelQuickCommands);
         splitContainerMain.Panel2.Controls.Add(tableLayoutPanelPrompt);
 
         // ── tabControlSessions ──────────────────────────────────────────────
@@ -81,6 +91,78 @@ partial class MainForm
         tabControlSessions.Name = "tabControlSessions";
         tabControlSessions.Size = new System.Drawing.Size(1200, 520);
         tabControlSessions.TabIndex = 0;
+
+        // ── panelQuickCommands ──────────────────────────────────────────────
+        panelQuickCommands.BackColor = AppTheme.Surface;
+        panelQuickCommands.Controls.Add(buttonHelp);
+        panelQuickCommands.Controls.Add(buttonCommands);
+        panelQuickCommands.Controls.Add(buttonSummarize);
+        panelQuickCommands.Controls.Add(buttonClearOutput);
+        panelQuickCommands.Dock = System.Windows.Forms.DockStyle.Top;
+        panelQuickCommands.Name = "panelQuickCommands";
+        panelQuickCommands.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
+        panelQuickCommands.Size = new System.Drawing.Size(1200, 36);
+        panelQuickCommands.TabIndex = 1;
+
+        // buttonHelp
+        buttonHelp.BackColor = AppTheme.ButtonBg;
+        buttonHelp.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
+        buttonHelp.FlatAppearance.BorderSize = 1;
+        buttonHelp.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        buttonHelp.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+        buttonHelp.ForeColor = AppTheme.TextPrimary;
+        buttonHelp.Location = new System.Drawing.Point(6, 5);
+        buttonHelp.Name = "buttonHelp";
+        buttonHelp.Size = new System.Drawing.Size(72, 26);
+        buttonHelp.TabIndex = 0;
+        buttonHelp.Text = "❓ Help";
+        buttonHelp.UseVisualStyleBackColor = false;
+        toolTipMain.SetToolTip(buttonHelp, "Ask Copilot to describe its capabilities");
+
+        // buttonCommands
+        buttonCommands.BackColor = AppTheme.ButtonBg;
+        buttonCommands.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
+        buttonCommands.FlatAppearance.BorderSize = 1;
+        buttonCommands.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        buttonCommands.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+        buttonCommands.ForeColor = AppTheme.TextPrimary;
+        buttonCommands.Location = new System.Drawing.Point(84, 5);
+        buttonCommands.Name = "buttonCommands";
+        buttonCommands.Size = new System.Drawing.Size(96, 26);
+        buttonCommands.TabIndex = 1;
+        buttonCommands.Text = "📋 Commands";
+        buttonCommands.UseVisualStyleBackColor = false;
+        toolTipMain.SetToolTip(buttonCommands, "List available tools and capabilities");
+
+        // buttonSummarize
+        buttonSummarize.BackColor = AppTheme.ButtonBg;
+        buttonSummarize.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
+        buttonSummarize.FlatAppearance.BorderSize = 1;
+        buttonSummarize.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        buttonSummarize.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+        buttonSummarize.ForeColor = AppTheme.TextPrimary;
+        buttonSummarize.Location = new System.Drawing.Point(186, 5);
+        buttonSummarize.Name = "buttonSummarize";
+        buttonSummarize.Size = new System.Drawing.Size(90, 26);
+        buttonSummarize.TabIndex = 2;
+        buttonSummarize.Text = "📝 Summarize";
+        buttonSummarize.UseVisualStyleBackColor = false;
+        toolTipMain.SetToolTip(buttonSummarize, "Ask Copilot to summarize the session so far");
+
+        // buttonClearOutput
+        buttonClearOutput.BackColor = AppTheme.ButtonBg;
+        buttonClearOutput.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
+        buttonClearOutput.FlatAppearance.BorderSize = 1;
+        buttonClearOutput.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        buttonClearOutput.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+        buttonClearOutput.ForeColor = AppTheme.TextPrimary;
+        buttonClearOutput.Location = new System.Drawing.Point(282, 5);
+        buttonClearOutput.Name = "buttonClearOutput";
+        buttonClearOutput.Size = new System.Drawing.Size(68, 26);
+        buttonClearOutput.TabIndex = 3;
+        buttonClearOutput.Text = "🗑 Clear";
+        buttonClearOutput.UseVisualStyleBackColor = false;
+        toolTipMain.SetToolTip(buttonClearOutput, "Clear the current output window");
 
         // ── tableLayoutPanelPrompt ──────────────────────────────────────────
         tableLayoutPanelPrompt.BackColor = AppTheme.Background;
@@ -180,6 +262,8 @@ partial class MainForm
         panelActions.Controls.Add(checkBoxAutoApprove);
         panelActions.Controls.Add(labelModel);
         panelActions.Controls.Add(comboBoxModel);
+        panelActions.Controls.Add(labelMode);
+        panelActions.Controls.Add(comboBoxMode);
         panelActions.Controls.Add(buttonOpenFolder);
         panelActions.Controls.Add(buttonStop);
         panelActions.Controls.Add(buttonSend);
@@ -233,13 +317,41 @@ partial class MainForm
         comboBoxModel.Size = new System.Drawing.Size(175, 23);
         comboBoxModel.TabIndex = 2;
 
+        // labelMode
+        labelMode.AutoSize = true;
+        labelMode.Font = new System.Drawing.Font("Segoe UI", 9F);
+        labelMode.ForeColor = AppTheme.TextPrimary;
+        labelMode.Location = new System.Drawing.Point(390, 14);
+        labelMode.Name = "labelMode";
+        labelMode.Size = new System.Drawing.Size(38, 15);
+        labelMode.TabIndex = 7;
+        labelMode.Text = "Mode:";
+
+        // comboBoxMode
+        comboBoxMode.BackColor = AppTheme.InputBox;
+        comboBoxMode.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+        comboBoxMode.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        comboBoxMode.Font = new System.Drawing.Font("Segoe UI", 9F);
+        comboBoxMode.ForeColor = AppTheme.TextPrimary;
+        comboBoxMode.FormattingEnabled = true;
+        comboBoxMode.Items.AddRange(new object[] {
+            "Standard",
+            "Plan",
+            "Autopilot",
+        });
+        comboBoxMode.Location = new System.Drawing.Point(434, 10);
+        comboBoxMode.Name = "comboBoxMode";
+        comboBoxMode.Size = new System.Drawing.Size(110, 23);
+        comboBoxMode.TabIndex = 8;
+        toolTipMain.SetToolTip(comboBoxMode, "Standard: normal chat  |  Plan: plan before acting  |  Autopilot: fully autonomous");
+
         // buttonOpenFolder
         buttonOpenFolder.BackColor = AppTheme.AccentBg;
         buttonOpenFolder.FlatAppearance.BorderSize = 0;
         buttonOpenFolder.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         buttonOpenFolder.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
         buttonOpenFolder.ForeColor = AppTheme.AccentText;
-        buttonOpenFolder.Location = new System.Drawing.Point(388, 8);
+        buttonOpenFolder.Location = new System.Drawing.Point(554, 8);
         buttonOpenFolder.Name = "buttonOpenFolder";
         buttonOpenFolder.Size = new System.Drawing.Size(130, 28);
         buttonOpenFolder.TabIndex = 6;
@@ -283,6 +395,7 @@ partial class MainForm
         // ── statusStrip ─────────────────────────────────────────────────────
         statusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             toolStripStatusLabelConnection,
+            toolStripStatusLabelVersion,
             toolStripStatusLabelSep,
             toolStripStatusLabelSession,
         });
@@ -297,6 +410,12 @@ partial class MainForm
         toolStripStatusLabelConnection.Name = "toolStripStatusLabelConnection";
         toolStripStatusLabelConnection.Size = new System.Drawing.Size(89, 17);
         toolStripStatusLabelConnection.Text = "Not connected";
+
+        toolStripStatusLabelVersion.ForeColor = AppTheme.TextMuted;
+        toolStripStatusLabelVersion.Name = "toolStripStatusLabelVersion";
+        toolStripStatusLabelVersion.Padding = new System.Windows.Forms.Padding(6, 0, 0, 0);
+        toolStripStatusLabelVersion.Size = new System.Drawing.Size(0, 17);
+        toolStripStatusLabelVersion.Text = "";
 
         toolStripStatusLabelSep.ForeColor = AppTheme.TextMuted;
         toolStripStatusLabelSep.Name = "toolStripStatusLabelSep";
@@ -330,6 +449,7 @@ partial class MainForm
         panelAttachments.PerformLayout();
         panelActions.ResumeLayout(false);
         panelActions.PerformLayout();
+        panelQuickCommands.ResumeLayout(false);
         statusStrip.ResumeLayout(false);
         statusStrip.PerformLayout();
         this.ResumeLayout(false);
@@ -340,6 +460,11 @@ partial class MainForm
 
     private System.Windows.Forms.SplitContainer splitContainerMain;
     private System.Windows.Forms.TabControl tabControlSessions;
+    private System.Windows.Forms.Panel panelQuickCommands;
+    private System.Windows.Forms.Button buttonHelp;
+    private System.Windows.Forms.Button buttonCommands;
+    private System.Windows.Forms.Button buttonSummarize;
+    private System.Windows.Forms.Button buttonClearOutput;
     private System.Windows.Forms.TableLayoutPanel tableLayoutPanelPrompt;
     private System.Windows.Forms.Panel panelAttachments;
     private System.Windows.Forms.Label labelAttach;
@@ -351,11 +476,14 @@ partial class MainForm
     private System.Windows.Forms.CheckBox checkBoxAutoApprove;
     private System.Windows.Forms.Label labelModel;
     private System.Windows.Forms.ComboBox comboBoxModel;
+    private System.Windows.Forms.Label labelMode;
+    private System.Windows.Forms.ComboBox comboBoxMode;
     private System.Windows.Forms.Button buttonOpenFolder;
     private System.Windows.Forms.Button buttonStop;
     private System.Windows.Forms.Button buttonSend;
     private System.Windows.Forms.StatusStrip statusStrip;
     private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabelConnection;
+    private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabelVersion;
     private System.Windows.Forms.ToolStripSeparator toolStripStatusLabelSep;
     private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabelSession;
     private System.Windows.Forms.ToolTip toolTipMain;

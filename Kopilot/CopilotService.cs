@@ -60,9 +60,21 @@ public sealed class CopilotService : IAsyncDisposable
     public event EventHandler<string>? SessionIdleForSession;
 
     public string ActiveModel { get; set; } = "gpt-4.1";
+    public string ActiveMode  { get; set; } = "Standard";
     public string? WorkingDirectory { get; set; }
     public bool AutoApprove { get; set; } = false;
     public bool IsConnected => _client?.State == ConnectionState.Connected;
+
+    public async Task<string> GetVersionAsync()
+    {
+        if (_client == null) return "";
+        try
+        {
+            var status = await _client.GetStatusAsync();
+            return status.Version ?? "";
+        }
+        catch { return ""; }
+    }
 
     public async Task EnsureStartedAsync()
     {
@@ -123,10 +135,11 @@ public sealed class CopilotService : IAsyncDisposable
         {
             Model = ActiveModel,
             Streaming = true,
-            OnPermissionRequest = AutoApprove
+            OnPermissionRequest = (AutoApprove || ActiveMode == "Autopilot")
                 ? PermissionHandler.ApproveAll
                 : BuildPermissionHandler(),
             OnUserInputRequest = BuildUserInputHandler(),
+            SystemMessage = BuildModeSystemMessage(),
         });
 
         _mainSession = session;
@@ -139,6 +152,21 @@ public sealed class CopilotService : IAsyncDisposable
             IsSubAgent = false,
         });
     }
+
+    private SystemMessageConfig? BuildModeSystemMessage() => ActiveMode switch
+    {
+        "Plan" => new SystemMessageConfig
+        {
+            Content = "Operate in PLAN mode: before taking any action, lay out a numbered step-by-step plan and wait for the user to confirm before executing. Always show your reasoning.",
+            Mode = SystemMessageMode.Append,
+        },
+        "Autopilot" => new SystemMessageConfig
+        {
+            Content = "Operate in AUTOPILOT mode: work autonomously to complete the user's goal end-to-end. Use all available tools without asking for confirmation at each step. Summarise what you did when finished.",
+            Mode = SystemMessageMode.Append,
+        },
+        _ => null,
+    };
 
     public async Task AbortAsync()
     {

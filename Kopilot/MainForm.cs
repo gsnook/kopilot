@@ -14,6 +14,7 @@ public partial class MainForm : Form
         InitializeComponent();
         WireUpEvents();
         comboBoxModel.SelectedIndex = 0;
+        comboBoxMode.SelectedIndex = 0;
     }
 
     // ── Event wiring ─────────────────────────────────────────────────────────
@@ -27,11 +28,22 @@ public partial class MainForm : Form
         buttonOpenFolder.Click += async (_, _) => await OpenFolderAndConnectAsync();
         richTextBoxPrompt.KeyDown += RichTextBoxPrompt_KeyDown;
 
+        buttonHelp.Click += async (_, _) => await SendQuickCommandAsync(
+            "What can you help me with? Give a brief overview of your capabilities.");
+        buttonCommands.Click += async (_, _) => await SendQuickCommandAsync(
+            "List all the tools, operations and built-in capabilities available to you in this session.");
+        buttonSummarize.Click += async (_, _) => await SendQuickCommandAsync(
+            "Please provide a concise summary of what we've discussed and accomplished so far in this session.");
+        buttonClearOutput.Click += (_, _) => ClearActiveOutput();
+
         checkBoxAutoApprove.CheckedChanged += (_, _) =>
             _copilot.AutoApprove = checkBoxAutoApprove.Checked;
 
         comboBoxModel.SelectedIndexChanged += (_, _) =>
             _copilot.ActiveModel = comboBoxModel.SelectedItem?.ToString() ?? "gpt-4.1";
+
+        comboBoxMode.SelectedIndexChanged += (_, _) =>
+            _copilot.ActiveMode = comboBoxMode.SelectedItem?.ToString() ?? "Standard";
 
         _copilot.ConnectionStateChanged += (_, state) =>
             InvokeOnUI(() => UpdateConnectionStatus(state));
@@ -68,6 +80,7 @@ public partial class MainForm : Form
         richTextBoxPrompt.Clear();
 
         _copilot.ActiveModel = comboBoxModel.SelectedItem?.ToString() ?? "gpt-4.1";
+        _copilot.ActiveMode  = comboBoxMode.SelectedItem?.ToString()  ?? "Standard";
         _copilot.AutoApprove = checkBoxAutoApprove.Checked;
 
         try
@@ -92,6 +105,26 @@ public partial class MainForm : Form
     {
         try { await _copilot.AbortAsync(); }
         catch { /* ignore */ }
+    }
+
+    private async Task SendQuickCommandAsync(string prompt)
+    {
+        if (!_copilot.IsConnected)
+        {
+            MessageBox.Show("Open a folder to connect to Copilot first.",
+                "Not Connected", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        richTextBoxPrompt.Text = prompt;
+        await SendPromptAsync();
+    }
+
+    private void ClearActiveOutput()
+    {
+        var activeTab = tabControlSessions.SelectedTab;
+        if (activeTab == null) return;
+        if (_sessionOutputs.TryGetValue(activeTab.Name, out var box))
+            box.Clear();
     }
 
     private async Task OpenFolderAndConnectAsync()
@@ -119,6 +152,9 @@ public partial class MainForm : Form
         try
         {
             await _copilot.EnsureStartedAsync();
+            var version = await _copilot.GetVersionAsync();
+            if (!string.IsNullOrEmpty(version))
+                toolStripStatusLabelVersion.Text = $"v{version}";
         }
         catch (Exception ex)
         {

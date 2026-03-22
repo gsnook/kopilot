@@ -127,7 +127,14 @@ public partial class MainForm : Form
         await SendPromptAsync();
     }
 
-    private void ClearActiveOutput() => richTextBoxOutput.Clear();
+    private void ClearActiveOutput()
+    {
+        if (richTextBoxOutput.TextLength == 0) return;
+        if (MessageBox.Show("Clear all output?", "Clear Output",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question,
+                MessageBoxDefaultButton.Button2) == DialogResult.Yes)
+            richTextBoxOutput.Clear();
+    }
 
     private void OpenExplorer()
     {

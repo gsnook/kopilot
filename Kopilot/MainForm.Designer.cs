@@ -26,281 +26,296 @@ partial class MainForm
     private void InitializeComponent()
     {
         components = new System.ComponentModel.Container();
-
-        splitContainerMain        = new System.Windows.Forms.SplitContainer();
-        richTextBoxOutput         = new System.Windows.Forms.RichTextBox();
-        panelQuickCommands        = new System.Windows.Forms.Panel();
-        buttonHelp                = new System.Windows.Forms.Button();
-        buttonCommands            = new System.Windows.Forms.Button();
-        buttonSummarize           = new System.Windows.Forms.Button();
-        buttonClearOutput         = new System.Windows.Forms.Button();
-        buttonBackup              = new System.Windows.Forms.Button();
-        buttonOpenExplorer        = new System.Windows.Forms.Button();
-        tableLayoutPanelPrompt    = new System.Windows.Forms.TableLayoutPanel();
-        panelAttachments          = new System.Windows.Forms.Panel();
-        labelAttach               = new System.Windows.Forms.Label();
-        buttonAddFile             = new System.Windows.Forms.Button();
-        buttonAddFolder           = new System.Windows.Forms.Button();
-        flowLayoutPanelChips      = new System.Windows.Forms.FlowLayoutPanel();
-        richTextBoxPrompt         = new PlainRichTextBox();
-        panelActions              = new System.Windows.Forms.Panel();
-        checkBoxAutoApprove       = new System.Windows.Forms.CheckBox();
-        labelModel                = new System.Windows.Forms.Label();
-        comboBoxModel             = new System.Windows.Forms.ComboBox();
-        labelMode                 = new System.Windows.Forms.Label();
-        comboBoxMode              = new System.Windows.Forms.ComboBox();
-        buttonOpenFolder          = new System.Windows.Forms.Button();
-        buttonStop                = new System.Windows.Forms.Button();
-        buttonSend                = new System.Windows.Forms.Button();
-        statusStrip               = new System.Windows.Forms.StatusStrip();
-        toolStripStatusLabelConnection = new System.Windows.Forms.ToolStripStatusLabel();
-        toolStripStatusLabelVersion = new System.Windows.Forms.ToolStripStatusLabel();
-        toolStripStatusLabelSep   = new System.Windows.Forms.ToolStripSeparator();
-        toolStripStatusLabelSession = new System.Windows.Forms.ToolStripStatusLabel();
-        toolTipMain               = new System.Windows.Forms.ToolTip(components);
-
+        splitContainerMain = new SplitContainer();
+        richTextBoxOutput = new RichTextBox();
+        panelQuickCommands = new Panel();
+        buttonHelp = new Button();
+        buttonCommands = new Button();
+        buttonSummarize = new Button();
+        buttonClearOutput = new Button();
+        buttonBackup = new Button();
+        buttonOpenExplorer = new Button();
+        tableLayoutPanelPrompt = new TableLayoutPanel();
+        panelAttachments = new Panel();
+        flowLayoutPanelChips = new FlowLayoutPanel();
+        buttonAddFolder = new Button();
+        buttonAddFile = new Button();
+        labelAttach = new Label();
+        richTextBoxPrompt = new PlainRichTextBox();
+        panelActions = new Panel();
+        checkBoxAutoApprove = new CheckBox();
+        labelModel = new Label();
+        comboBoxModel = new ComboBox();
+        labelMode = new Label();
+        comboBoxMode = new ComboBox();
+        buttonOpenFolder = new Button();
+        buttonStop = new Button();
+        buttonSend = new Button();
+        statusStrip = new StatusStrip();
+        toolStripStatusLabelConnection = new ToolStripStatusLabel();
+        toolStripStatusLabelVersion = new ToolStripStatusLabel();
+        toolStripStatusLabelSep = new ToolStripSeparator();
+        toolStripStatusLabelSession = new ToolStripStatusLabel();
+        toolTipMain = new ToolTip(components);
         ((System.ComponentModel.ISupportInitialize)splitContainerMain).BeginInit();
         splitContainerMain.Panel1.SuspendLayout();
         splitContainerMain.Panel2.SuspendLayout();
         splitContainerMain.SuspendLayout();
+        panelQuickCommands.SuspendLayout();
         tableLayoutPanelPrompt.SuspendLayout();
         panelAttachments.SuspendLayout();
         panelActions.SuspendLayout();
-        panelQuickCommands.SuspendLayout();
         statusStrip.SuspendLayout();
-        this.SuspendLayout();
-
-        // ── splitContainerMain ──────────────────────────────────────────────
-        splitContainerMain.BackColor = AppTheme.Background;
-        splitContainerMain.Dock = System.Windows.Forms.DockStyle.Fill;
-        splitContainerMain.Location = new System.Drawing.Point(0, 0);
+        SuspendLayout();
+        // 
+        // splitContainerMain
+        // 
+        splitContainerMain.BackColor = Color.FromArgb(64, 64, 64);
+        splitContainerMain.Dock = DockStyle.Fill;
+        splitContainerMain.Location = new Point(0, 0);
         splitContainerMain.Name = "splitContainerMain";
-        splitContainerMain.Orientation = System.Windows.Forms.Orientation.Horizontal;
-        splitContainerMain.Panel1MinSize = 200;
-        splitContainerMain.Panel2MinSize = 180;
-        splitContainerMain.Size = new System.Drawing.Size(1200, 778);
-        splitContainerMain.SplitterDistance = 520;
-        splitContainerMain.TabIndex = 0;
+        splitContainerMain.Orientation = Orientation.Horizontal;
+        // 
+        // splitContainerMain.Panel1
+        // 
         splitContainerMain.Panel1.Controls.Add(richTextBoxOutput);
         splitContainerMain.Panel1.Controls.Add(panelQuickCommands);
+        splitContainerMain.Panel1MinSize = 200;
+        // 
+        // splitContainerMain.Panel2
+        // 
         splitContainerMain.Panel2.Controls.Add(tableLayoutPanelPrompt);
-
-        // ── richTextBoxOutput ───────────────────────────────────────────────
-        richTextBoxOutput.BackColor = AppTheme.OutputBox;
-        richTextBoxOutput.BorderStyle = System.Windows.Forms.BorderStyle.None;
+        splitContainerMain.Panel2MinSize = 180;
+        splitContainerMain.Size = new Size(1200, 777);
+        splitContainerMain.SplitterDistance = 519;
+        splitContainerMain.TabIndex = 0;
+        // 
+        // richTextBoxOutput
+        // 
+        richTextBoxOutput.BackColor = Color.FromArgb(0, 0, 0);
+        richTextBoxOutput.BorderStyle = BorderStyle.None;
         richTextBoxOutput.DetectUrls = false;
-        richTextBoxOutput.Dock = System.Windows.Forms.DockStyle.Fill;
-        richTextBoxOutput.Font = new System.Drawing.Font("Consolas", 10F);
-        richTextBoxOutput.ForeColor = AppTheme.TextPrimary;
-        richTextBoxOutput.Location = new System.Drawing.Point(0, 0);
+        richTextBoxOutput.Dock = DockStyle.Fill;
+        richTextBoxOutput.Font = new Font("Consolas", 10F);
+        richTextBoxOutput.ForeColor = Color.FromArgb(218, 218, 218);
+        richTextBoxOutput.Location = new Point(0, 36);
         richTextBoxOutput.Name = "richTextBoxOutput";
         richTextBoxOutput.ReadOnly = true;
-        richTextBoxOutput.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Vertical;
-        richTextBoxOutput.Size = new System.Drawing.Size(1200, 520);
+        richTextBoxOutput.ScrollBars = RichTextBoxScrollBars.Vertical;
+        richTextBoxOutput.Size = new Size(1200, 483);
         richTextBoxOutput.TabIndex = 0;
         richTextBoxOutput.Text = "";
-
-        // ── panelQuickCommands ──────────────────────────────────────────────
-        panelQuickCommands.BackColor = AppTheme.Surface;
+        // 
+        // panelQuickCommands
+        // 
+        panelQuickCommands.BackColor = Color.FromArgb(74, 74, 74);
         panelQuickCommands.Controls.Add(buttonHelp);
         panelQuickCommands.Controls.Add(buttonCommands);
         panelQuickCommands.Controls.Add(buttonSummarize);
         panelQuickCommands.Controls.Add(buttonClearOutput);
         panelQuickCommands.Controls.Add(buttonBackup);
         panelQuickCommands.Controls.Add(buttonOpenExplorer);
-        panelQuickCommands.Dock = System.Windows.Forms.DockStyle.Top;
+        panelQuickCommands.Dock = DockStyle.Top;
+        panelQuickCommands.Location = new Point(0, 0);
         panelQuickCommands.Name = "panelQuickCommands";
-        panelQuickCommands.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
-        panelQuickCommands.Size = new System.Drawing.Size(1200, 36);
+        panelQuickCommands.Padding = new Padding(4);
+        panelQuickCommands.Size = new Size(1200, 36);
         panelQuickCommands.TabIndex = 1;
-
+        // 
         // buttonHelp
-        buttonHelp.BackColor = AppTheme.ButtonBg;
-        buttonHelp.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
-        buttonHelp.FlatAppearance.BorderSize = 1;
-        buttonHelp.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        buttonHelp.Font = new System.Drawing.Font("Segoe UI", 8.5F);
-        buttonHelp.ForeColor = AppTheme.TextPrimary;
-        buttonHelp.Location = new System.Drawing.Point(6, 5);
+        // 
+        buttonHelp.BackColor = Color.FromArgb(86, 86, 86);
+        buttonHelp.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+        buttonHelp.FlatStyle = FlatStyle.Flat;
+        buttonHelp.Font = new Font("Segoe UI", 8.5F);
+        buttonHelp.ForeColor = Color.FromArgb(218, 218, 218);
+        buttonHelp.Location = new Point(6, 5);
         buttonHelp.Name = "buttonHelp";
-        buttonHelp.Size = new System.Drawing.Size(72, 26);
+        buttonHelp.Size = new Size(72, 26);
         buttonHelp.TabIndex = 0;
         buttonHelp.Text = "❓ Help";
-        buttonHelp.UseVisualStyleBackColor = false;
         toolTipMain.SetToolTip(buttonHelp, "Ask Copilot to describe its capabilities");
-
+        buttonHelp.UseVisualStyleBackColor = false;
+        // 
         // buttonCommands
-        buttonCommands.BackColor = AppTheme.ButtonBg;
-        buttonCommands.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
-        buttonCommands.FlatAppearance.BorderSize = 1;
-        buttonCommands.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        buttonCommands.Font = new System.Drawing.Font("Segoe UI", 8.5F);
-        buttonCommands.ForeColor = AppTheme.TextPrimary;
-        buttonCommands.Location = new System.Drawing.Point(84, 5);
+        // 
+        buttonCommands.BackColor = Color.FromArgb(86, 86, 86);
+        buttonCommands.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+        buttonCommands.FlatStyle = FlatStyle.Flat;
+        buttonCommands.Font = new Font("Segoe UI", 8.5F);
+        buttonCommands.ForeColor = Color.FromArgb(218, 218, 218);
+        buttonCommands.Location = new Point(84, 5);
         buttonCommands.Name = "buttonCommands";
-        buttonCommands.Size = new System.Drawing.Size(96, 26);
+        buttonCommands.Size = new Size(96, 26);
         buttonCommands.TabIndex = 1;
         buttonCommands.Text = "📋 Commands";
-        buttonCommands.UseVisualStyleBackColor = false;
         toolTipMain.SetToolTip(buttonCommands, "List available tools and capabilities");
-
+        buttonCommands.UseVisualStyleBackColor = false;
+        // 
         // buttonSummarize
-        buttonSummarize.BackColor = AppTheme.ButtonBg;
-        buttonSummarize.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
-        buttonSummarize.FlatAppearance.BorderSize = 1;
-        buttonSummarize.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        buttonSummarize.Font = new System.Drawing.Font("Segoe UI", 8.5F);
-        buttonSummarize.ForeColor = AppTheme.TextPrimary;
-        buttonSummarize.Location = new System.Drawing.Point(186, 5);
+        // 
+        buttonSummarize.BackColor = Color.FromArgb(86, 86, 86);
+        buttonSummarize.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+        buttonSummarize.FlatStyle = FlatStyle.Flat;
+        buttonSummarize.Font = new Font("Segoe UI", 8.5F);
+        buttonSummarize.ForeColor = Color.FromArgb(218, 218, 218);
+        buttonSummarize.Location = new Point(186, 5);
         buttonSummarize.Name = "buttonSummarize";
-        buttonSummarize.Size = new System.Drawing.Size(90, 26);
+        buttonSummarize.Size = new Size(100, 26);
         buttonSummarize.TabIndex = 2;
         buttonSummarize.Text = "📝 Summarize";
-        buttonSummarize.UseVisualStyleBackColor = false;
         toolTipMain.SetToolTip(buttonSummarize, "Ask Copilot to summarize the session so far");
-
+        buttonSummarize.UseVisualStyleBackColor = false;
+        // 
         // buttonClearOutput
-        buttonClearOutput.BackColor = AppTheme.ButtonBg;
-        buttonClearOutput.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
-        buttonClearOutput.FlatAppearance.BorderSize = 1;
-        buttonClearOutput.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        buttonClearOutput.Font = new System.Drawing.Font("Segoe UI", 8.5F);
-        buttonClearOutput.ForeColor = AppTheme.TextPrimary;
-        buttonClearOutput.Location = new System.Drawing.Point(282, 5);
+        // 
+        buttonClearOutput.BackColor = Color.FromArgb(86, 86, 86);
+        buttonClearOutput.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+        buttonClearOutput.FlatStyle = FlatStyle.Flat;
+        buttonClearOutput.Font = new Font("Segoe UI", 8.5F);
+        buttonClearOutput.ForeColor = Color.FromArgb(218, 218, 218);
+        buttonClearOutput.Location = new Point(557, 5);
         buttonClearOutput.Name = "buttonClearOutput";
-        buttonClearOutput.Size = new System.Drawing.Size(68, 26);
+        buttonClearOutput.Size = new Size(68, 26);
         buttonClearOutput.TabIndex = 3;
         buttonClearOutput.Text = "🗑 Clear";
-        buttonClearOutput.UseVisualStyleBackColor = false;
         toolTipMain.SetToolTip(buttonClearOutput, "Clear the current output window");
-
+        buttonClearOutput.UseVisualStyleBackColor = false;
+        // 
         // buttonBackup
-        buttonBackup.Anchor = System.Windows.Forms.AnchorStyles.Right;
-        buttonBackup.BackColor = AppTheme.ButtonBg;
-        buttonBackup.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
-        buttonBackup.FlatAppearance.BorderSize = 1;
-        buttonBackup.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        buttonBackup.Font = new System.Drawing.Font("Segoe UI", 8.5F);
-        buttonBackup.ForeColor = AppTheme.TextPrimary;
-        buttonBackup.Location = new System.Drawing.Point(1104, 5);
+        // 
+        buttonBackup.Anchor = AnchorStyles.Right;
+        buttonBackup.BackColor = Color.FromArgb(86, 86, 86);
+        buttonBackup.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+        buttonBackup.FlatStyle = FlatStyle.Flat;
+        buttonBackup.Font = new Font("Segoe UI", 8.5F);
+        buttonBackup.ForeColor = Color.FromArgb(218, 218, 218);
+        buttonBackup.Location = new Point(1104, 5);
         buttonBackup.Name = "buttonBackup";
-        buttonBackup.Size = new System.Drawing.Size(88, 26);
+        buttonBackup.Size = new Size(88, 26);
         buttonBackup.TabIndex = 4;
         buttonBackup.Text = "💾 Backup";
-        buttonBackup.UseVisualStyleBackColor = false;
         toolTipMain.SetToolTip(buttonBackup, "Ask Copilot to write a session-resume document to a Markdown file");
-
+        buttonBackup.UseVisualStyleBackColor = false;
+        // 
         // buttonOpenExplorer
-        buttonOpenExplorer.Anchor = System.Windows.Forms.AnchorStyles.Right;
-        buttonOpenExplorer.BackColor = AppTheme.ButtonBg;
-        buttonOpenExplorer.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
-        buttonOpenExplorer.FlatAppearance.BorderSize = 1;
-        buttonOpenExplorer.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        buttonOpenExplorer.Font = new System.Drawing.Font("Segoe UI", 8.5F);
-        buttonOpenExplorer.ForeColor = AppTheme.TextPrimary;
-        buttonOpenExplorer.Location = new System.Drawing.Point(1008, 5);
+        // 
+        buttonOpenExplorer.Anchor = AnchorStyles.Right;
+        buttonOpenExplorer.BackColor = Color.FromArgb(86, 86, 86);
+        buttonOpenExplorer.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+        buttonOpenExplorer.FlatStyle = FlatStyle.Flat;
+        buttonOpenExplorer.Font = new Font("Segoe UI", 8.5F);
+        buttonOpenExplorer.ForeColor = Color.FromArgb(218, 218, 218);
+        buttonOpenExplorer.Location = new Point(292, 5);
         buttonOpenExplorer.Name = "buttonOpenExplorer";
-        buttonOpenExplorer.Size = new System.Drawing.Size(88, 26);
+        buttonOpenExplorer.Size = new Size(88, 26);
         buttonOpenExplorer.TabIndex = 5;
         buttonOpenExplorer.Text = "📂 Explorer";
-        buttonOpenExplorer.UseVisualStyleBackColor = false;
         toolTipMain.SetToolTip(buttonOpenExplorer, "Open File Explorer in the current session folder");
-
-        // ── tableLayoutPanelPrompt ──────────────────────────────────────────
-        tableLayoutPanelPrompt.BackColor = AppTheme.Background;
+        buttonOpenExplorer.UseVisualStyleBackColor = false;
+        // 
+        // tableLayoutPanelPrompt
+        // 
+        tableLayoutPanelPrompt.BackColor = Color.FromArgb(64, 64, 64);
         tableLayoutPanelPrompt.ColumnCount = 1;
-        tableLayoutPanelPrompt.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+        tableLayoutPanelPrompt.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100F));
         tableLayoutPanelPrompt.Controls.Add(panelAttachments, 0, 0);
         tableLayoutPanelPrompt.Controls.Add(richTextBoxPrompt, 0, 1);
         tableLayoutPanelPrompt.Controls.Add(panelActions, 0, 2);
-        tableLayoutPanelPrompt.Dock = System.Windows.Forms.DockStyle.Fill;
-        tableLayoutPanelPrompt.Location = new System.Drawing.Point(0, 0);
+        tableLayoutPanelPrompt.Dock = DockStyle.Fill;
+        tableLayoutPanelPrompt.Location = new Point(0, 0);
         tableLayoutPanelPrompt.Name = "tableLayoutPanelPrompt";
         tableLayoutPanelPrompt.RowCount = 3;
-        tableLayoutPanelPrompt.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 38F));
-        tableLayoutPanelPrompt.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-        tableLayoutPanelPrompt.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 44F));
-        tableLayoutPanelPrompt.Size = new System.Drawing.Size(1200, 258);
+        tableLayoutPanelPrompt.RowStyles.Add(new RowStyle(SizeType.Absolute, 38F));
+        tableLayoutPanelPrompt.RowStyles.Add(new RowStyle(SizeType.Percent, 100F));
+        tableLayoutPanelPrompt.RowStyles.Add(new RowStyle(SizeType.Absolute, 44F));
+        tableLayoutPanelPrompt.Size = new Size(1200, 254);
         tableLayoutPanelPrompt.TabIndex = 0;
-
-        // ── panelAttachments ────────────────────────────────────────────────
+        // 
+        // panelAttachments
+        // 
+        panelAttachments.BackColor = Color.FromArgb(64, 64, 64);
         panelAttachments.Controls.Add(flowLayoutPanelChips);
         panelAttachments.Controls.Add(buttonAddFolder);
         panelAttachments.Controls.Add(buttonAddFile);
         panelAttachments.Controls.Add(labelAttach);
-        panelAttachments.BackColor = AppTheme.Background;
-        panelAttachments.Dock = System.Windows.Forms.DockStyle.Fill;
-        panelAttachments.Location = new System.Drawing.Point(0, 0);
+        panelAttachments.Dock = DockStyle.Fill;
+        panelAttachments.Location = new Point(3, 3);
         panelAttachments.Name = "panelAttachments";
-        panelAttachments.Size = new System.Drawing.Size(1200, 38);
+        panelAttachments.Size = new Size(1194, 32);
         panelAttachments.TabIndex = 0;
-
-        // labelAttach
-        labelAttach.AutoSize = true;
-        labelAttach.Font = new System.Drawing.Font("Segoe UI", 9F);
-        labelAttach.ForeColor = AppTheme.TextMuted;
-        labelAttach.Location = new System.Drawing.Point(6, 10);
-        labelAttach.Name = "labelAttach";
-        labelAttach.Size = new System.Drawing.Size(76, 15);
-        labelAttach.TabIndex = 0;
-        labelAttach.Text = "Attachments:";
-
-        // buttonAddFile
-        buttonAddFile.BackColor = AppTheme.ButtonBg;
-        buttonAddFile.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
-        buttonAddFile.FlatAppearance.BorderSize = 1;
-        buttonAddFile.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        buttonAddFile.Font = new System.Drawing.Font("Segoe UI", 9F);
-        buttonAddFile.ForeColor = AppTheme.TextPrimary;
-        buttonAddFile.Location = new System.Drawing.Point(90, 6);
-        buttonAddFile.Name = "buttonAddFile";
-        buttonAddFile.Size = new System.Drawing.Size(88, 26);
-        buttonAddFile.TabIndex = 1;
-        buttonAddFile.Text = "📄 Add File";
-        buttonAddFile.UseVisualStyleBackColor = false;
-        toolTipMain.SetToolTip(buttonAddFile, "Attach a file to the prompt");
-
-        // buttonAddFolder
-        buttonAddFolder.BackColor = AppTheme.ButtonBg;
-        buttonAddFolder.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
-        buttonAddFolder.FlatAppearance.BorderSize = 1;
-        buttonAddFolder.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        buttonAddFolder.Font = new System.Drawing.Font("Segoe UI", 9F);
-        buttonAddFolder.ForeColor = AppTheme.TextPrimary;
-        buttonAddFolder.Location = new System.Drawing.Point(183, 6);
-        buttonAddFolder.Name = "buttonAddFolder";
-        buttonAddFolder.Size = new System.Drawing.Size(100, 26);
-        buttonAddFolder.TabIndex = 2;
-        buttonAddFolder.Text = "📁 Add Folder";
-        buttonAddFolder.UseVisualStyleBackColor = false;
-        toolTipMain.SetToolTip(buttonAddFolder, "Attach a folder to the prompt");
-
+        // 
         // flowLayoutPanelChips
+        // 
         flowLayoutPanelChips.AutoSize = true;
-        flowLayoutPanelChips.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-        flowLayoutPanelChips.BackColor = AppTheme.Background;
-        flowLayoutPanelChips.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight;
-        flowLayoutPanelChips.Location = new System.Drawing.Point(290, 6);
+        flowLayoutPanelChips.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        flowLayoutPanelChips.BackColor = Color.FromArgb(64, 64, 64);
+        flowLayoutPanelChips.Location = new Point(290, 6);
         flowLayoutPanelChips.Name = "flowLayoutPanelChips";
-        flowLayoutPanelChips.Size = new System.Drawing.Size(0, 26);
+        flowLayoutPanelChips.Size = new Size(0, 0);
         flowLayoutPanelChips.TabIndex = 3;
         flowLayoutPanelChips.WrapContents = false;
-
-        // ── richTextBoxPrompt ───────────────────────────────────────────────
+        // 
+        // buttonAddFolder
+        // 
+        buttonAddFolder.BackColor = Color.FromArgb(86, 86, 86);
+        buttonAddFolder.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+        buttonAddFolder.FlatStyle = FlatStyle.Flat;
+        buttonAddFolder.Font = new Font("Segoe UI", 9F);
+        buttonAddFolder.ForeColor = Color.FromArgb(218, 218, 218);
+        buttonAddFolder.Location = new Point(183, 6);
+        buttonAddFolder.Name = "buttonAddFolder";
+        buttonAddFolder.Size = new Size(100, 26);
+        buttonAddFolder.TabIndex = 2;
+        buttonAddFolder.Text = "📁 Add Folder";
+        toolTipMain.SetToolTip(buttonAddFolder, "Attach a folder to the prompt");
+        buttonAddFolder.UseVisualStyleBackColor = false;
+        // 
+        // buttonAddFile
+        // 
+        buttonAddFile.BackColor = Color.FromArgb(86, 86, 86);
+        buttonAddFile.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+        buttonAddFile.FlatStyle = FlatStyle.Flat;
+        buttonAddFile.Font = new Font("Segoe UI", 9F);
+        buttonAddFile.ForeColor = Color.FromArgb(218, 218, 218);
+        buttonAddFile.Location = new Point(90, 6);
+        buttonAddFile.Name = "buttonAddFile";
+        buttonAddFile.Size = new Size(88, 26);
+        buttonAddFile.TabIndex = 1;
+        buttonAddFile.Text = "📄 Add File";
+        toolTipMain.SetToolTip(buttonAddFile, "Attach a file to the prompt");
+        buttonAddFile.UseVisualStyleBackColor = false;
+        // 
+        // labelAttach
+        // 
+        labelAttach.AutoSize = true;
+        labelAttach.Font = new Font("Segoe UI", 9F);
+        labelAttach.ForeColor = Color.FromArgb(148, 148, 148);
+        labelAttach.Location = new Point(6, 10);
+        labelAttach.Name = "labelAttach";
+        labelAttach.Size = new Size(78, 15);
+        labelAttach.TabIndex = 0;
+        labelAttach.Text = "Attachments:";
+        // 
+        // richTextBoxPrompt
+        // 
         richTextBoxPrompt.AcceptsTab = true;
-        richTextBoxPrompt.BackColor = AppTheme.InputBox;
-        richTextBoxPrompt.ForeColor = AppTheme.TextPrimary;
-        richTextBoxPrompt.Dock = System.Windows.Forms.DockStyle.Fill;
-        richTextBoxPrompt.Font = new System.Drawing.Font("Segoe UI", 11F);
-        richTextBoxPrompt.Location = new System.Drawing.Point(3, 41);
+        richTextBoxPrompt.AllowDrop = true;
+        richTextBoxPrompt.BackColor = Color.FromArgb(52, 52, 52);
+        richTextBoxPrompt.Dock = DockStyle.Fill;
+        richTextBoxPrompt.Font = new Font("Segoe UI", 11F);
+        richTextBoxPrompt.ForeColor = Color.FromArgb(218, 218, 218);
+        richTextBoxPrompt.Location = new Point(3, 41);
         richTextBoxPrompt.Name = "richTextBoxPrompt";
-        richTextBoxPrompt.ScrollBars = System.Windows.Forms.RichTextBoxScrollBars.Vertical;
-        richTextBoxPrompt.Size = new System.Drawing.Size(1194, 170);
+        richTextBoxPrompt.ScrollBars = RichTextBoxScrollBars.Vertical;
+        richTextBoxPrompt.Size = new Size(1194, 166);
         richTextBoxPrompt.TabIndex = 1;
         richTextBoxPrompt.Text = "";
         toolTipMain.SetToolTip(richTextBoxPrompt, "Ctrl+Enter to send");
-
-        // ── panelActions ────────────────────────────────────────────────────
+        // 
+        // panelActions
+        // 
+        panelActions.BackColor = Color.FromArgb(64, 64, 64);
         panelActions.Controls.Add(checkBoxAutoApprove);
         panelActions.Controls.Add(labelModel);
         panelActions.Controls.Add(comboBoxModel);
@@ -309,195 +324,192 @@ partial class MainForm
         panelActions.Controls.Add(buttonOpenFolder);
         panelActions.Controls.Add(buttonStop);
         panelActions.Controls.Add(buttonSend);
-        panelActions.BackColor = AppTheme.Background;
-        panelActions.Dock = System.Windows.Forms.DockStyle.Fill;
-        panelActions.Location = new System.Drawing.Point(0, 214);
+        panelActions.Dock = DockStyle.Fill;
+        panelActions.Location = new Point(3, 213);
         panelActions.Name = "panelActions";
-        panelActions.Padding = new System.Windows.Forms.Padding(4, 4, 8, 4);
-        panelActions.Size = new System.Drawing.Size(1200, 44);
+        panelActions.Padding = new Padding(4, 4, 8, 4);
+        panelActions.Size = new Size(1194, 38);
         panelActions.TabIndex = 2;
-
+        // 
         // checkBoxAutoApprove
+        // 
         checkBoxAutoApprove.AutoSize = true;
-        checkBoxAutoApprove.BackColor = System.Drawing.Color.Transparent;
+        checkBoxAutoApprove.BackColor = Color.Transparent;
         checkBoxAutoApprove.Checked = true;
-        checkBoxAutoApprove.CheckState = System.Windows.Forms.CheckState.Checked;
-        checkBoxAutoApprove.Font = new System.Drawing.Font("Segoe UI", 9F);
-        checkBoxAutoApprove.ForeColor = AppTheme.TextPrimary;
-        checkBoxAutoApprove.Location = new System.Drawing.Point(8, 12);
+        checkBoxAutoApprove.CheckState = CheckState.Checked;
+        checkBoxAutoApprove.Font = new Font("Segoe UI", 9F);
+        checkBoxAutoApprove.ForeColor = Color.FromArgb(218, 218, 218);
+        checkBoxAutoApprove.Location = new Point(8, 12);
         checkBoxAutoApprove.Name = "checkBoxAutoApprove";
-        checkBoxAutoApprove.Size = new System.Drawing.Size(136, 19);
+        checkBoxAutoApprove.Size = new Size(129, 19);
         checkBoxAutoApprove.TabIndex = 0;
         checkBoxAutoApprove.Text = "Auto-approve tools";
-        checkBoxAutoApprove.UseVisualStyleBackColor = true;
         toolTipMain.SetToolTip(checkBoxAutoApprove, "Automatically approve all tool executions without prompting");
-
+        checkBoxAutoApprove.UseVisualStyleBackColor = true;
+        // 
         // labelModel
+        // 
         labelModel.AutoSize = true;
-        labelModel.Font = new System.Drawing.Font("Segoe UI", 9F);
-        labelModel.ForeColor = AppTheme.TextPrimary;
-        labelModel.Location = new System.Drawing.Point(158, 14);
+        labelModel.Font = new Font("Segoe UI", 9F);
+        labelModel.ForeColor = Color.FromArgb(218, 218, 218);
+        labelModel.Location = new Point(158, 14);
         labelModel.Name = "labelModel";
-        labelModel.Size = new System.Drawing.Size(42, 15);
+        labelModel.Size = new Size(44, 15);
         labelModel.TabIndex = 1;
         labelModel.Text = "Model:";
-
+        // 
         // comboBoxModel
-        comboBoxModel.BackColor = AppTheme.InputBox;
-        comboBoxModel.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-        comboBoxModel.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        comboBoxModel.Font = new System.Drawing.Font("Segoe UI", 9F);
-        comboBoxModel.ForeColor = AppTheme.TextPrimary;
+        // 
+        comboBoxModel.BackColor = Color.FromArgb(52, 52, 52);
+        comboBoxModel.DropDownStyle = ComboBoxStyle.DropDownList;
+        comboBoxModel.FlatStyle = FlatStyle.Flat;
+        comboBoxModel.Font = new Font("Segoe UI", 9F);
+        comboBoxModel.ForeColor = Color.FromArgb(218, 218, 218);
         comboBoxModel.FormattingEnabled = true;
-        comboBoxModel.Items.AddRange(new object[] {
-            "gpt-4.1",
-            "gpt-5",
-            "claude-sonnet-4.5",
-            "claude-sonnet-4.6",
-            "claude-opus-4.5"
-        });
-        comboBoxModel.Location = new System.Drawing.Point(206, 10);
+        comboBoxModel.Items.AddRange(new object[] { "gpt-4.1", "gpt-5", "claude-sonnet-4.5", "claude-sonnet-4.6", "claude-opus-4.5" });
+        comboBoxModel.Location = new Point(206, 10);
         comboBoxModel.Name = "comboBoxModel";
-        comboBoxModel.Size = new System.Drawing.Size(175, 23);
+        comboBoxModel.Size = new Size(175, 23);
         comboBoxModel.TabIndex = 2;
-
+        // 
         // labelMode
+        // 
         labelMode.AutoSize = true;
-        labelMode.Font = new System.Drawing.Font("Segoe UI", 9F);
-        labelMode.ForeColor = AppTheme.TextPrimary;
-        labelMode.Location = new System.Drawing.Point(390, 14);
+        labelMode.Font = new Font("Segoe UI", 9F);
+        labelMode.ForeColor = Color.FromArgb(218, 218, 218);
+        labelMode.Location = new Point(390, 14);
         labelMode.Name = "labelMode";
-        labelMode.Size = new System.Drawing.Size(38, 15);
+        labelMode.Size = new Size(41, 15);
         labelMode.TabIndex = 7;
         labelMode.Text = "Mode:";
-
+        // 
         // comboBoxMode
-        comboBoxMode.BackColor = AppTheme.InputBox;
-        comboBoxMode.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
-        comboBoxMode.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        comboBoxMode.Font = new System.Drawing.Font("Segoe UI", 9F);
-        comboBoxMode.ForeColor = AppTheme.TextPrimary;
+        // 
+        comboBoxMode.BackColor = Color.FromArgb(52, 52, 52);
+        comboBoxMode.DropDownStyle = ComboBoxStyle.DropDownList;
+        comboBoxMode.FlatStyle = FlatStyle.Flat;
+        comboBoxMode.Font = new Font("Segoe UI", 9F);
+        comboBoxMode.ForeColor = Color.FromArgb(218, 218, 218);
         comboBoxMode.FormattingEnabled = true;
-        comboBoxMode.Items.AddRange(new object[] {
-            "Standard",
-            "Plan",
-            "Autopilot",
-        });
-        comboBoxMode.Location = new System.Drawing.Point(434, 10);
+        comboBoxMode.Items.AddRange(new object[] { "Standard", "Plan", "Autopilot" });
+        comboBoxMode.Location = new Point(434, 10);
         comboBoxMode.Name = "comboBoxMode";
-        comboBoxMode.Size = new System.Drawing.Size(110, 23);
+        comboBoxMode.Size = new Size(110, 23);
         comboBoxMode.TabIndex = 8;
         toolTipMain.SetToolTip(comboBoxMode, "Standard: normal chat  |  Plan: plan before acting  |  Autopilot: fully autonomous");
-
+        // 
         // buttonOpenFolder
-        buttonOpenFolder.BackColor = AppTheme.AccentBg;
+        // 
+        buttonOpenFolder.BackColor = Color.FromArgb(60, 112, 160);
         buttonOpenFolder.FlatAppearance.BorderSize = 0;
-        buttonOpenFolder.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        buttonOpenFolder.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-        buttonOpenFolder.ForeColor = AppTheme.AccentText;
-        buttonOpenFolder.Location = new System.Drawing.Point(554, 8);
+        buttonOpenFolder.FlatStyle = FlatStyle.Flat;
+        buttonOpenFolder.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        buttonOpenFolder.ForeColor = Color.FromArgb(235, 235, 235);
+        buttonOpenFolder.Location = new Point(554, 8);
         buttonOpenFolder.Name = "buttonOpenFolder";
-        buttonOpenFolder.Size = new System.Drawing.Size(130, 28);
+        buttonOpenFolder.Size = new Size(130, 28);
         buttonOpenFolder.TabIndex = 6;
         buttonOpenFolder.Text = "📂 Open Folder…";
-        buttonOpenFolder.UseVisualStyleBackColor = false;
         toolTipMain.SetToolTip(buttonOpenFolder, "Select a project folder and connect to Copilot");
-
+        buttonOpenFolder.UseVisualStyleBackColor = false;
+        // 
         // buttonStop
-        buttonStop.Anchor = System.Windows.Forms.AnchorStyles.Right;
-        buttonStop.BackColor = AppTheme.ButtonBg;
+        // 
+        buttonStop.Anchor = AnchorStyles.Right;
+        buttonStop.BackColor = Color.FromArgb(86, 86, 86);
         buttonStop.Enabled = false;
-        buttonStop.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
-        buttonStop.FlatAppearance.BorderSize = 1;
-        buttonStop.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        buttonStop.Font = new System.Drawing.Font("Segoe UI", 9F);
-        buttonStop.ForeColor = AppTheme.TextPrimary;
-        buttonStop.Location = new System.Drawing.Point(1066, 8);
+        buttonStop.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+        buttonStop.FlatStyle = FlatStyle.Flat;
+        buttonStop.Font = new Font("Segoe UI", 9F);
+        buttonStop.ForeColor = Color.FromArgb(218, 218, 218);
+        buttonStop.Location = new Point(1060, 5);
         buttonStop.Name = "buttonStop";
-        buttonStop.Size = new System.Drawing.Size(60, 28);
+        buttonStop.Size = new Size(60, 28);
         buttonStop.TabIndex = 4;
         buttonStop.Text = "⬛ Stop";
-        buttonStop.UseVisualStyleBackColor = false;
         toolTipMain.SetToolTip(buttonStop, "Stop the current Copilot response");
-
+        buttonStop.UseVisualStyleBackColor = false;
+        // 
         // buttonSend
-        buttonSend.Anchor = System.Windows.Forms.AnchorStyles.Right;
-        buttonSend.BackColor = AppTheme.AccentBg;
+        // 
+        buttonSend.Anchor = AnchorStyles.Right;
+        buttonSend.BackColor = Color.FromArgb(60, 112, 160);
         buttonSend.Enabled = false;
         buttonSend.FlatAppearance.BorderSize = 0;
-        buttonSend.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        buttonSend.Font = new System.Drawing.Font("Segoe UI", 9F, System.Drawing.FontStyle.Bold);
-        buttonSend.ForeColor = AppTheme.AccentText;
-        buttonSend.Location = new System.Drawing.Point(1132, 8);
+        buttonSend.FlatStyle = FlatStyle.Flat;
+        buttonSend.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+        buttonSend.ForeColor = Color.FromArgb(235, 235, 235);
+        buttonSend.Location = new Point(1126, 5);
         buttonSend.Name = "buttonSend";
-        buttonSend.Size = new System.Drawing.Size(60, 28);
+        buttonSend.Size = new Size(60, 28);
         buttonSend.TabIndex = 5;
         buttonSend.Text = "▶ Send";
-        buttonSend.UseVisualStyleBackColor = false;
         toolTipMain.SetToolTip(buttonSend, "Send prompt to Copilot (Ctrl+Enter)");
-
-        // ── statusStrip ─────────────────────────────────────────────────────
-        statusStrip.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            toolStripStatusLabelConnection,
-            toolStripStatusLabelVersion,
-            toolStripStatusLabelSep,
-            toolStripStatusLabelSession,
-        });
-        statusStrip.BackColor = AppTheme.StatusBar;
-        statusStrip.Location = new System.Drawing.Point(0, 778);
+        buttonSend.UseVisualStyleBackColor = false;
+        // 
+        // statusStrip
+        // 
+        statusStrip.BackColor = Color.FromArgb(56, 56, 56);
+        statusStrip.Items.AddRange(new ToolStripItem[] { toolStripStatusLabelConnection, toolStripStatusLabelVersion, toolStripStatusLabelSep, toolStripStatusLabelSession });
+        statusStrip.Location = new Point(0, 777);
         statusStrip.Name = "statusStrip";
-        statusStrip.RenderMode = System.Windows.Forms.ToolStripRenderMode.System;
-        statusStrip.Size = new System.Drawing.Size(1200, 22);
+        statusStrip.Size = new Size(1200, 23);
         statusStrip.TabIndex = 1;
-
-        toolStripStatusLabelConnection.ForeColor = AppTheme.TextPrimary;
+        // 
+        // toolStripStatusLabelConnection
+        // 
+        toolStripStatusLabelConnection.ForeColor = Color.FromArgb(218, 218, 218);
         toolStripStatusLabelConnection.Name = "toolStripStatusLabelConnection";
-        toolStripStatusLabelConnection.Size = new System.Drawing.Size(89, 17);
+        toolStripStatusLabelConnection.Size = new Size(86, 18);
         toolStripStatusLabelConnection.Text = "Not connected";
-
-        toolStripStatusLabelVersion.ForeColor = AppTheme.TextMuted;
+        // 
+        // toolStripStatusLabelVersion
+        // 
+        toolStripStatusLabelVersion.ForeColor = Color.FromArgb(148, 148, 148);
         toolStripStatusLabelVersion.Name = "toolStripStatusLabelVersion";
-        toolStripStatusLabelVersion.Padding = new System.Windows.Forms.Padding(6, 0, 0, 0);
-        toolStripStatusLabelVersion.Size = new System.Drawing.Size(0, 17);
-        toolStripStatusLabelVersion.Text = "";
-
-        toolStripStatusLabelSep.ForeColor = AppTheme.TextMuted;
+        toolStripStatusLabelVersion.Padding = new Padding(6, 0, 0, 0);
+        toolStripStatusLabelVersion.Size = new Size(6, 18);
+        // 
+        // toolStripStatusLabelSep
+        // 
+        toolStripStatusLabelSep.ForeColor = Color.FromArgb(148, 148, 148);
         toolStripStatusLabelSep.Name = "toolStripStatusLabelSep";
-        toolStripStatusLabelSep.Size = new System.Drawing.Size(6, 17);
-
-        toolStripStatusLabelSession.ForeColor = AppTheme.TextMuted;
+        toolStripStatusLabelSep.Size = new Size(6, 23);
+        // 
+        // toolStripStatusLabelSession
+        // 
+        toolStripStatusLabelSession.ForeColor = Color.FromArgb(148, 148, 148);
         toolStripStatusLabelSession.Name = "toolStripStatusLabelSession";
-        toolStripStatusLabelSession.Size = new System.Drawing.Size(0, 17);
+        toolStripStatusLabelSession.Size = new Size(1087, 18);
         toolStripStatusLabelSession.Spring = true;
-        toolStripStatusLabelSession.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-
-        // ── MainForm ────────────────────────────────────────────────────────
-        this.AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
-        this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-        this.BackColor = AppTheme.Background;
-        this.ClientSize = new System.Drawing.Size(1200, 800);
-        this.Controls.Add(splitContainerMain);
-        this.Controls.Add(statusStrip);
-        this.Font = new System.Drawing.Font("Segoe UI", 9F);
-        this.MinimumSize = new System.Drawing.Size(900, 600);
-        this.Name = "MainForm";
-        this.Text = "Kopilot";
-
-        ((System.ComponentModel.ISupportInitialize)splitContainerMain).EndInit();
+        toolStripStatusLabelSession.TextAlign = ContentAlignment.MiddleRight;
+        // 
+        // MainForm
+        // 
+        AutoScaleDimensions = new SizeF(7F, 15F);
+        AutoScaleMode = AutoScaleMode.Font;
+        BackColor = Color.FromArgb(64, 64, 64);
+        ClientSize = new Size(1200, 800);
+        Controls.Add(splitContainerMain);
+        Controls.Add(statusStrip);
+        Font = new Font("Segoe UI", 9F);
+        MinimumSize = new Size(900, 600);
+        Name = "MainForm";
+        Text = "Kopilot";
         splitContainerMain.Panel1.ResumeLayout(false);
         splitContainerMain.Panel2.ResumeLayout(false);
+        ((System.ComponentModel.ISupportInitialize)splitContainerMain).EndInit();
         splitContainerMain.ResumeLayout(false);
+        panelQuickCommands.ResumeLayout(false);
         tableLayoutPanelPrompt.ResumeLayout(false);
-        tableLayoutPanelPrompt.PerformLayout();
         panelAttachments.ResumeLayout(false);
         panelAttachments.PerformLayout();
         panelActions.ResumeLayout(false);
         panelActions.PerformLayout();
-        panelQuickCommands.ResumeLayout(false);
         statusStrip.ResumeLayout(false);
         statusStrip.PerformLayout();
-        this.ResumeLayout(false);
-        this.PerformLayout();
+        ResumeLayout(false);
+        PerformLayout();
     }
 
     #endregion

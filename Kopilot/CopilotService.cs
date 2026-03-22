@@ -31,6 +31,9 @@ public sealed class PermissionEventArgs : EventArgs
     public string? ToolName { get; init; }
     public string? FileName { get; init; }
     public string? CommandText { get; init; }
+    /// <summary>Set by the UI before resolving Decision to true, to approve all
+    /// future requests of the same OperationKind for the rest of the session.</summary>
+    public bool ApproveSimilar { get; set; }
     public TaskCompletionSource<bool> Decision { get; } = new();
 }
 
@@ -48,9 +51,10 @@ public sealed class CopilotService : IAsyncDisposable
     private CopilotSession? _mainSession;
     private IDisposable? _lifecycleSubscription;
     private readonly Dictionary<string, CopilotSession> _sessions = new();
-    // Maps ToolCallId → ToolName so ToolComplete can reference the originating tool name
     private readonly Dictionary<string, string> _pendingToolNames = new();
     private readonly Dictionary<string, string> _toolCallToName = new();
+    // Kinds approved for the rest of this session via "Approve Similar"
+    private readonly HashSet<string> _approvedKinds = new();
 
     public event EventHandler<SessionEventArgs>? SessionCreated;
     public event EventHandler<SessionMessageEventArgs>? MessageReceived;
@@ -197,9 +201,7 @@ public sealed class CopilotService : IAsyncDisposable
         {
             Model = ActiveModel,
             Streaming = true,
-            OnPermissionRequest = (AutoApprove || ActiveMode == "Autopilot")
-                ? PermissionHandler.ApproveAll
-                : BuildPermissionHandler(),
+            OnPermissionRequest = BuildPermissionHandler(),
             OnUserInputRequest = BuildUserInputHandler(),
             SystemMessage = BuildModeSystemMessage(),
         });
@@ -244,6 +246,7 @@ public sealed class CopilotService : IAsyncDisposable
             _sessions.Remove(_mainSession.SessionId);
             _mainSession = null;
         }
+        _approvedKinds.Clear();
     }
 
     /// <summary>
@@ -257,6 +260,7 @@ public sealed class CopilotService : IAsyncDisposable
         _sessions.Clear();
         _mainSession = null;
         _pendingToolNames.Clear();
+        _approvedKinds.Clear();
         _client = null;
         ConnectionStateChanged?.Invoke(this, "Not connected");
     }
@@ -335,6 +339,14 @@ public sealed class CopilotService : IAsyncDisposable
     {
         return async (request, invocation) =>
         {
+            // Dynamic auto-approve: respects the checkbox state at the time of each request
+            if (AutoApprove || ActiveMode == "Autopilot")
+                return new PermissionRequestResult { Kind = PermissionRequestResultKind.Approved };
+
+            // Kind previously approved for this session via "Approve Similar"
+            if (_approvedKinds.Contains(request.Kind ?? ""))
+                return new PermissionRequestResult { Kind = PermissionRequestResultKind.Approved };
+
             string? toolName = request is PermissionRequestMcp mcp ? mcp.ToolName : null;
             string? fileName = request switch
             {
@@ -356,6 +368,10 @@ public sealed class CopilotService : IAsyncDisposable
             PermissionRequested?.Invoke(this, args);
 
             bool approved = await args.Decision.Task;
+
+            if (approved && args.ApproveSimilar && !string.IsNullOrEmpty(args.OperationKind))
+                _approvedKinds.Add(args.OperationKind);
+
             return new PermissionRequestResult
             {
                 Kind = approved

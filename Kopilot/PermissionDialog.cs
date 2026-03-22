@@ -39,6 +39,17 @@ public partial class PermissionDialog : Form
         _             => kind,
     };
 
+    public bool ApproveSimilar { get; private set; }
+
+    private void ButtonApproveSimilar_Click(object? sender, EventArgs e)
+    {
+        ApproveSimilar = true;
+        _args.ApproveSimilar = true;
+        _args.Decision.TrySetResult(true);
+        DialogResult = DialogResult.Yes;
+        Close();
+    }
+
     private void ButtonAllow_Click(object? sender, EventArgs e)
     {
         _args.Decision.TrySetResult(true);

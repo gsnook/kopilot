@@ -302,6 +302,8 @@ partial class MainForm
         // checkBoxAutoApprove
         checkBoxAutoApprove.AutoSize = true;
         checkBoxAutoApprove.BackColor = System.Drawing.Color.Transparent;
+        checkBoxAutoApprove.Checked = true;
+        checkBoxAutoApprove.CheckState = System.Windows.Forms.CheckState.Checked;
         checkBoxAutoApprove.Font = new System.Drawing.Font("Segoe UI", 9F);
         checkBoxAutoApprove.ForeColor = AppTheme.TextPrimary;
         checkBoxAutoApprove.Location = new System.Drawing.Point(8, 12);

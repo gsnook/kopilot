@@ -13,6 +13,8 @@ public partial class MainForm : Form
         WireUpEvents();
         comboBoxModel.SelectedIndex = 0;
         comboBoxMode.SelectedIndex = 0;
+        // Sync service with the UI defaults set in the designer
+        _copilot.AutoApprove = checkBoxAutoApprove.Checked;
     }
 
     // ── Event wiring ─────────────────────────────────────────────────────────

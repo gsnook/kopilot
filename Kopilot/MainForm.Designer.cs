@@ -40,7 +40,6 @@ partial class MainForm
         checkBoxAutoApprove       = new System.Windows.Forms.CheckBox();
         labelModel                = new System.Windows.Forms.Label();
         comboBoxModel             = new System.Windows.Forms.ComboBox();
-        buttonNewSession          = new System.Windows.Forms.Button();
         buttonOpenFolder          = new System.Windows.Forms.Button();
         buttonStop                = new System.Windows.Forms.Button();
         buttonSend                = new System.Windows.Forms.Button();
@@ -170,7 +169,6 @@ partial class MainForm
         panelActions.Controls.Add(labelModel);
         panelActions.Controls.Add(comboBoxModel);
         panelActions.Controls.Add(buttonOpenFolder);
-        panelActions.Controls.Add(buttonNewSession);
         panelActions.Controls.Add(buttonStop);
         panelActions.Controls.Add(buttonSend);
         panelActions.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -229,17 +227,6 @@ partial class MainForm
         buttonOpenFolder.Text = "📂 Open Folder…";
         buttonOpenFolder.UseVisualStyleBackColor = false;
         toolTipMain.SetToolTip(buttonOpenFolder, "Select a project folder and connect to Copilot");
-
-        // buttonNewSession
-        buttonNewSession.Anchor = System.Windows.Forms.AnchorStyles.Right;
-        buttonNewSession.Font = new System.Drawing.Font("Segoe UI", 9F);
-        buttonNewSession.Location = new System.Drawing.Point(960, 8);
-        buttonNewSession.Name = "buttonNewSession";
-        buttonNewSession.Size = new System.Drawing.Size(100, 28);
-        buttonNewSession.TabIndex = 3;
-        buttonNewSession.Text = "New Session";
-        buttonNewSession.UseVisualStyleBackColor = true;
-        toolTipMain.SetToolTip(buttonNewSession, "Start a new Copilot session");
 
         // buttonStop
         buttonStop.Anchor = System.Windows.Forms.AnchorStyles.Right;
@@ -335,7 +322,6 @@ partial class MainForm
     private System.Windows.Forms.Label labelModel;
     private System.Windows.Forms.ComboBox comboBoxModel;
     private System.Windows.Forms.Button buttonOpenFolder;
-    private System.Windows.Forms.Button buttonNewSession;
     private System.Windows.Forms.Button buttonStop;
     private System.Windows.Forms.Button buttonSend;
     private System.Windows.Forms.StatusStrip statusStrip;

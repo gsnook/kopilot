@@ -24,7 +24,6 @@ public partial class MainForm : Form
         buttonStop.Click += async (_, _) => await StopAsync();
         buttonAddFile.Click += ButtonAddFile_Click;
         buttonAddFolder.Click += ButtonAddFolder_Click;
-        buttonNewSession.Click += async (_, _) => await NewSessionAsync();
         buttonOpenFolder.Click += async (_, _) => await OpenFolderAndConnectAsync();
         richTextBoxPrompt.KeyDown += RichTextBoxPrompt_KeyDown;
 
@@ -93,21 +92,6 @@ public partial class MainForm : Form
     {
         try { await _copilot.AbortAsync(); }
         catch { /* ignore */ }
-    }
-
-    private async Task NewSessionAsync()
-    {
-        try
-        {
-            await _copilot.ResetSessionAsync();
-            _mainSessionId = null;
-            _subAgentCount = 0;
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Failed to reset session: {ex.Message}", "Error",
-                MessageBoxButtons.OK, MessageBoxIcon.Warning);
-        }
     }
 
     private async Task OpenFolderAndConnectAsync()

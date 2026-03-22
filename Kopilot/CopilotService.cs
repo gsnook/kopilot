@@ -76,6 +76,16 @@ public sealed class CopilotService : IAsyncDisposable
         catch { return ""; }
     }
 
+    public async Task UpdateModelAsync(string model)
+    {
+        ActiveModel = model;
+        if (_mainSession != null)
+        {
+            try { await _mainSession.SetModelAsync(model); }
+            catch { /* best-effort; new model applied on next session if this fails */ }
+        }
+    }
+
     public async Task EnsureStartedAsync()
     {
         if (_client != null) return;

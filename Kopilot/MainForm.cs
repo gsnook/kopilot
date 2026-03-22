@@ -39,11 +39,14 @@ public partial class MainForm : Form
         checkBoxAutoApprove.CheckedChanged += (_, _) =>
             _copilot.AutoApprove = checkBoxAutoApprove.Checked;
 
-        comboBoxModel.SelectedIndexChanged += (_, _) =>
-            _copilot.ActiveModel = comboBoxModel.SelectedItem?.ToString() ?? "gpt-4.1";
+        comboBoxModel.SelectedIndexChanged += async (_, _) =>
+        {
+            var model = comboBoxModel.SelectedItem?.ToString() ?? "gpt-4.1";
+            try { await _copilot.UpdateModelAsync(model); }
+            catch { /* ignore */ }
+        };
 
-        comboBoxMode.SelectedIndexChanged += (_, _) =>
-            _copilot.ActiveMode = comboBoxMode.SelectedItem?.ToString() ?? "Standard";
+        comboBoxMode.SelectedIndexChanged += async (_, _) => await ApplyModeChangeAsync();
 
         _copilot.ConnectionStateChanged += (_, state) =>
             InvokeOnUI(() => UpdateConnectionStatus(state));
@@ -79,7 +82,6 @@ public partial class MainForm : Form
         SetSendingState(true);
         richTextBoxPrompt.Clear();
 
-        _copilot.ActiveModel = comboBoxModel.SelectedItem?.ToString() ?? "gpt-4.1";
         _copilot.ActiveMode  = comboBoxMode.SelectedItem?.ToString()  ?? "Standard";
         _copilot.AutoApprove = checkBoxAutoApprove.Checked;
 
@@ -125,6 +127,30 @@ public partial class MainForm : Form
         if (activeTab == null) return;
         if (_sessionOutputs.TryGetValue(activeTab.Name, out var box))
             box.Clear();
+    }
+
+    private async Task ApplyModeChangeAsync()
+    {
+        var mode = comboBoxMode.SelectedItem?.ToString() ?? "Standard";
+        _copilot.ActiveMode = mode;
+
+        // Autopilot implies auto-approve
+        if (mode == "Autopilot" && !checkBoxAutoApprove.Checked)
+            checkBoxAutoApprove.Checked = true;
+
+        // Mode is baked into the session's system message at creation time, so we
+        // reset the active session. The existing output tab stays visible; a new
+        // session (and tab) will be created on the next send.
+        if (_copilot.IsConnected && _mainSessionId != null)
+        {
+            if (_sessionOutputs.TryGetValue(_mainSessionId, out var box))
+                AppendColoredText(box,
+                    $"\r\n[Mode changed to {mode} — new session will start on next send]\r\n\r\n",
+                    AppTheme.ColorMeta);
+
+            await _copilot.ResetSessionAsync();
+            _mainSessionId = null;
+        }
     }
 
     private async Task OpenFolderAndConnectAsync()

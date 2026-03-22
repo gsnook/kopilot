@@ -35,6 +35,7 @@ partial class MainForm
         buttonSummarize           = new System.Windows.Forms.Button();
         buttonClearOutput         = new System.Windows.Forms.Button();
         buttonBackup              = new System.Windows.Forms.Button();
+        buttonOpenExplorer        = new System.Windows.Forms.Button();
         tableLayoutPanelPrompt    = new System.Windows.Forms.TableLayoutPanel();
         panelAttachments          = new System.Windows.Forms.Panel();
         labelAttach               = new System.Windows.Forms.Label();
@@ -106,6 +107,7 @@ partial class MainForm
         panelQuickCommands.Controls.Add(buttonSummarize);
         panelQuickCommands.Controls.Add(buttonClearOutput);
         panelQuickCommands.Controls.Add(buttonBackup);
+        panelQuickCommands.Controls.Add(buttonOpenExplorer);
         panelQuickCommands.Dock = System.Windows.Forms.DockStyle.Top;
         panelQuickCommands.Name = "panelQuickCommands";
         panelQuickCommands.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
@@ -187,6 +189,22 @@ partial class MainForm
         buttonBackup.Text = "💾 Backup";
         buttonBackup.UseVisualStyleBackColor = false;
         toolTipMain.SetToolTip(buttonBackup, "Ask Copilot to write a session-resume document to a Markdown file");
+
+        // buttonOpenExplorer
+        buttonOpenExplorer.Anchor = System.Windows.Forms.AnchorStyles.Right;
+        buttonOpenExplorer.BackColor = AppTheme.ButtonBg;
+        buttonOpenExplorer.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
+        buttonOpenExplorer.FlatAppearance.BorderSize = 1;
+        buttonOpenExplorer.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        buttonOpenExplorer.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+        buttonOpenExplorer.ForeColor = AppTheme.TextPrimary;
+        buttonOpenExplorer.Location = new System.Drawing.Point(1008, 5);
+        buttonOpenExplorer.Name = "buttonOpenExplorer";
+        buttonOpenExplorer.Size = new System.Drawing.Size(88, 26);
+        buttonOpenExplorer.TabIndex = 5;
+        buttonOpenExplorer.Text = "📂 Explorer";
+        buttonOpenExplorer.UseVisualStyleBackColor = false;
+        toolTipMain.SetToolTip(buttonOpenExplorer, "Open File Explorer in the current session folder");
 
         // ── tableLayoutPanelPrompt ──────────────────────────────────────────
         tableLayoutPanelPrompt.BackColor = AppTheme.Background;
@@ -492,6 +510,7 @@ partial class MainForm
     private System.Windows.Forms.Button buttonSummarize;
     private System.Windows.Forms.Button buttonClearOutput;
     private System.Windows.Forms.Button buttonBackup;
+    private System.Windows.Forms.Button buttonOpenExplorer;
     private System.Windows.Forms.TableLayoutPanel tableLayoutPanelPrompt;
     private System.Windows.Forms.Panel panelAttachments;
     private System.Windows.Forms.Label labelAttach;

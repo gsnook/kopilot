@@ -36,6 +36,7 @@ public partial class MainForm : Form
             "Please provide a concise summary of what we've discussed and accomplished so far in this session.");
         buttonClearOutput.Click += (_, _) => ClearActiveOutput();
         buttonBackup.Click += async (_, _) => await BackupSessionAsync();
+        buttonOpenExplorer.Click += (_, _) => OpenExplorer();
 
         checkBoxAutoApprove.CheckedChanged += (_, _) =>
             _copilot.AutoApprove = checkBoxAutoApprove.Checked;
@@ -122,6 +123,18 @@ public partial class MainForm : Form
     }
 
     private void ClearActiveOutput() => richTextBoxOutput.Clear();
+
+    private void OpenExplorer()
+    {
+        var dir = _copilot.WorkingDirectory;
+        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+        {
+            MessageBox.Show("No session folder is open yet. Use 'Open Folder' first.",
+                "No Folder", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        System.Diagnostics.Process.Start("explorer.exe", dir);
+    }
 
     private async Task ApplyModeChangeAsync()
     {

@@ -4,7 +4,7 @@ namespace Kopilot;
 internal static class AppTheme
 {
     // ── Background layers (darkest → lightest) ─────────────────────────────
-    public static readonly Color OutputBox  = Color.FromArgb(44,  44,  44);
+    public static readonly Color OutputBox  = Color.FromArgb(0,   0,   0);
     public static readonly Color InputBox   = Color.FromArgb(52,  52,  52);
     public static readonly Color Background = Color.FromArgb(64,  64,  64);
     public static readonly Color Surface    = Color.FromArgb(74,  74,  74);

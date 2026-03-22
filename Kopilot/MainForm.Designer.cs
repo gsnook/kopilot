@@ -35,7 +35,7 @@ partial class MainForm
         buttonAddFile             = new System.Windows.Forms.Button();
         buttonAddFolder           = new System.Windows.Forms.Button();
         flowLayoutPanelChips      = new System.Windows.Forms.FlowLayoutPanel();
-        richTextBoxPrompt         = new System.Windows.Forms.RichTextBox();
+        richTextBoxPrompt         = new PlainRichTextBox();
         panelActions              = new System.Windows.Forms.Panel();
         checkBoxAutoApprove       = new System.Windows.Forms.CheckBox();
         labelModel                = new System.Windows.Forms.Label();
@@ -153,6 +153,8 @@ partial class MainForm
 
         // ── richTextBoxPrompt ───────────────────────────────────────────────
         richTextBoxPrompt.AcceptsTab = true;
+        richTextBoxPrompt.BackColor = System.Drawing.Color.Black;
+        richTextBoxPrompt.ForeColor = System.Drawing.Color.White;
         richTextBoxPrompt.Dock = System.Windows.Forms.DockStyle.Fill;
         richTextBoxPrompt.Font = new System.Drawing.Font("Segoe UI", 11F);
         richTextBoxPrompt.Location = new System.Drawing.Point(3, 41);
@@ -327,7 +329,7 @@ partial class MainForm
     private System.Windows.Forms.Button buttonAddFile;
     private System.Windows.Forms.Button buttonAddFolder;
     private System.Windows.Forms.FlowLayoutPanel flowLayoutPanelChips;
-    private System.Windows.Forms.RichTextBox richTextBoxPrompt;
+    private PlainRichTextBox richTextBoxPrompt;
     private System.Windows.Forms.Panel panelActions;
     private System.Windows.Forms.CheckBox checkBoxAutoApprove;
     private System.Windows.Forms.Label labelModel;

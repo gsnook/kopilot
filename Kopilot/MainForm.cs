@@ -35,6 +35,7 @@ public partial class MainForm : Form
         buttonSummarize.Click += async (_, _) => await SendQuickCommandAsync(
             "Please provide a concise summary of what we've discussed and accomplished so far in this session.");
         buttonClearOutput.Click += (_, _) => ClearActiveOutput();
+        buttonBackup.Click += async (_, _) => await BackupSessionAsync();
 
         checkBoxAutoApprove.CheckedChanged += (_, _) =>
             _copilot.AutoApprove = checkBoxAutoApprove.Checked;
@@ -150,6 +151,96 @@ public partial class MainForm : Form
 
             await _copilot.ResetSessionAsync();
             _mainSessionId = null;
+        }
+    }
+
+    private async Task BackupSessionAsync()
+    {
+        if (!_copilot.IsConnected || _mainSessionId == null)
+        {
+            MessageBox.Show("No active session to back up. Open a folder and send at least one message first.",
+                "Nothing to Back Up", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        // Ask user where to save
+        using var saveDialog = new SaveFileDialog
+        {
+            Title = "Save Session Backup",
+            Filter = "Markdown files (*.md)|*.md|All files (*.*)|*.*",
+            DefaultExt = "md",
+            FileName = $"copilot-session-{DateTime.Now:yyyy-MM-dd-HHmm}.md",
+            InitialDirectory = _copilot.WorkingDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+        };
+
+        if (saveDialog.ShowDialog(this) != DialogResult.OK) return;
+
+        var filePath = saveDialog.FileName;
+
+        buttonBackup.Enabled = false;
+        buttonBackup.Text = "⏳ Backing up…";
+
+        const string backupPrompt =
+            """
+            Please write a comprehensive session-resume document in Markdown format.
+            The goal is to allow someone (or yourself in a new session) to quickly pick up exactly where we left off.
+            
+            Include all of the following that are relevant:
+            
+            # Session Resume Document
+            
+            ## Project Overview
+            Brief description of the project, its purpose, and tech stack.
+            
+            ## Work Completed This Session
+            Bullet-point summary of everything accomplished.
+            
+            ## Current State
+            What is the exact current state of the codebase / work? What was the last thing done?
+            
+            ## Open Tasks & Next Steps
+            Numbered list of what still needs to be done, in priority order.
+            
+            ## Key Decisions & Context
+            Important decisions made, trade-offs, constraints, or context that the next session must know.
+            
+            ## Important File Paths & Commands
+            Any specific files, directories, commands, or configurations that are critical.
+            
+            ## How to Resume
+            Step-by-step instructions for starting the next session, including any commands to run first.
+            
+            Write the full document now — do not truncate or summarise sections.
+            """;
+
+        try
+        {
+            SetSendingState(true);
+
+            // Echo the backup request in the output
+            if (_sessionOutputs.TryGetValue(_mainSessionId, out var box))
+                AppendColoredText(box, "💾 Generating session backup document…\r\n\r\n", AppTheme.ColorMeta);
+
+            var markdown = await _copilot.SendAndCaptureResponseAsync(backupPrompt, TimeSpan.FromMinutes(5));
+
+            await File.WriteAllTextAsync(filePath, markdown);
+
+            if (_sessionOutputs.TryGetValue(_mainSessionId ?? "", out var box2))
+                AppendColoredText(box2, $"[Backup saved to: {filePath}]\r\n\r\n", AppTheme.ColorMeta);
+
+            MessageBox.Show($"Session backup saved to:\n{filePath}",
+                "Backup Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Backup failed:\n\n{ex.Message}",
+                "Backup Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            buttonBackup.Enabled = true;
+            buttonBackup.Text = "💾 Backup";
+            SetSendingState(false);
         }
     }
 

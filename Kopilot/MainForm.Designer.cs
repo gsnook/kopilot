@@ -34,6 +34,7 @@ partial class MainForm
         buttonCommands            = new System.Windows.Forms.Button();
         buttonSummarize           = new System.Windows.Forms.Button();
         buttonClearOutput         = new System.Windows.Forms.Button();
+        buttonBackup              = new System.Windows.Forms.Button();
         tableLayoutPanelPrompt    = new System.Windows.Forms.TableLayoutPanel();
         panelAttachments          = new System.Windows.Forms.Panel();
         labelAttach               = new System.Windows.Forms.Label();
@@ -98,6 +99,7 @@ partial class MainForm
         panelQuickCommands.Controls.Add(buttonCommands);
         panelQuickCommands.Controls.Add(buttonSummarize);
         panelQuickCommands.Controls.Add(buttonClearOutput);
+        panelQuickCommands.Controls.Add(buttonBackup);
         panelQuickCommands.Dock = System.Windows.Forms.DockStyle.Top;
         panelQuickCommands.Name = "panelQuickCommands";
         panelQuickCommands.Padding = new System.Windows.Forms.Padding(4, 4, 4, 4);
@@ -163,6 +165,22 @@ partial class MainForm
         buttonClearOutput.Text = "🗑 Clear";
         buttonClearOutput.UseVisualStyleBackColor = false;
         toolTipMain.SetToolTip(buttonClearOutput, "Clear the current output window");
+
+        // buttonBackup
+        buttonBackup.Anchor = System.Windows.Forms.AnchorStyles.Right;
+        buttonBackup.BackColor = AppTheme.ButtonBg;
+        buttonBackup.FlatAppearance.BorderColor = AppTheme.ButtonBorder;
+        buttonBackup.FlatAppearance.BorderSize = 1;
+        buttonBackup.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        buttonBackup.Font = new System.Drawing.Font("Segoe UI", 8.5F);
+        buttonBackup.ForeColor = AppTheme.TextPrimary;
+        buttonBackup.Location = new System.Drawing.Point(1104, 5);
+        buttonBackup.Name = "buttonBackup";
+        buttonBackup.Size = new System.Drawing.Size(88, 26);
+        buttonBackup.TabIndex = 4;
+        buttonBackup.Text = "💾 Backup";
+        buttonBackup.UseVisualStyleBackColor = false;
+        toolTipMain.SetToolTip(buttonBackup, "Ask Copilot to write a session-resume document to a Markdown file");
 
         // ── tableLayoutPanelPrompt ──────────────────────────────────────────
         tableLayoutPanelPrompt.BackColor = AppTheme.Background;
@@ -465,6 +483,7 @@ partial class MainForm
     private System.Windows.Forms.Button buttonCommands;
     private System.Windows.Forms.Button buttonSummarize;
     private System.Windows.Forms.Button buttonClearOutput;
+    private System.Windows.Forms.Button buttonBackup;
     private System.Windows.Forms.TableLayoutPanel tableLayoutPanelPrompt;
     private System.Windows.Forms.Panel panelAttachments;
     private System.Windows.Forms.Label labelAttach;

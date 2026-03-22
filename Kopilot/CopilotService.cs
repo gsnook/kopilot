@@ -76,6 +76,58 @@ public sealed class CopilotService : IAsyncDisposable
         catch { return ""; }
     }
 
+    public async Task<string> SendAndCaptureResponseAsync(string prompt, TimeSpan? timeout = null)
+    {
+        await EnsureStartedAsync();
+        if (_mainSession == null)
+            await CreateMainSessionAsync();
+
+        var sb = new System.Text.StringBuilder();
+        var tcs = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        EventHandler<SessionMessageEventArgs>? msgHandler  = null;
+        EventHandler<string>?                  idleHandler = null;
+
+        msgHandler = (_, args) =>
+        {
+            if (args.SessionId != _mainSession?.SessionId) return;
+            if (args.Kind is MessageKind.AssistantDelta or MessageKind.AssistantFinal)
+                sb.Append(args.Content);
+        };
+
+        idleHandler = (_, sessionId) =>
+        {
+            if (sessionId != _mainSession?.SessionId) return;
+            MessageReceived         -= msgHandler;
+            SessionIdleForSession   -= idleHandler;
+            tcs.TrySetResult(sb.ToString());
+        };
+
+        MessageReceived       += msgHandler;
+        SessionIdleForSession += idleHandler;
+
+        try
+        {
+            await _mainSession!.SendAsync(new MessageOptions { Prompt = prompt });
+
+            var delay = timeout ?? TimeSpan.FromMinutes(5);
+            var winner = await Task.WhenAny(tcs.Task, Task.Delay(delay));
+            if (winner != tcs.Task)
+            {
+                MessageReceived       -= msgHandler;
+                SessionIdleForSession -= idleHandler;
+                throw new TimeoutException("Copilot did not respond within the timeout period.");
+            }
+            return await tcs.Task;
+        }
+        catch
+        {
+            MessageReceived       -= msgHandler;
+            SessionIdleForSession -= idleHandler;
+            throw;
+        }
+    }
+
     public async Task UpdateModelAsync(string model)
     {
         ActiveModel = model;

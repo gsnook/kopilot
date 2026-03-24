@@ -94,13 +94,6 @@ public sealed class AudioService : IDisposable
     public void PlayPromptSent()     => SpeakNext(_promptSentLines,     ref _promptSentIdx);
     public void PlayPromptComplete() => SpeakNext(_promptCompleteLines, ref _promptCompleteIdx);
 
-    /// <summary>Speaks an arbitrary line directly, bypassing the pre-generated pools.</summary>
-    public void Speak(string text)
-    {
-        if (_synth == null || string.IsNullOrWhiteSpace(text)) return;
-        try { _synth.SpeakAsync(text); } catch { }
-    }
-
     // ── Voice personality ─────────────────────────────────────────────────────
 
     /// <summary>

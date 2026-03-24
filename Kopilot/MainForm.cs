@@ -33,10 +33,14 @@ public partial class MainForm : Form
     private readonly Dictionary<string, int> _subAgentStartPositions = new();
     // Maps sub-agent toolCallId → display name for currently active (in-flight) sub-agents
     private readonly Dictionary<string, string> _activeSubAgents = new();
+    private int _completedAgentCount = 0;
+    // True when the main session went idle but sub-agents are still running (Fleet mode);
+    // completion is deferred until the last sub-agent finishes.
+    private bool _mainSessionIdle = false;
     private double _totalBytesReceived = 0;
     private string? _mainSessionId;
     private int _pendingCount = 0; // number of prompts awaiting a response
-    private readonly System.Text.StringBuilder _lastAssistantText = new();
+
 
     public MainForm()
     {
@@ -99,6 +103,7 @@ public partial class MainForm : Form
                 await _copilot.ResetSessionAsync();
                 _mainSessionId = null;
                 _pendingCount = 0;
+                _mainSessionIdle = false;
             }
         };
 
@@ -204,6 +209,8 @@ public partial class MainForm : Form
             _toolStartPositions.Clear();
             _subAgentStartPositions.Clear();
             _activeSubAgents.Clear();
+            _completedAgentCount = 0;
+            _mainSessionIdle = false;
         }
     }
 
@@ -274,6 +281,7 @@ public partial class MainForm : Form
             await _copilot.ResetSessionAsync();
             _mainSessionId = null;
             _pendingCount  = 0;
+            _mainSessionIdle = false;
             UpdateWorkingState();
         }
     }
@@ -378,6 +386,7 @@ public partial class MainForm : Form
         }
 
         _pendingCount = 0;
+        _mainSessionIdle = false;
 
         _copilot.WorkingDirectory = dialog.SelectedPath;
         buttonOpenFolder.Enabled = false;
@@ -394,6 +403,9 @@ public partial class MainForm : Form
             var version = await _copilot.GetVersionAsync();
             if (!string.IsNullOrEmpty(version))
                 toolStripStatusLabelVersion.Text = $"v{version}";
+
+            if (_copilot.KopilotPath != null)
+                AppendOutput($"[Scratchpad: {_copilot.KopilotPath}]\r\n\r\n", AppTheme.ColorMeta);
 
             // Generate all dialog line pools in the background — non-blocking
             _ = GenerateAllDialogLinesAsync();
@@ -597,8 +609,6 @@ public partial class MainForm : Form
                     AppendOutput("🤖 Assistant:\r\n", AppTheme.ColorAssistant);
                     _streamingSessions.Add(args.SessionId);
                 }
-                if (args.SessionId == _mainSessionId)
-                    _lastAssistantText.Append(args.Content);
                 AppendOutput(args.Content, AppTheme.ColorDefault);
                 scrollNeeded = true;
                 break;
@@ -606,8 +616,6 @@ public partial class MainForm : Form
             case MessageKind.AssistantFinal:
                 if (!_streamingSessions.Contains(args.SessionId))
                     AppendOutput($"🤖 Assistant:\r\n{args.Content}\r\n\r\n", AppTheme.ColorAssistant);
-                if (args.SessionId == _mainSessionId)
-                    _lastAssistantText.Append(args.Content);
                 scrollNeeded = true;
                 break;
 
@@ -640,6 +648,7 @@ public partial class MainForm : Form
                 if (!string.IsNullOrEmpty(args.ToolCallId))
                 {
                     _activeSubAgents.Remove(args.ToolCallId);
+                    _completedAgentCount++;
                     if (_subAgentStartPositions.TryGetValue(args.ToolCallId, out var saPos))
                     {
                         _subAgentStartPositions.Remove(args.ToolCallId);
@@ -652,7 +661,10 @@ public partial class MainForm : Form
                         });
                     }
                 }
-                UpdateAgentStatus();
+                if (_mainSessionIdle && _activeSubAgents.Count == 0)
+                    CompleteMainSession();
+                else
+                    UpdateAgentStatus();
                 break;
             }
 
@@ -661,6 +673,7 @@ public partial class MainForm : Form
                 if (!string.IsNullOrEmpty(args.ToolCallId))
                 {
                     _activeSubAgents.Remove(args.ToolCallId);
+                    _completedAgentCount++;
                     if (_subAgentStartPositions.TryGetValue(args.ToolCallId, out var saPos))
                     {
                         _subAgentStartPositions.Remove(args.ToolCallId);
@@ -678,7 +691,10 @@ public partial class MainForm : Form
                     AppendOutput($"  ✗ {args.SubAgentDisplayName}: {args.Content}\r\n", AppTheme.ColorError);
                     scrollNeeded = true;
                 }
-                UpdateAgentStatus();
+                if (_mainSessionIdle && _activeSubAgents.Count == 0)
+                    CompleteMainSession();
+                else
+                    UpdateAgentStatus();
                 break;
             }
 
@@ -762,85 +778,32 @@ public partial class MainForm : Form
 
         if (sessionId == _mainSessionId)
         {
-            _pendingCount = Math.Max(0, _pendingCount - 1);
-            if (_pendingCount == 0)
+            if (_activeSubAgents.Count > 0)
             {
-                _totalBytesReceived = 0;
-                _activeSubAgents.Clear();
+                // Orchestrator finished dispatching but Fleet sub-agents are still running.
+                // Defer completion until the last sub-agent fires complete/failed.
+                _mainSessionIdle = true;
+                UpdateAgentStatus();
             }
-            UpdateWorkingState();
-
-            var spoken = ExtractSpeakableLine(_lastAssistantText.ToString());
-            _lastAssistantText.Clear();
-
-            if (spoken != null)
-                _audio.Speak(spoken);
             else
-                _audio.PlayPromptComplete();
-        }
-    }
-
-    /// <summary>
-    /// Returns the last speakable sentence from the assistant's reply, or null if none qualifies.
-    /// Splits by both line breaks and sentence-ending punctuation so that e.g.
-    /// "…anything else. What can I do for you?" on a single line correctly yields the last sentence.
-    /// </summary>
-    private static string? ExtractSpeakableLine(string text)
-    {
-        if (string.IsNullOrWhiteSpace(text)) return null;
-
-        var s = text.Trim();
-
-        // Discard everything from a reasoning block onward
-        var reasoningIdx = s.IndexOf("💭 Reasoning", StringComparison.Ordinal);
-        if (reasoningIdx >= 0)
-            s = s[..reasoningIdx].Trim();
-
-        // Collect every sentence from every line, then walk backwards
-        var sentences = new List<string>();
-        foreach (var rawLine in s.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
-        {
-            // Split a single line on sentence-ending punctuation followed by whitespace
-            foreach (var part in System.Text.RegularExpressions.Regex
-                         .Split(rawLine.Trim(), @"(?<=[.!?])\s+"))
             {
-                var sentence = part.Trim();
-                if (!string.IsNullOrEmpty(sentence))
-                    sentences.Add(sentence);
+                CompleteMainSession();
             }
         }
-
-        for (int i = sentences.Count - 1; i >= 0; i--)
-        {
-            if (IsSpeakableLine(sentences[i]))
-                return sentences[i];
-        }
-
-        return null;
     }
 
-    private static bool IsSpeakableLine(string line)
+    private void CompleteMainSession()
     {
-        if (string.IsNullOrWhiteSpace(line)) return false;
-
-        // Reject code fences and inline code
-        if (line.Contains('`')) return false;
-
-        // Reject markdown structural elements
-        if (line.StartsWith('#') || line.StartsWith('-') ||
-            line.StartsWith('*') || line.StartsWith('>') ||
-            line.StartsWith('|')) return false;
-
-        // Reject lines with bold/italic markers (they read oddly aloud)
-        if (line.Contains("**") || line.Contains("__")) return false;
-
-        // Reject lines that look like code or data (braces, brackets, semicolons)
-        if (line.Contains('{') || line.Contains('}') || line.Contains(';')) return false;
-
-        // Must be short enough for natural speech
-        if (line.Length > 200) return false;
-
-        return true;
+        _mainSessionIdle = false;
+        _pendingCount = Math.Max(0, _pendingCount - 1);
+        if (_pendingCount == 0)
+        {
+            _totalBytesReceived = 0;
+            _activeSubAgents.Clear();
+            _completedAgentCount = 0;
+        }
+        UpdateWorkingState();
+        _audio.PlayPromptComplete();
     }
 
     private void AppendOutput(string text, Color color)
@@ -889,17 +852,24 @@ public partial class MainForm : Form
         {
             msg = "Ready for next command";
         }
-        else if (_activeSubAgents.Count == 1)
+        else if (_activeSubAgents.Count == 0)
         {
-            msg = $"Waiting for {_activeSubAgents.Values.First()}";
-        }
-        else if (_activeSubAgents.Count > 1)
-        {
-            msg = $"Processing with {_activeSubAgents.Count} agent(s)";
+            msg = "Working…";
         }
         else
         {
-            msg = "Working…";
+            var names = _activeSubAgents.Values.ToList();
+            string agentPart = names.Count switch
+            {
+                1 => $"Waiting for {names[0]}",
+                2 => $"Agents: {names[0]} · {names[1]}",
+                3 => $"Agents: {names[0]} · {names[1]} · {names[2]}",
+                _ => $"{names.Count} agents active",
+            };
+            string donePart = _completedAgentCount > 0
+                ? $" ({_completedAgentCount} done)"
+                : "";
+            msg = agentPart + donePart;
         }
         toolStripStatusLabelAgentStatus.Text = msg;
     }

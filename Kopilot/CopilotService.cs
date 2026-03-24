@@ -78,6 +78,9 @@ public sealed class CopilotService : IAsyncDisposable
     // Sessions created internally (dialog generation) — suppressed from sub-agent UI events
     private readonly ConcurrentDictionary<string, byte> _internalSessionIds = new();
 
+    private CancellationTokenSource? _keepAliveCts;
+    private const int KeepAliveIntervalSeconds = 30;
+
     public event EventHandler<SessionEventArgs>? SessionCreated;
     public event EventHandler<SessionMessageEventArgs>? MessageReceived;
     public event EventHandler<PermissionEventArgs>? PermissionRequested;
@@ -88,6 +91,8 @@ public sealed class CopilotService : IAsyncDisposable
     public string ActiveModel { get; set; } = "claude-sonnet-4.6";
     public string ActiveMode  { get; set; } = "Standard";
     public string? WorkingDirectory { get; set; }
+    public string? KopilotPath => WorkingDirectory == null ? null
+        : Path.Combine(WorkingDirectory, ".kopilot");
     public bool AutoApprove { get; set; } = false;
     public bool FleetMode   { get; set; } = false;
     public bool IsConnected => _client?.State == ConnectionState.Connected;
@@ -169,6 +174,15 @@ public sealed class CopilotService : IAsyncDisposable
     {
         if (_client != null) return;
 
+        if (KopilotPath != null)
+            Directory.CreateDirectory(KopilotPath);
+
+        await ConnectAsync();
+        StartKeepAlive();
+    }
+
+    private async Task ConnectAsync()
+    {
         ConnectionStateChanged?.Invoke(this, "Connecting...");
 
         _client = new CopilotClient(new CopilotClientOptions
@@ -193,6 +207,84 @@ public sealed class CopilotService : IAsyncDisposable
 
         await _client.StartAsync();
         ConnectionStateChanged?.Invoke(this, "Connected");
+    }
+
+    private void StartKeepAlive()
+    {
+        if (_keepAliveCts != null) return;
+        _keepAliveCts = new CancellationTokenSource();
+        _ = RunKeepAliveAsync(_keepAliveCts.Token);
+    }
+
+    private void StopKeepAlive()
+    {
+        _keepAliveCts?.Cancel();
+        _keepAliveCts?.Dispose();
+        _keepAliveCts = null;
+    }
+
+    private async Task RunKeepAliveAsync(CancellationToken cancellationToken)
+    {
+        using var timer = new PeriodicTimer(TimeSpan.FromSeconds(KeepAliveIntervalSeconds));
+        try
+        {
+            while (await timer.WaitForNextTickAsync(cancellationToken))
+            {
+                if (_client == null) continue;
+                try
+                {
+                    using var pingCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+                    pingCts.CancelAfter(TimeSpan.FromSeconds(10));
+                    await _client.PingAsync(cancellationToken: pingCts.Token);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+                catch
+                {
+                    await TryReconnectAsync(cancellationToken);
+                }
+            }
+        }
+        catch (OperationCanceledException) { /* normal shutdown */ }
+    }
+
+    private async Task TryReconnectAsync(CancellationToken cancellationToken)
+    {
+        if (cancellationToken.IsCancellationRequested) return;
+
+        ConnectionStateChanged?.Invoke(this, "Reconnecting...");
+
+        _lifecycleSubscription?.Dispose();
+        _lifecycleSubscription = null;
+
+        foreach (var session in _sessions.Values)
+            try { await session.DisposeAsync(); } catch { }
+        _sessions.Clear();
+        _mainSession = null;
+        _pendingToolNames.Clear();
+        _approvedKinds.Clear();
+        _internalSessionIds.Clear();
+
+        if (_client != null)
+        {
+            try { await _client.DisposeAsync(); } catch { }
+            _client = null;
+        }
+
+        if (cancellationToken.IsCancellationRequested) return;
+
+        try
+        {
+            await ConnectAsync();
+            await CreateMainSessionAsync();
+        }
+        catch (OperationCanceledException) { }
+        catch
+        {
+            ConnectionStateChanged?.Invoke(this, "Not connected");
+        }
     }
 
     public async Task EnsureSessionAsync()
@@ -236,7 +328,7 @@ public sealed class CopilotService : IAsyncDisposable
             Streaming = true,
             OnPermissionRequest = BuildPermissionHandler(),
             OnUserInputRequest = BuildUserInputHandler(),
-            SystemMessage = BuildModeSystemMessage(),
+            SystemMessage = BuildSystemMessage(),
         });
 
         _mainSession = session;
@@ -245,11 +337,25 @@ public sealed class CopilotService : IAsyncDisposable
 
         if (FleetMode)
         {
+            try
+            {
 #pragma warning disable GHCP001
-            var fleetResult = await session.Rpc.Fleet.StartAsync();
+                var fleetResult = await session.Rpc.Fleet.StartAsync(
+                    prompt: WorkingDirectory != null ? BuildFleetScopeDirective() : null);
 #pragma warning restore GHCP001
-            if (!fleetResult.Started)
-                System.Diagnostics.Debug.WriteLine("[CopilotService] Fleet mode requested but StartAsync returned Started=false");
+                if (!fleetResult.Started)
+                    throw new InvalidOperationException(
+                        "Fleet mode could not be activated. " +
+                        "The server returned Started=false — Fleet may not be available for the selected model or account.");
+            }
+            catch
+            {
+                // Roll back the session so the next send retries cleanly
+                _sessions.Remove(session.SessionId);
+                _mainSession = null;
+                try { await session.DisposeAsync(); } catch { }
+                throw;
+            }
         }
 
         SessionCreated?.Invoke(this, new SessionEventArgs
@@ -259,20 +365,58 @@ public sealed class CopilotService : IAsyncDisposable
         });
     }
 
-    private SystemMessageConfig? BuildModeSystemMessage() => ActiveMode switch
+    private SystemMessageConfig? BuildSystemMessage()
     {
-        "Plan" => new SystemMessageConfig
+        var parts = new List<string>();
+
+        // Scratchpad directive — always present when a working directory is set
+        if (KopilotPath != null)
         {
-            Content = "Operate in PLAN mode: before taking any action, lay out a numbered step-by-step plan and wait for the user to confirm before executing. Always show your reasoning.",
-            Mode = SystemMessageMode.Append,
-        },
-        "Autopilot" => new SystemMessageConfig
+            parts.Add(
+                $"KOPILOT SCRATCHPAD: You have a dedicated scratch directory at \"{KopilotPath}\". " +
+                "Write ALL temporary files here — SQLite databases, logs, intermediate outputs, diff backups, " +
+                "and any other files you create during a task. " +
+                "Never create temporary files in the project root or elsewhere.");
+        }
+
+        // Mode-specific directive
+        switch (ActiveMode)
         {
-            Content = "Operate in AUTOPILOT mode: work autonomously to complete the user's goal end-to-end. Use all available tools without asking for confirmation at each step. Summarise what you did when finished.",
+            case "Plan":
+                parts.Add(
+                    "PLAN MODE: Before taking any action, lay out a numbered step-by-step plan " +
+                    "and wait for the user to confirm before executing. Always show your reasoning.");
+                break;
+            case "Autopilot":
+                parts.Add(
+                    "AUTOPILOT MODE: Work autonomously to complete the user's goal end-to-end. " +
+                    "Use all available tools without asking for confirmation at each step. " +
+                    "Summarise what you did when finished.");
+                break;
+        }
+
+        // Fleet scope restriction
+        if (FleetMode && WorkingDirectory != null)
+        {
+            parts.Add(BuildFleetScopeDirective());
+        }
+
+        if (parts.Count == 0) return null;
+
+        return new SystemMessageConfig
+        {
+            Content = string.Join("\n\n", parts),
             Mode = SystemMessageMode.Append,
-        },
-        _ => null,
-    };
+        };
+    }
+
+    private string BuildFleetScopeDirective() =>
+        $"FLEET SCOPE RESTRICTION: You and every sub-agent you spawn are scoped strictly to the " +
+        $"project root \"{WorkingDirectory}\". " +
+        "Do NOT read, write, list, or access any path outside this root unless the user has " +
+        "explicitly provided an absolute path to an external location in their message. " +
+        "Treat all relative paths as relative to the project root. " +
+        "If a task would require leaving the project root without explicit user permission, stop and ask.";
 
     /// <summary>
     /// Generates a batch of <paramref name="count"/> spoken dialog lines for the given
@@ -400,6 +544,7 @@ public sealed class CopilotService : IAsyncDisposable
     /// </summary>
     public void Reset()
     {
+        StopKeepAlive();
         _lifecycleSubscription?.Dispose();
         _lifecycleSubscription = null;
         _sessions.Clear();
@@ -664,6 +809,7 @@ public sealed class CopilotService : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        StopKeepAlive();
         _lifecycleSubscription?.Dispose();
 
         foreach (var session in _sessions.Values)

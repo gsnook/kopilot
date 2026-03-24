@@ -1,20 +1,60 @@
 namespace Kopilot;
 
+using System.Runtime.InteropServices;
+
 public partial class MainForm : Form
 {
+    [DllImport("user32.dll")] private static extern bool SendMessage(IntPtr hWnd, int msg, bool wParam, int lParam);
+    private const int WM_SETREDRAW = 0x000B;
+
+    /// <summary>
+    /// Suspends visual redraws on <paramref name="rtb"/>, runs <paramref name="action"/>,
+    /// then resumes and invalidates — preventing the scroll-up/scroll-down flicker caused
+    /// by retroactive Select+insert sequences.
+    /// </summary>
+    private static void WithoutRedraw(RichTextBox rtb, Action action)
+    {
+        SendMessage(rtb.Handle, WM_SETREDRAW, false, 0);
+        try   { action(); }
+        finally
+        {
+            SendMessage(rtb.Handle, WM_SETREDRAW, true, 0);
+            rtb.Invalidate();
+        }
+    }
     private readonly CopilotService _copilot = new();
+    private readonly AudioService   _audio   = new();
+    private readonly PromptHistory  _promptHistory = new();
     private readonly List<string> _attachments = new();
     private readonly HashSet<string> _streamingSessions = new();
+    // Maps toolCallId → char offset AFTER "  🔧 name  args" text (insertion point for ✓/✗)
+    private readonly Dictionary<string, int> _toolStartPositions = new();
+    // Maps toolCallId → char offset of the ○ character for retroactive ○→◉/✗ replacement
+    private readonly Dictionary<string, int> _subAgentStartPositions = new();
+    // Maps sub-agent toolCallId → display name for currently active (in-flight) sub-agents
+    private readonly Dictionary<string, string> _activeSubAgents = new();
+    private double _totalBytesReceived = 0;
     private string? _mainSessionId;
+    private int _pendingCount = 0; // number of prompts awaiting a response
+    private readonly System.Text.StringBuilder _lastAssistantText = new();
 
     public MainForm()
     {
         InitializeComponent();
         WireUpEvents();
-        comboBoxModel.SelectedIndex = 0;
+        // Default to the highest-available Claude Sonnet model
+        var sonnetIdx = comboBoxModel.Items.Cast<string>()
+            .Select((m, i) => (model: m, idx: i))
+            .Where(x => x.model.StartsWith("claude-sonnet", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.model)
+            .Select(x => x.idx)
+            .DefaultIfEmpty(0)
+            .First();
+        comboBoxModel.SelectedIndex = sonnetIdx;
         comboBoxMode.SelectedIndex = 0;
         // Sync service with the UI defaults set in the designer
         _copilot.AutoApprove = checkBoxAutoApprove.Checked;
+        _copilot.FleetMode   = checkBoxFleet.Checked;
     }
 
     // ── Event wiring ─────────────────────────────────────────────────────────
@@ -26,6 +66,8 @@ public partial class MainForm : Form
         buttonAddFile.Click += ButtonAddFile_Click;
         buttonAddFolder.Click += ButtonAddFolder_Click;
         buttonOpenFolder.Click += async (_, _) => await OpenFolderAndConnectAsync();
+        buttonHistoryPrev.Click += (_, _) => NavigateHistoryBack();
+        buttonHistoryNext.Click += (_, _) => NavigateHistoryForward();
         richTextBoxPrompt.KeyDown += RichTextBoxPrompt_KeyDown;
         richTextBoxPrompt.FilesDropped += (_, paths) =>
         {
@@ -42,9 +84,23 @@ public partial class MainForm : Form
         buttonClearOutput.Click += (_, _) => ClearActiveOutput();
         buttonBackup.Click += async (_, _) => await BackupSessionAsync();
         buttonOpenExplorer.Click += (_, _) => OpenExplorer();
+        buttonOpenVSCode.Click += async (_, _) => await OpenVSCodeAsync();
 
         checkBoxAutoApprove.CheckedChanged += (_, _) =>
             _copilot.AutoApprove = checkBoxAutoApprove.Checked;
+
+        checkBoxFleet.CheckedChanged += async (_, _) =>
+        {
+            _copilot.FleetMode = checkBoxFleet.Checked;
+            if (_copilot.IsConnected && _mainSessionId != null)
+            {
+                var state = checkBoxFleet.Checked ? "enabled" : "disabled";
+                AppendOutput($"\r\n[Fleet mode {state} — new session will start on next send]\r\n\r\n", AppTheme.ColorMeta);
+                await _copilot.ResetSessionAsync();
+                _mainSessionId = null;
+                _pendingCount = 0;
+            }
+        };
 
         comboBoxModel.SelectedIndexChanged += async (_, _) =>
         {
@@ -81,21 +137,30 @@ public partial class MainForm : Form
 
     // ── Sending ───────────────────────────────────────────────────────────────
 
-    private async Task SendPromptAsync()
+    private async Task SendPromptAsync(bool recordHistory = true)
     {
         var prompt = richTextBoxPrompt.Text.Trim();
         if (string.IsNullOrEmpty(prompt)) return;
 
-        SetSendingState(true);
+        if (recordHistory)
+        {
+            _promptHistory.Add(prompt);
+            UpdateHistoryButtons();
+        }
         richTextBoxPrompt.Clear();
 
         _copilot.ActiveMode  = comboBoxMode.SelectedItem?.ToString()  ?? "Standard";
         _copilot.AutoApprove = checkBoxAutoApprove.Checked;
+        _copilot.FleetMode   = checkBoxFleet.Checked;
+
+        _pendingCount++;
+        UpdateWorkingState();
 
         try
         {
             var attachmentsCopy = _attachments.ToList();
             await _copilot.SendMessageAsync(prompt, attachmentsCopy);
+            _audio.PlayPromptSent();
 
             // Echo user message
             if (_mainSessionId != null)
@@ -103,7 +168,8 @@ public partial class MainForm : Form
         }
         catch (Exception ex)
         {
-            SetSendingState(false);
+            _pendingCount = Math.Max(0, _pendingCount - 1);
+            UpdateWorkingState();
             if (_mainSessionId != null)
                 AppendOutput($"\r\n❌ Error sending: {ex.Message}\r\n", AppTheme.ColorError);
         }
@@ -124,7 +190,7 @@ public partial class MainForm : Form
             return;
         }
         richTextBoxPrompt.Text = prompt;
-        await SendPromptAsync();
+        await SendPromptAsync(recordHistory: false);
     }
 
     private void ClearActiveOutput()
@@ -133,7 +199,12 @@ public partial class MainForm : Form
         if (MessageBox.Show("Clear all output?", "Clear Output",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question,
                 MessageBoxDefaultButton.Button2) == DialogResult.Yes)
+        {
             richTextBoxOutput.Clear();
+            _toolStartPositions.Clear();
+            _subAgentStartPositions.Clear();
+            _activeSubAgents.Clear();
+        }
     }
 
     private void OpenExplorer()
@@ -146,6 +217,40 @@ public partial class MainForm : Form
             return;
         }
         System.Diagnostics.Process.Start("explorer.exe", dir);
+    }
+
+    private async Task OpenVSCodeAsync()
+    {
+        var dir = _copilot.WorkingDirectory;
+        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+        {
+            MessageBox.Show("No session folder is open yet. Use 'Open Folder' first.",
+                "No Folder", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "code",
+                Arguments = $"\"{dir}\"",
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Could not launch VS Code:\n\n{ex.Message}\n\n" +
+                "Make sure the 'code' command is on your PATH " +
+                "(VS Code → Command Palette → 'Install code command in PATH').",
+                "VS Code Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        // Give VS Code a moment to register with Copilot before sending /ide
+        await Task.Delay(2000);
+        await SendQuickCommandAsync("/ide");
     }
 
     private async Task ApplyModeChangeAsync()
@@ -168,6 +273,8 @@ public partial class MainForm : Form
 
             await _copilot.ResetSessionAsync();
             _mainSessionId = null;
+            _pendingCount  = 0;
+            UpdateWorkingState();
         }
     }
 
@@ -270,16 +377,26 @@ public partial class MainForm : Form
             _copilot.Reset();
         }
 
+        _pendingCount = 0;
+
         _copilot.WorkingDirectory = dialog.SelectedPath;
         buttonOpenFolder.Enabled = false;
         toolStripStatusLabelSession.Text = dialog.SelectedPath;
 
         try
         {
-            await _copilot.EnsureStartedAsync();
+            // Sync UI state to service before session creation so the system message is correct
+            _copilot.ActiveMode  = comboBoxMode.SelectedItem?.ToString() ?? "Standard";
+            _copilot.AutoApprove = checkBoxAutoApprove.Checked;
+            _copilot.FleetMode   = checkBoxFleet.Checked;
+
+            await _copilot.EnsureSessionAsync();
             var version = await _copilot.GetVersionAsync();
             if (!string.IsNullOrEmpty(version))
                 toolStripStatusLabelVersion.Text = $"v{version}";
+
+            // Generate all dialog line pools in the background — non-blocking
+            _ = GenerateAllDialogLinesAsync();
         }
         catch (Exception ex)
         {
@@ -295,8 +412,53 @@ public partial class MainForm : Form
         }
     }
 
-    private void RichTextBoxPrompt_KeyDown(object? sender, KeyEventArgs e)
+    private async Task GenerateAllDialogLinesAsync()
     {
+        var personality = AudioService.LoadVoicePersonality();
+        try
+        {
+            // Generate all three cue pools in parallel
+            var ssTask = _copilot.GenerateDialogBatchAsync(DialogCue.SessionStart,   personality);
+            var psTask = _copilot.GenerateDialogBatchAsync(DialogCue.PromptSent,     personality);
+            var pcTask = _copilot.GenerateDialogBatchAsync(DialogCue.PromptComplete, personality);
+
+            await Task.WhenAll(ssTask, psTask, pcTask);
+
+            InvokeOnUI(() =>
+            {
+                _audio.LoadLines(DialogCue.SessionStart,   ssTask.Result);
+                _audio.LoadLines(DialogCue.PromptSent,     psTask.Result);
+                _audio.LoadLines(DialogCue.PromptComplete, pcTask.Result);
+            });
+        }
+        catch { /* voice generation is non-critical — silent failure is fine */ }
+    }
+
+    // ── Prompt history navigation ─────────────────────────────────────────────
+
+    private void NavigateHistoryBack()
+    {
+        var text = _promptHistory.NavigateBack(richTextBoxPrompt.Text);
+        richTextBoxPrompt.Text = text;
+        richTextBoxPrompt.SelectionStart = text.Length;
+        UpdateHistoryButtons();
+    }
+
+    private void NavigateHistoryForward()
+    {
+        var text = _promptHistory.NavigateForward();
+        richTextBoxPrompt.Text = text;
+        richTextBoxPrompt.SelectionStart = text.Length;
+        UpdateHistoryButtons();
+    }
+
+    private void UpdateHistoryButtons()
+    {
+        buttonHistoryPrev.Enabled = _promptHistory.CanGoBack;
+        buttonHistoryNext.Enabled = _promptHistory.CanGoForward;
+    }
+
+    private void RichTextBoxPrompt_KeyDown(object? sender, KeyEventArgs e)    {
         if (e.KeyCode == Keys.Enter && e.Control)
         {
             e.Handled = true;
@@ -357,6 +519,43 @@ public partial class MainForm : Form
         chip.Click += (_, _) => RemoveAttachment(path, chip);
 
         flowLayoutPanelChips.Controls.Add(chip);
+
+        InsertReferenceAtCursor(path);
+    }
+
+    private void InsertReferenceAtCursor(string path)
+    {
+        // Normalise directories (strip trailing separator so GetFileName works)
+        path = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        // Prefer a relative path from the working directory; fall back to just the name
+        string reference;
+        var root = _copilot.WorkingDirectory;
+        if (!string.IsNullOrEmpty(root) && Directory.Exists(root))
+        {
+            var rel = Path.GetRelativePath(root, path);
+            // GetRelativePath returns the original path (or starts with ..) when outside root
+            reference = rel.StartsWith("..") ? Path.GetFileName(path) : rel;
+        }
+        else
+        {
+            reference = Path.GetFileName(path);
+        }
+
+        if (string.IsNullOrEmpty(reference)) return;
+
+        reference = $"@{reference}";
+        var pos  = richTextBoxPrompt.SelectionStart;
+        var text = richTextBoxPrompt.Text;
+
+        if (pos > 0 && !char.IsWhiteSpace(text[pos - 1]))
+            reference = " " + reference;
+
+        reference += " ";
+
+        richTextBoxPrompt.SelectionLength = 0;
+        richTextBoxPrompt.SelectedText = reference;
+        richTextBoxPrompt.Focus();
     }
 
     private void RemoveAttachment(string path, Control chip)
@@ -371,7 +570,10 @@ public partial class MainForm : Form
     private void OnSessionCreated(string sessionId, bool isSubAgent)
     {
         if (!isSubAgent)
+        {
             _mainSessionId = sessionId;
+            _audio.PlaySessionStart();
+        }
 
         var label = isSubAgent ? "Sub-agent" : "Session";
         AppendOutput($"[{label} {sessionId[..Math.Min(8, sessionId.Length)]}… started]\r\n\r\n",
@@ -385,6 +587,8 @@ public partial class MainForm : Form
 
     private void AppendMessage(SessionMessageEventArgs args)
     {
+        bool scrollNeeded = false;
+
         switch (args.Kind)
         {
             case MessageKind.AssistantDelta:
@@ -393,36 +597,162 @@ public partial class MainForm : Form
                     AppendOutput("🤖 Assistant:\r\n", AppTheme.ColorAssistant);
                     _streamingSessions.Add(args.SessionId);
                 }
+                if (args.SessionId == _mainSessionId)
+                    _lastAssistantText.Append(args.Content);
                 AppendOutput(args.Content, AppTheme.ColorDefault);
+                scrollNeeded = true;
                 break;
 
             case MessageKind.AssistantFinal:
                 if (!_streamingSessions.Contains(args.SessionId))
                     AppendOutput($"🤖 Assistant:\r\n{args.Content}\r\n\r\n", AppTheme.ColorAssistant);
+                if (args.SessionId == _mainSessionId)
+                    _lastAssistantText.Append(args.Content);
+                scrollNeeded = true;
                 break;
 
             case MessageKind.Reasoning:
                 AppendOutput($"💭 Reasoning:\r\n{args.Content}\r\n\r\n", AppTheme.ColorReasoning);
+                scrollNeeded = true;
                 break;
 
-            case MessageKind.ToolStart:
+            case MessageKind.SubAgentStart:
+            {
                 if (_streamingSessions.Remove(args.SessionId))
                     AppendOutput("\r\n", AppTheme.ColorDefault);
-                AppendOutput($"  🔧 {args.Content}…  ", AppTheme.ColorTool);
+                AppendOutput("\r\n", AppTheme.ColorDefault);
+                if (!string.IsNullOrEmpty(args.ToolCallId))
+                {
+                    _activeSubAgents[args.ToolCallId] = args.SubAgentDisplayName ?? args.Content;
+                    _subAgentStartPositions[args.ToolCallId] = richTextBoxOutput.TextLength;
+                }
+                var saName = args.SubAgentDisplayName ?? args.Content;
+                var saDesc = string.IsNullOrEmpty(args.SubAgentDescription) ? ""
+                    : $" — {(args.SubAgentDescription.Length > 60 ? args.SubAgentDescription[..60] + "…" : args.SubAgentDescription)}";
+                AppendOutput($"○ {saName}{saDesc}\r\n", AppTheme.ColorSubAgent);
+                UpdateAgentStatus();
+                scrollNeeded = true;
+                break;
+            }
+
+            case MessageKind.SubAgentComplete:
+            {
+                if (!string.IsNullOrEmpty(args.ToolCallId))
+                {
+                    _activeSubAgents.Remove(args.ToolCallId);
+                    if (_subAgentStartPositions.TryGetValue(args.ToolCallId, out var saPos))
+                    {
+                        _subAgentStartPositions.Remove(args.ToolCallId);
+                        WithoutRedraw(richTextBoxOutput, () =>
+                        {
+                            richTextBoxOutput.Select(saPos, 1);
+                            richTextBoxOutput.SelectionColor = AppTheme.ColorAssistant;
+                            richTextBoxOutput.SelectedText = "◉";
+                            richTextBoxOutput.SelectionStart = richTextBoxOutput.TextLength;
+                        });
+                    }
+                }
+                UpdateAgentStatus();
+                break;
+            }
+
+            case MessageKind.SubAgentFailed:
+            {
+                if (!string.IsNullOrEmpty(args.ToolCallId))
+                {
+                    _activeSubAgents.Remove(args.ToolCallId);
+                    if (_subAgentStartPositions.TryGetValue(args.ToolCallId, out var saPos))
+                    {
+                        _subAgentStartPositions.Remove(args.ToolCallId);
+                        WithoutRedraw(richTextBoxOutput, () =>
+                        {
+                            richTextBoxOutput.Select(saPos, 1);
+                            richTextBoxOutput.SelectionColor = AppTheme.ColorError;
+                            richTextBoxOutput.SelectedText = "✗";
+                            richTextBoxOutput.SelectionStart = richTextBoxOutput.TextLength;
+                        });
+                    }
+                }
+                if (!string.IsNullOrEmpty(args.Content))
+                {
+                    AppendOutput($"  ✗ {args.SubAgentDisplayName}: {args.Content}\r\n", AppTheme.ColorError);
+                    scrollNeeded = true;
+                }
+                UpdateAgentStatus();
+                break;
+            }
+
+            case MessageKind.ToolStart:
+            {
+                if (_streamingSessions.Remove(args.SessionId))
+                    AppendOutput("\r\n", AppTheme.ColorDefault);
+                var argPart = string.IsNullOrEmpty(args.ToolArgSummary) ? "" : $"  {args.ToolArgSummary}";
+                AppendOutput($"  🔧 {args.Content}{argPart}", AppTheme.ColorTool);
+                if (!string.IsNullOrEmpty(args.ToolCallId))
+                    _toolStartPositions[args.ToolCallId] = richTextBoxOutput.TextLength;
+                scrollNeeded = true;
+                break;
+            }
+
+            case MessageKind.ToolProgress:
+                if (!string.IsNullOrEmpty(args.Content))
+                {
+                    AppendOutput($"\r\n  │ {args.Content}", AppTheme.ColorToolDim);
+                    scrollNeeded = true;
+                }
                 break;
 
             case MessageKind.ToolComplete:
-                AppendOutput("✓\r\n", AppTheme.ColorAssistant);
+            {
+                if (!string.IsNullOrEmpty(args.ToolCallId) &&
+                    _toolStartPositions.TryGetValue(args.ToolCallId, out var insertAt))
+                {
+                    _toolStartPositions.Remove(args.ToolCallId);
+                    string tick = args.ToolSuccess ? " ✓\r\n" : " ✗\r\n";
+                    WithoutRedraw(richTextBoxOutput, () =>
+                    {
+                        richTextBoxOutput.Select(insertAt, 0);
+                        richTextBoxOutput.SelectionColor = args.ToolSuccess ? AppTheme.ColorAssistant : AppTheme.ColorError;
+                        richTextBoxOutput.SelectedText = tick;
+                        foreach (var key in _toolStartPositions.Keys.ToList())
+                            if (_toolStartPositions[key] >= insertAt)
+                                _toolStartPositions[key] += tick.Length;
+                        foreach (var key in _subAgentStartPositions.Keys.ToList())
+                            if (_subAgentStartPositions[key] >= insertAt)
+                                _subAgentStartPositions[key] += tick.Length;
+                        richTextBoxOutput.SelectionStart = richTextBoxOutput.TextLength;
+                    });
+                    if (!string.IsNullOrEmpty(args.ToolResultSummary))
+                    {
+                        var rc = args.ToolSuccess ? AppTheme.ColorToolDim : AppTheme.ColorError;
+                        AppendOutput($"  └ {args.ToolResultSummary}\r\n", rc);
+                        scrollNeeded = true;
+                    }
+                }
+                else
+                {
+                    AppendOutput(args.ToolSuccess ? "  ✓\r\n" : "  ✗\r\n",
+                        args.ToolSuccess ? AppTheme.ColorAssistant : AppTheme.ColorError);
+                    scrollNeeded = true;
+                }
                 break;
+            }
+
+            case MessageKind.BytesUpdate:
+                _totalBytesReceived = args.TotalBytes;
+                UpdateWorkingState();
+                break; // no text appended — no scroll needed
 
             case MessageKind.Error:
                 if (_streamingSessions.Remove(args.SessionId))
                     AppendOutput("\r\n", AppTheme.ColorDefault);
                 AppendOutput($"\r\n❌ Error: {args.Content}\r\n\r\n", AppTheme.ColorError);
+                scrollNeeded = true;
                 break;
         }
 
-        richTextBoxOutput.ScrollToCaret();
+        if (scrollNeeded)
+            richTextBoxOutput.ScrollToCaret();
     }
 
     private void OnSessionIdle(string sessionId)
@@ -431,7 +761,86 @@ public partial class MainForm : Form
             AppendOutput("\r\n\r\n", AppTheme.ColorDefault);
 
         if (sessionId == _mainSessionId)
-            SetSendingState(false);
+        {
+            _pendingCount = Math.Max(0, _pendingCount - 1);
+            if (_pendingCount == 0)
+            {
+                _totalBytesReceived = 0;
+                _activeSubAgents.Clear();
+            }
+            UpdateWorkingState();
+
+            var spoken = ExtractSpeakableLine(_lastAssistantText.ToString());
+            _lastAssistantText.Clear();
+
+            if (spoken != null)
+                _audio.Speak(spoken);
+            else
+                _audio.PlayPromptComplete();
+        }
+    }
+
+    /// <summary>
+    /// Returns the last speakable sentence from the assistant's reply, or null if none qualifies.
+    /// Splits by both line breaks and sentence-ending punctuation so that e.g.
+    /// "…anything else. What can I do for you?" on a single line correctly yields the last sentence.
+    /// </summary>
+    private static string? ExtractSpeakableLine(string text)
+    {
+        if (string.IsNullOrWhiteSpace(text)) return null;
+
+        var s = text.Trim();
+
+        // Discard everything from a reasoning block onward
+        var reasoningIdx = s.IndexOf("💭 Reasoning", StringComparison.Ordinal);
+        if (reasoningIdx >= 0)
+            s = s[..reasoningIdx].Trim();
+
+        // Collect every sentence from every line, then walk backwards
+        var sentences = new List<string>();
+        foreach (var rawLine in s.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries))
+        {
+            // Split a single line on sentence-ending punctuation followed by whitespace
+            foreach (var part in System.Text.RegularExpressions.Regex
+                         .Split(rawLine.Trim(), @"(?<=[.!?])\s+"))
+            {
+                var sentence = part.Trim();
+                if (!string.IsNullOrEmpty(sentence))
+                    sentences.Add(sentence);
+            }
+        }
+
+        for (int i = sentences.Count - 1; i >= 0; i--)
+        {
+            if (IsSpeakableLine(sentences[i]))
+                return sentences[i];
+        }
+
+        return null;
+    }
+
+    private static bool IsSpeakableLine(string line)
+    {
+        if (string.IsNullOrWhiteSpace(line)) return false;
+
+        // Reject code fences and inline code
+        if (line.Contains('`')) return false;
+
+        // Reject markdown structural elements
+        if (line.StartsWith('#') || line.StartsWith('-') ||
+            line.StartsWith('*') || line.StartsWith('>') ||
+            line.StartsWith('|')) return false;
+
+        // Reject lines with bold/italic markers (they read oddly aloud)
+        if (line.Contains("**") || line.Contains("__")) return false;
+
+        // Reject lines that look like code or data (braces, brackets, semicolons)
+        if (line.Contains('{') || line.Contains('}') || line.Contains(';')) return false;
+
+        // Must be short enough for natural speech
+        if (line.Length > 200) return false;
+
+        return true;
     }
 
     private void AppendOutput(string text, Color color)
@@ -451,20 +860,71 @@ public partial class MainForm : Form
 
     // ── Status bar ────────────────────────────────────────────────────────────
 
+    private void UpdateWorkingState()
+    {
+        bool working = _pendingCount > 0;
+        buttonSend.Enabled = _copilot.IsConnected;
+        buttonStop.Enabled = working;
+
+        string status;
+        if (working)
+        {
+            var kb = _totalBytesReceived > 0 ? $" · {_totalBytesReceived / 1024:F1} KiB" : "";
+            status = _pendingCount > 1
+                ? $"Working… ({_pendingCount} pending{kb})"
+                : $"Working…{kb}";
+        }
+        else
+        {
+            status = _copilot.IsConnected ? "Connected" : "Not connected";
+        }
+        toolStripStatusLabelConnection.Text = status;
+        UpdateAgentStatus();
+    }
+
+    private void UpdateAgentStatus()
+    {
+        string msg;
+        if (_pendingCount == 0)
+        {
+            msg = "Ready for next command";
+        }
+        else if (_activeSubAgents.Count == 1)
+        {
+            msg = $"Waiting for {_activeSubAgents.Values.First()}";
+        }
+        else if (_activeSubAgents.Count > 1)
+        {
+            msg = $"Processing with {_activeSubAgents.Count} agent(s)";
+        }
+        else
+        {
+            msg = "Working…";
+        }
+        toolStripStatusLabelAgentStatus.Text = msg;
+    }
+
+    // Used only by BackupSessionAsync which needs to block the UI exclusively
     private void SetSendingState(bool isSending)
     {
         buttonSend.Enabled = !isSending && _copilot.IsConnected;
-        buttonStop.Enabled = isSending;
+        buttonStop.Enabled = isSending || _pendingCount > 0;
         toolStripStatusLabelConnection.Text = isSending ? "Working…" :
             (_copilot.IsConnected ? "Connected" : "Not connected");
     }
 
     private void UpdateConnectionStatus(string status)
     {
-        toolStripStatusLabelConnection.Text = status;
-        // Enable Send as soon as the CLI server is up
         if (status == "Connected")
-            buttonSend.Enabled = true;
+        {
+            UpdateWorkingState();
+        }
+        else
+        {
+            toolStripStatusLabelConnection.Text = status;
+            buttonSend.Enabled = false;
+            buttonStop.Enabled = false;
+        }
     }
 
     // ── Permission / input dialogs ────────────────────────────────────────────
@@ -495,6 +955,7 @@ public partial class MainForm : Form
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         base.OnFormClosed(e);
+        _audio.Dispose();
         _ = _copilot.DisposeAsync().AsTask();
     }
 }

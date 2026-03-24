@@ -10,6 +10,14 @@
 
   <ItemGroup>
     <PackageReference Include="GitHub.Copilot.SDK" Version="0.2.0" />
+    <PackageReference Include="System.Speech" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Copy the audio cue folders to the output directory -->
+    <None Include="audio\**">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

@@ -21,6 +21,8 @@ internal static class AppTheme
     public static readonly Color AccentText   = Color.FromArgb(235, 235, 235);
 
     // ── Semantic colours used in the session output box ────────────────────
+    public static readonly Color ColorSubAgent  = Color.FromArgb(130, 180, 210);  // agent headers
+    public static readonly Color ColorToolDim   = Color.FromArgb(160, 140,  65);  // args / result summaries
     public static readonly Color ColorUser      = Color.FromArgb(100, 160, 220);
     public static readonly Color ColorAssistant = Color.FromArgb(100, 190, 100);
     public static readonly Color ColorTool      = Color.FromArgb(205, 180,  90);

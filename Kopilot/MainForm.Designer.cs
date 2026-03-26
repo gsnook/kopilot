@@ -94,7 +94,7 @@ partial class MainForm
         splitContainerMain.Panel2.Controls.Add(panelQuickCommands);
         splitContainerMain.Panel2.Controls.Add(panelAttachments);
         splitContainerMain.Panel2MinSize = 180;
-        splitContainerMain.Size = new Size(1200, 1095);
+        splitContainerMain.Size = new Size(1034, 1095);
         splitContainerMain.SplitterDistance = 260;
         splitContainerMain.TabIndex = 0;
         // 
@@ -102,13 +102,14 @@ partial class MainForm
         // 
         richTextBoxPrompt.AcceptsTab = true;
         richTextBoxPrompt.AllowDrop = true;
+        richTextBoxPrompt.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
         richTextBoxPrompt.BackColor = Color.FromArgb(52, 52, 52);
         richTextBoxPrompt.Font = new Font("Segoe UI", 11F);
         richTextBoxPrompt.ForeColor = Color.FromArgb(218, 218, 218);
         richTextBoxPrompt.Location = new Point(26, 38);
         richTextBoxPrompt.Name = "richTextBoxPrompt";
         richTextBoxPrompt.ScrollBars = RichTextBoxScrollBars.Vertical;
-        richTextBoxPrompt.Size = new Size(1166, 222);
+        richTextBoxPrompt.Size = new Size(996, 222);
         richTextBoxPrompt.TabIndex = 1;
         richTextBoxPrompt.Text = "";
         toolTipMain.SetToolTip(richTextBoxPrompt, "Ctrl+Enter to send");
@@ -178,7 +179,7 @@ partial class MainForm
         panelActions.Location = new Point(0, 0);
         panelActions.Name = "panelActions";
         panelActions.Padding = new Padding(4, 4, 8, 4);
-        panelActions.Size = new Size(1200, 38);
+        panelActions.Size = new Size(1034, 38);
         panelActions.TabIndex = 2;
         // 
         // checkBoxAutoApprove
@@ -190,7 +191,7 @@ partial class MainForm
         checkBoxAutoApprove.CheckState = CheckState.Checked;
         checkBoxAutoApprove.Font = new Font("Segoe UI", 9F);
         checkBoxAutoApprove.ForeColor = Color.FromArgb(218, 218, 218);
-        checkBoxAutoApprove.Location = new Point(840, 9);
+        checkBoxAutoApprove.Location = new Point(674, 9);
         checkBoxAutoApprove.Name = "checkBoxAutoApprove";
         checkBoxAutoApprove.Size = new Size(129, 19);
         checkBoxAutoApprove.TabIndex = 0;
@@ -273,7 +274,7 @@ partial class MainForm
         buttonStop.FlatStyle = FlatStyle.Flat;
         buttonStop.Font = new Font("Segoe UI", 9F);
         buttonStop.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonStop.Location = new Point(1066, 5);
+        buttonStop.Location = new Point(900, 5);
         buttonStop.Name = "buttonStop";
         buttonStop.Size = new Size(60, 28);
         buttonStop.TabIndex = 4;
@@ -290,7 +291,7 @@ partial class MainForm
         buttonSend.FlatStyle = FlatStyle.Flat;
         buttonSend.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         buttonSend.ForeColor = Color.FromArgb(235, 235, 235);
-        buttonSend.Location = new Point(1132, 5);
+        buttonSend.Location = new Point(966, 5);
         buttonSend.Name = "buttonSend";
         buttonSend.Size = new Size(60, 28);
         buttonSend.TabIndex = 5;
@@ -305,7 +306,7 @@ partial class MainForm
         checkBoxFleet.BackColor = Color.Transparent;
         checkBoxFleet.Font = new Font("Segoe UI", 9F);
         checkBoxFleet.ForeColor = Color.FromArgb(218, 218, 218);
-        checkBoxFleet.Location = new Point(969, 9);
+        checkBoxFleet.Location = new Point(803, 9);
         checkBoxFleet.Name = "checkBoxFleet";
         checkBoxFleet.Size = new Size(85, 19);
         checkBoxFleet.TabIndex = 1;
@@ -315,6 +316,7 @@ partial class MainForm
         // 
         // richTextBoxOutput
         // 
+        richTextBoxOutput.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
         richTextBoxOutput.BackColor = Color.FromArgb(0, 0, 0);
         richTextBoxOutput.BorderStyle = BorderStyle.None;
         richTextBoxOutput.DetectUrls = false;
@@ -324,7 +326,7 @@ partial class MainForm
         richTextBoxOutput.Name = "richTextBoxOutput";
         richTextBoxOutput.ReadOnly = true;
         richTextBoxOutput.ScrollBars = RichTextBoxScrollBars.Vertical;
-        richTextBoxOutput.Size = new Size(1187, 758);
+        richTextBoxOutput.Size = new Size(1016, 758);
         richTextBoxOutput.TabIndex = 0;
         richTextBoxOutput.Text = "";
         // 
@@ -342,17 +344,18 @@ partial class MainForm
         panelQuickCommands.Location = new Point(0, 790);
         panelQuickCommands.Name = "panelQuickCommands";
         panelQuickCommands.Padding = new Padding(4);
-        panelQuickCommands.Size = new Size(1200, 41);
+        panelQuickCommands.Size = new Size(1034, 41);
         panelQuickCommands.TabIndex = 1;
         // 
         // buttonHelp
         // 
+        buttonHelp.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
         buttonHelp.BackColor = Color.FromArgb(86, 86, 86);
         buttonHelp.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
         buttonHelp.FlatStyle = FlatStyle.Flat;
         buttonHelp.Font = new Font("Segoe UI", 8.5F);
         buttonHelp.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonHelp.Location = new Point(6, 5);
+        buttonHelp.Location = new Point(7, 7);
         buttonHelp.Name = "buttonHelp";
         buttonHelp.Size = new Size(72, 26);
         buttonHelp.TabIndex = 0;
@@ -362,12 +365,13 @@ partial class MainForm
         // 
         // buttonCommands
         // 
+        buttonCommands.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
         buttonCommands.BackColor = Color.FromArgb(86, 86, 86);
         buttonCommands.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
         buttonCommands.FlatStyle = FlatStyle.Flat;
         buttonCommands.Font = new Font("Segoe UI", 8.5F);
         buttonCommands.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonCommands.Location = new Point(84, 5);
+        buttonCommands.Location = new Point(85, 7);
         buttonCommands.Name = "buttonCommands";
         buttonCommands.Size = new Size(96, 26);
         buttonCommands.TabIndex = 1;
@@ -377,12 +381,13 @@ partial class MainForm
         // 
         // buttonSummarize
         // 
+        buttonSummarize.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
         buttonSummarize.BackColor = Color.FromArgb(86, 86, 86);
         buttonSummarize.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
         buttonSummarize.FlatStyle = FlatStyle.Flat;
         buttonSummarize.Font = new Font("Segoe UI", 8.5F);
         buttonSummarize.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonSummarize.Location = new Point(186, 5);
+        buttonSummarize.Location = new Point(377, 7);
         buttonSummarize.Name = "buttonSummarize";
         buttonSummarize.Size = new Size(100, 26);
         buttonSummarize.TabIndex = 2;
@@ -392,12 +397,13 @@ partial class MainForm
         // 
         // buttonClearOutput
         // 
+        buttonClearOutput.Anchor = AnchorStyles.Bottom;
         buttonClearOutput.BackColor = Color.FromArgb(86, 86, 86);
         buttonClearOutput.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
         buttonClearOutput.FlatStyle = FlatStyle.Flat;
         buttonClearOutput.Font = new Font("Segoe UI", 8.5F);
         buttonClearOutput.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonClearOutput.Location = new Point(557, 5);
+        buttonClearOutput.Location = new Point(519, 7);
         buttonClearOutput.Name = "buttonClearOutput";
         buttonClearOutput.Size = new Size(68, 26);
         buttonClearOutput.TabIndex = 3;
@@ -413,7 +419,7 @@ partial class MainForm
         buttonBackup.FlatStyle = FlatStyle.Flat;
         buttonBackup.Font = new Font("Segoe UI", 8.5F);
         buttonBackup.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonBackup.Location = new Point(1104, 7);
+        buttonBackup.Location = new Point(938, 7);
         buttonBackup.Name = "buttonBackup";
         buttonBackup.Size = new Size(88, 26);
         buttonBackup.TabIndex = 4;
@@ -423,13 +429,13 @@ partial class MainForm
         // 
         // buttonOpenExplorer
         // 
-        buttonOpenExplorer.Anchor = AnchorStyles.Right;
+        buttonOpenExplorer.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
         buttonOpenExplorer.BackColor = Color.FromArgb(86, 86, 86);
         buttonOpenExplorer.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
         buttonOpenExplorer.FlatStyle = FlatStyle.Flat;
         buttonOpenExplorer.Font = new Font("Segoe UI", 8.5F);
         buttonOpenExplorer.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonOpenExplorer.Location = new Point(292, 5);
+        buttonOpenExplorer.Location = new Point(187, 8);
         buttonOpenExplorer.Name = "buttonOpenExplorer";
         buttonOpenExplorer.Size = new Size(88, 26);
         buttonOpenExplorer.TabIndex = 5;
@@ -439,13 +445,13 @@ partial class MainForm
         // 
         // buttonOpenVSCode
         // 
-        buttonOpenVSCode.Anchor = AnchorStyles.Right;
+        buttonOpenVSCode.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
         buttonOpenVSCode.BackColor = Color.FromArgb(86, 86, 86);
         buttonOpenVSCode.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
         buttonOpenVSCode.FlatStyle = FlatStyle.Flat;
         buttonOpenVSCode.Font = new Font("Segoe UI", 8.5F);
         buttonOpenVSCode.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonOpenVSCode.Location = new Point(386, 5);
+        buttonOpenVSCode.Location = new Point(281, 8);
         buttonOpenVSCode.Name = "buttonOpenVSCode";
         buttonOpenVSCode.Size = new Size(90, 26);
         buttonOpenVSCode.TabIndex = 6;
@@ -463,7 +469,7 @@ partial class MainForm
         panelAttachments.Dock = DockStyle.Top;
         panelAttachments.Location = new Point(0, 0);
         panelAttachments.Name = "panelAttachments";
-        panelAttachments.Size = new Size(1200, 32);
+        panelAttachments.Size = new Size(1034, 32);
         panelAttachments.TabIndex = 0;
         // 
         // flowLayoutPanelChips
@@ -524,7 +530,7 @@ partial class MainForm
         statusStrip.Items.AddRange(new ToolStripItem[] { toolStripStatusLabelConnection, toolStripStatusLabelVersion, toolStripStatusLabelSep, toolStripStatusLabelAgentStatus, toolStripStatusLabelSession });
         statusStrip.Location = new Point(0, 1095);
         statusStrip.Name = "statusStrip";
-        statusStrip.Size = new Size(1200, 23);
+        statusStrip.Size = new Size(1034, 23);
         statusStrip.TabIndex = 1;
         // 
         // toolStripStatusLabelConnection
@@ -551,7 +557,7 @@ partial class MainForm
         // 
         toolStripStatusLabelAgentStatus.ForeColor = Color.FromArgb(200, 200, 200);
         toolStripStatusLabelAgentStatus.Name = "toolStripStatusLabelAgentStatus";
-        toolStripStatusLabelAgentStatus.Size = new Size(1087, 18);
+        toolStripStatusLabelAgentStatus.Size = new Size(921, 18);
         toolStripStatusLabelAgentStatus.Spring = true;
         toolStripStatusLabelAgentStatus.Text = "Ready for next command";
         // 
@@ -567,7 +573,7 @@ partial class MainForm
         AutoScaleDimensions = new SizeF(7F, 15F);
         AutoScaleMode = AutoScaleMode.Font;
         BackColor = Color.FromArgb(64, 64, 64);
-        ClientSize = new Size(1200, 1118);
+        ClientSize = new Size(1034, 1118);
         Controls.Add(splitContainerMain);
         Controls.Add(statusStrip);
         Font = new Font("Segoe UI", 9F);

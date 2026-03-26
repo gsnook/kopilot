@@ -40,6 +40,7 @@ public partial class MainForm : Form
     private double _totalBytesReceived = 0;
     private string? _mainSessionId;
     private int _pendingCount = 0; // number of prompts awaiting a response
+    private bool _reconnecting = false; // true while an automatic reconnect is in progress
 
 
     public MainForm()
@@ -154,6 +155,28 @@ public partial class MainForm : Form
         }
         richTextBoxPrompt.Clear();
 
+        await DispatchPromptAsync(prompt);
+    }
+
+    private async Task StopAsync()
+    {
+        try { await _copilot.AbortAsync(); }
+        catch { /* ignore */ }
+    }
+
+    private async Task SendQuickCommandAsync(string prompt)
+    {
+        if (!_copilot.IsConnected)
+        {
+            MessageBox.Show("Open a folder to connect to Copilot first.",
+                "Not Connected", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        await DispatchPromptAsync(prompt);
+    }
+
+    private async Task DispatchPromptAsync(string prompt)
+    {
         _copilot.ActiveMode  = comboBoxMode.SelectedItem?.ToString()  ?? "Standard";
         _copilot.AutoApprove = checkBoxAutoApprove.Checked;
         _copilot.FleetMode   = checkBoxFleet.Checked;
@@ -178,24 +201,6 @@ public partial class MainForm : Form
             if (_mainSessionId != null)
                 AppendOutput($"\r\n❌ Error sending: {ex.Message}\r\n", AppTheme.ColorError);
         }
-    }
-
-    private async Task StopAsync()
-    {
-        try { await _copilot.AbortAsync(); }
-        catch { /* ignore */ }
-    }
-
-    private async Task SendQuickCommandAsync(string prompt)
-    {
-        if (!_copilot.IsConnected)
-        {
-            MessageBox.Show("Open a folder to connect to Copilot first.",
-                "Not Connected", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-        richTextBoxPrompt.Text = prompt;
-        await SendPromptAsync(recordHistory: false);
     }
 
     private void ClearActiveOutput()
@@ -391,6 +396,42 @@ public partial class MainForm : Form
         _copilot.WorkingDirectory = dialog.SelectedPath;
         buttonOpenFolder.Enabled = false;
         toolStripStatusLabelSession.Text = dialog.SelectedPath;
+
+        // Offer to open VS Code so the IDE connection is ready before the session starts
+        var openVSCode = MessageBox.Show(
+            "Would you like to open VS Code in this folder first?\n\n" +
+            "The IDE connection will be established before the Copilot session starts.",
+            "Open VS Code?", MessageBoxButtons.YesNo, MessageBoxIcon.Question,
+            MessageBoxDefaultButton.Button1);
+
+        if (openVSCode == DialogResult.Yes)
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = "code",
+                    Arguments = $"\"{dialog.SelectedPath}\"",
+                    UseShellExecute = true,
+                });
+
+                for (int i = 10; i > 0; i--)
+                {
+                    toolStripStatusLabelSession.Text = $"Waiting for VS Code… {i}s";
+                    await Task.Delay(1000);
+                }
+
+                toolStripStatusLabelSession.Text = dialog.SelectedPath;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(
+                    $"Could not launch VS Code:\n\n{ex.Message}\n\n" +
+                    "Make sure the 'code' command is on your PATH " +
+                    "(VS Code → Command Palette → 'Install code command in PATH').",
+                    "VS Code Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
 
         try
         {
@@ -661,6 +702,12 @@ public partial class MainForm : Form
                         });
                     }
                 }
+                var stats = FormatSubAgentStats(args);
+                if (stats != null)
+                {
+                    AppendOutput($"  ↳ {stats}\r\n", AppTheme.ColorToolDim);
+                    scrollNeeded = true;
+                }
                 if (_mainSessionIdle && _activeSubAgents.Count == 0)
                     CompleteMainSession();
                 else
@@ -691,12 +738,34 @@ public partial class MainForm : Form
                     AppendOutput($"  ✗ {args.SubAgentDisplayName}: {args.Content}\r\n", AppTheme.ColorError);
                     scrollNeeded = true;
                 }
+                var failStats = FormatSubAgentStats(args);
+                if (failStats != null)
+                {
+                    AppendOutput($"  ↳ {failStats}\r\n", AppTheme.ColorToolDim);
+                    scrollNeeded = true;
+                }
                 if (_mainSessionIdle && _activeSubAgents.Count == 0)
                     CompleteMainSession();
                 else
                     UpdateAgentStatus();
                 break;
             }
+
+            case MessageKind.SkillInvoked:
+            {
+                if (_streamingSessions.Remove(args.SessionId))
+                    AppendOutput("\r\n", AppTheme.ColorDefault);
+                var desc = string.IsNullOrEmpty(args.SubAgentDescription) ? ""
+                    : $" — {args.SubAgentDescription}";
+                AppendOutput($"  📚 Skill: {args.Content}{desc}\r\n", AppTheme.ColorMeta);
+                scrollNeeded = true;
+                break;
+            }
+
+            case MessageKind.CustomAgentsUpdated:
+                AppendOutput($"[{args.Content}]\r\n\r\n", AppTheme.ColorMeta);
+                scrollNeeded = true;
+                break;
 
             case MessageKind.ToolStart:
             {
@@ -763,6 +832,11 @@ public partial class MainForm : Form
                 if (_streamingSessions.Remove(args.SessionId))
                     AppendOutput("\r\n", AppTheme.ColorDefault);
                 AppendOutput($"\r\n❌ Error: {args.Content}\r\n\r\n", AppTheme.ColorError);
+                if (args.Content.Contains("CAPIError: 400") || args.Content.Contains("400 Bad Request"))
+                    AppendOutput(
+                        "💡 Tip: This usually means the session's context window is full. " +
+                        "Try changing the mode or model to start a fresh session.\r\n\r\n",
+                        AppTheme.ColorMeta);
                 scrollNeeded = true;
                 break;
         }
@@ -804,6 +878,23 @@ public partial class MainForm : Form
         }
         UpdateWorkingState();
         _audio.PlayPromptComplete();
+    }
+
+    private static string? FormatSubAgentStats(SessionMessageEventArgs args)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(args.SubAgentModel))
+            parts.Add(args.SubAgentModel);
+        if (args.SubAgentTotalCalls is > 0)
+            parts.Add($"{(int)args.SubAgentTotalCalls} call{((int)args.SubAgentTotalCalls == 1 ? "" : "s")}");
+        if (args.SubAgentTotalTokens is > 0)
+        {
+            var t = args.SubAgentTotalTokens.Value;
+            parts.Add(t >= 1000 ? $"{t / 1000:F1}K tokens" : $"{(int)t} tokens");
+        }
+        if (args.SubAgentDurationMs is > 0)
+            parts.Add($"{args.SubAgentDurationMs.Value / 1000:F1}s");
+        return parts.Count > 0 ? string.Join(" · ", parts) : null;
     }
 
     private void AppendOutput(string text, Color color)
@@ -887,10 +978,34 @@ public partial class MainForm : Form
     {
         if (status == "Connected")
         {
+            _reconnecting = false;
             UpdateWorkingState();
         }
         else
         {
+            if (status == "Reconnecting...")
+            {
+                // Session was lost mid-conversation; clear pending state so the UI
+                // doesn't stay stuck on "Working…" while the reconnect happens.
+                if (_pendingCount > 0 || _mainSessionId != null)
+                    AppendOutput("\r\n⚠️ Session lost — reconnecting…\r\n\r\n", AppTheme.ColorError);
+
+                _reconnecting    = true;
+                _pendingCount    = 0;
+                _mainSessionId   = null;
+                _mainSessionIdle = false;
+            }
+            else if (status == "Not connected" && _reconnecting)
+            {
+                // Automatic reconnect attempt failed.
+                AppendOutput("\r\n❌ Session lost and reconnect failed. Open a folder to reconnect.\r\n\r\n",
+                    AppTheme.ColorError);
+                _reconnecting    = false;
+                _pendingCount    = 0;
+                _mainSessionId   = null;
+                _mainSessionIdle = false;
+            }
+
             toolStripStatusLabelConnection.Text = status;
             buttonSend.Enabled = false;
             buttonStop.Enabled = false;

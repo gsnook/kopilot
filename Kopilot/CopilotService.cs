@@ -1,5 +1,6 @@
 using GitHub.Copilot.SDK;
 using System.Collections.Concurrent;
+using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 
@@ -16,6 +17,8 @@ public enum MessageKind
     SubAgentStart,
     SubAgentComplete,
     SubAgentFailed,
+    SkillInvoked,
+    CustomAgentsUpdated,
     BytesUpdate,
     Error,
 }
@@ -41,6 +44,11 @@ public sealed class SessionMessageEventArgs : EventArgs
     // SubAgent extras
     public string? SubAgentDisplayName { get; init; }
     public string? SubAgentDescription { get; init; }
+    // SubAgent completion stats
+    public string? SubAgentModel       { get; init; }
+    public double? SubAgentTotalCalls  { get; init; }
+    public double? SubAgentTotalTokens { get; init; }
+    public double? SubAgentDurationMs  { get; init; }
     // BytesUpdate
     public double  TotalBytes          { get; init; }
 }
@@ -651,6 +659,10 @@ public sealed class CopilotService : IAsyncDisposable
                     Kind                = MessageKind.SubAgentComplete,
                     ToolCallId          = sa.Data.ToolCallId,
                     SubAgentDisplayName = sa.Data.AgentDisplayName ?? "",
+                    SubAgentModel       = sa.Data.Model,
+                    SubAgentTotalCalls  = sa.Data.TotalToolCalls,
+                    SubAgentTotalTokens = sa.Data.TotalTokens,
+                    SubAgentDurationMs  = sa.Data.DurationMs,
                 });
                 break;
 
@@ -662,6 +674,30 @@ public sealed class CopilotService : IAsyncDisposable
                     Kind                = MessageKind.SubAgentFailed,
                     ToolCallId          = sa.Data.ToolCallId,
                     SubAgentDisplayName = sa.Data.AgentDisplayName ?? "",
+                    SubAgentModel       = sa.Data.Model,
+                    SubAgentTotalCalls  = sa.Data.TotalToolCalls,
+                    SubAgentTotalTokens = sa.Data.TotalTokens,
+                    SubAgentDurationMs  = sa.Data.DurationMs,
+                });
+                break;
+
+            case SkillInvokedEvent skill:
+                MessageReceived?.Invoke(this, new SessionMessageEventArgs
+                {
+                    SessionId           = sessionId,
+                    Content             = skill.Data.Name,
+                    Kind                = MessageKind.SkillInvoked,
+                    SubAgentDescription = skill.Data.Description,
+                });
+                break;
+
+            case SessionCustomAgentsUpdatedEvent agents:
+                if (agents.Data.Agents.Length == 0 && agents.Data.Errors.Length == 0) break;
+                MessageReceived?.Invoke(this, new SessionMessageEventArgs
+                {
+                    SessionId = sessionId,
+                    Content   = FormatCustomAgentsSummary(agents.Data),
+                    Kind      = MessageKind.CustomAgentsUpdated,
                 });
                 break;
 
@@ -690,6 +726,17 @@ public sealed class CopilotService : IAsyncDisposable
     }
 
     // ── Argument / result summarisation helpers ───────────────────────────────
+
+    private static string FormatCustomAgentsSummary(SessionCustomAgentsUpdatedData data)
+    {
+        var invocable = data.Agents.Where(a => a.UserInvocable).Select(a => a.DisplayName).ToArray();
+        var sb = new StringBuilder();
+        if (invocable.Length > 0)
+            sb.Append($"{invocable.Length} custom agent{(invocable.Length == 1 ? "" : "s")} loaded: {string.Join(", ", invocable)}");
+        foreach (var err  in data.Errors)   sb.Append($"\r\n  ✗ {err}");
+        foreach (var warn in data.Warnings) sb.Append($"\r\n  ⚠ {warn}");
+        return sb.ToString();
+    }
 
     /// <summary>
     /// Extracts the most human-readable text from a tool's JSON arguments object.

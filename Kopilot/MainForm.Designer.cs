@@ -44,7 +44,7 @@ partial class MainForm
         richTextBoxOutput = new RichTextBox();
         panelQuickCommands = new Panel();
         buttonHelp = new Button();
-        buttonCommands = new Button();
+        buttonPowershell = new Button();
         buttonSummarize = new Button();
         buttonClearOutput = new Button();
         buttonBackup = new Button();
@@ -334,7 +334,7 @@ partial class MainForm
         // 
         panelQuickCommands.BackColor = Color.FromArgb(74, 74, 74);
         panelQuickCommands.Controls.Add(buttonHelp);
-        panelQuickCommands.Controls.Add(buttonCommands);
+        panelQuickCommands.Controls.Add(buttonPowershell);
         panelQuickCommands.Controls.Add(buttonSummarize);
         panelQuickCommands.Controls.Add(buttonClearOutput);
         panelQuickCommands.Controls.Add(buttonBackup);
@@ -360,24 +360,24 @@ partial class MainForm
         buttonHelp.Size = new Size(72, 26);
         buttonHelp.TabIndex = 0;
         buttonHelp.Text = "❓ Help";
-        toolTipMain.SetToolTip(buttonHelp, "Ask Copilot to describe its capabilities");
+        toolTipMain.SetToolTip(buttonHelp, "Ask Copilot for a capabilities and tools overview");
         buttonHelp.UseVisualStyleBackColor = false;
         // 
-        // buttonCommands
+        // buttonPowershell
         // 
-        buttonCommands.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        buttonCommands.BackColor = Color.FromArgb(86, 86, 86);
-        buttonCommands.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonCommands.FlatStyle = FlatStyle.Flat;
-        buttonCommands.Font = new Font("Segoe UI", 8.5F);
-        buttonCommands.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonCommands.Location = new Point(85, 7);
-        buttonCommands.Name = "buttonCommands";
-        buttonCommands.Size = new Size(96, 26);
-        buttonCommands.TabIndex = 1;
-        buttonCommands.Text = "📋 Commands";
-        toolTipMain.SetToolTip(buttonCommands, "List available tools and capabilities");
-        buttonCommands.UseVisualStyleBackColor = false;
+        buttonPowershell.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        buttonPowershell.BackColor = Color.FromArgb(86, 86, 86);
+        buttonPowershell.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+        buttonPowershell.FlatStyle = FlatStyle.Flat;
+        buttonPowershell.Font = new Font("Segoe UI", 8.5F);
+        buttonPowershell.ForeColor = Color.FromArgb(218, 218, 218);
+        buttonPowershell.Location = new Point(85, 7);
+        buttonPowershell.Name = "buttonPowershell";
+        buttonPowershell.Size = new Size(96, 26);
+        buttonPowershell.TabIndex = 1;
+        buttonPowershell.Text = "⚡ PowerShell";
+        toolTipMain.SetToolTip(buttonPowershell, "Open PowerShell in the current project folder");
+        buttonPowershell.UseVisualStyleBackColor = false;
         // 
         // buttonSummarize
         // 
@@ -602,7 +602,7 @@ partial class MainForm
     private System.Windows.Forms.RichTextBox richTextBoxOutput;
     private System.Windows.Forms.Panel panelQuickCommands;
     private System.Windows.Forms.Button buttonHelp;
-    private System.Windows.Forms.Button buttonCommands;
+    private System.Windows.Forms.Button buttonPowershell;
     private System.Windows.Forms.Button buttonSummarize;
     private System.Windows.Forms.Button buttonClearOutput;
     private System.Windows.Forms.Button buttonBackup;

@@ -81,9 +81,9 @@ public partial class MainForm : Form
         };
 
         buttonHelp.Click += async (_, _) => await SendQuickCommandAsync(
-            "What can you help me with? Give a brief overview of your capabilities.");
-        buttonCommands.Click += async (_, _) => await SendQuickCommandAsync(
-            "List all the tools, operations and built-in capabilities available to you in this session.");
+            "What can you help me with? Give a brief overview of your capabilities, " +
+            "and list all the tools, operations and built-in capabilities available to you in this session.");
+        buttonPowershell.Click += (_, _) => OpenPowershell();
         buttonSummarize.Click += async (_, _) => await SendQuickCommandAsync(
             "Please provide a concise summary of what we've discussed and accomplished so far in this session.");
         buttonClearOutput.Click += (_, _) => ClearActiveOutput();
@@ -229,6 +229,37 @@ public partial class MainForm : Form
             return;
         }
         System.Diagnostics.Process.Start("explorer.exe", dir);
+    }
+
+    private void OpenPowershell()
+    {
+        var dir = _copilot.WorkingDirectory;
+        if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
+        {
+            MessageBox.Show("No session folder is open yet. Use 'Open Folder' first.",
+                "No Folder", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        try
+        {
+            var scriptsPath = Path.Combine(Application.StartupPath, "scripts.ps1");
+            var arguments = File.Exists(scriptsPath)
+                ? $"-NoExit -Command \". '{scriptsPath.Replace("'", "''")}'\""
+                : "-NoExit";
+
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "powershell.exe",
+                Arguments = arguments,
+                WorkingDirectory = dir,
+                UseShellExecute = true,
+            });
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Could not open PowerShell:\n\n{ex.Message}",
+                "PowerShell Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
     }
 
     private async Task OpenVSCodeAsync()

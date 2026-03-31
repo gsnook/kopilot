@@ -321,11 +321,64 @@ public sealed class CopilotService : IAsyncDisposable
                 .ToList();
         }
 
-        await _mainSession!.SendAsync(new MessageOptions
+        var options = new MessageOptions { Prompt = prompt, Attachments = attachments };
+
+        try
         {
-            Prompt = prompt,
-            Attachments = attachments,
-        });
+            await _mainSession!.SendAsync(options);
+        }
+        catch (IOException ex) when (ex.Message.Contains("Session not found", StringComparison.OrdinalIgnoreCase))
+        {
+            // The CLI cleaned up the server-side session after an idle period.
+            // Recreate the session transparently and retry — the user sees the
+            // new session header but their prompt still goes through normally.
+            await RecoverExpiredSessionAsync();
+            await _mainSession!.SendAsync(options);
+        }
+    }
+
+    /// <summary>
+    /// Recovers from a server-side session expiry without tearing down the CLI transport.
+    /// Tries to resume the original session first (preserving conversation history); falls
+    /// back to creating a fresh session only if the disk data is also gone.
+    /// </summary>
+    private async Task RecoverExpiredSessionAsync()
+    {
+        var expiredSessionId = _mainSession?.SessionId;
+
+        if (_mainSession != null)
+        {
+            var stale = _mainSession;
+            _sessions.Remove(stale.SessionId);
+            _mainSession = null;
+            try { await stale.DisposeAsync(); } catch { }
+        }
+
+        // The CLI keeps session data on disk even after unloading it from memory.
+        // Resuming with the original ID restores the full conversation history and
+        // requires no UI update (session ID is unchanged).
+        if (expiredSessionId != null)
+        {
+            try
+            {
+                var session = await _client!.ResumeSessionAsync(expiredSessionId, new ResumeSessionConfig
+                {
+                    Model = ActiveModel,
+                    Streaming = true,
+                    OnPermissionRequest = BuildPermissionHandler(),
+                    OnUserInputRequest = BuildUserInputHandler(),
+                    SystemMessage = BuildSystemMessage(),
+                });
+
+                _mainSession = session;
+                _sessions[session.SessionId] = session;
+                session.On(evt => HandleSessionEvent(session.SessionId, evt));
+                return;
+            }
+            catch { /* Session disk data also gone; fall through to a fresh session. */ }
+        }
+
+        await CreateMainSessionAsync();
     }
 
     private async Task CreateMainSessionAsync()

@@ -78,12 +78,10 @@ public partial class MainForm : Form
         {
             foreach (var path in paths)
                 AddAttachment(path);
-        };
+		};
 
-        buttonHelp.Click += async (_, _) => await SendQuickCommandAsync(
-            "What can you help me with? Give a brief overview of your capabilities, " +
-            "and list all the tools, operations and built-in capabilities available to you in this session.");
-        buttonPowershell.Click += (_, _) => OpenPowershell();
+		buttonHelp.Click += (_, _) => ShowHelp();
+		buttonPowershell.Click += (_, _) => OpenPowershell();
         buttonSummarize.Click += async (_, _) => await SendQuickCommandAsync(
             "Please provide a concise summary of what we've discussed and accomplished so far in this session.");
         buttonClearOutput.Click += (_, _) => ClearActiveOutput();
@@ -162,6 +160,70 @@ public partial class MainForm : Form
     {
         try { await _copilot.AbortAsync(); }
         catch { /* ignore */ }
+
+        // Allow the session idle event to settle before sending the stop instruction.
+        await Task.Delay(300);
+        await DispatchPromptAsync("STOP. Do not perform any further actions. Wait for my next instruction.");
+    }
+
+    private void ShowHelp()
+    {
+        AppendOutput("❓ Kopilot — Quick Help\r\n\r\n", AppTheme.ColorUser);
+
+        AppendOutput("── Getting started ──────────────────────────────────\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "1. Click 📂 Open Folder… to connect Copilot to a project directory.\r\n" +
+            "2. Type a prompt and press Send (or Ctrl+Enter).\r\n" +
+            "3. Attach files or folders with 📄 / 📁 before sending for extra context.\r\n" +
+            "4. Use ▲ / ▼ to navigate your prompt history.\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("── Toolbar controls ─────────────────────────────────\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "  Model        – Choose the AI model (GPT-4.1, Claude Sonnet/Opus, …)\r\n" +
+            "  Mode         – Standard | Plan (plan before acting) | Autopilot (fully autonomous)\r\n" +
+            "  Fleet ☐      – Spawn parallel sub-agents for large tasks\r\n" +
+            "  Auto-approve – Skip permission prompts; approve all tool operations automatically\r\n" +
+            "  Stop         – Cancel an in-progress response\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("── Quick command buttons ─────────────────────────────\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "  ❓ Help       – Show this guide (works without a folder open)\r\n" +
+            "  ⚡ PowerShell – Open terminal in the project folder\r\n" +
+            "  📂 Explorer   – Open File Explorer at the project folder\r\n" +
+            "  💻 VS Code    – Launch VS Code and connect the IDE\r\n" +
+            "  📝 Summarize  – Ask Copilot for a session summary\r\n" +
+            "  💾 Backup     – Save a Markdown resume of the session\r\n" +
+            "  🗑 Clear      – Clear the output panel\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("── When Copilot asks permission ──────────────────────\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "  ✓ Allow          – Approve this one operation\r\n" +
+            "  ✓ Approve Similar – Approve all operations of this type for the session\r\n" +
+            "  ✗ Deny           – Reject; Copilot will adjust\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("── What Copilot can do for you ───────────────────────\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "  • Read, write, and edit files.\r\n" +
+            "  • Run shell commands and scripts.\r\n" +
+            "  • Search and navigate the codebase.\r\n" +
+            "  • Explain, refactor, and debug code.\r\n" +
+            "  • Plan multi-step tasks before acting.\r\n" +
+            "  • Spawn parallel agents (Fleet) for large jobs.\r\n" +
+            "  • Call MCP tools and external services.\r\n" +
+            "  • Fetch URLs and access memory.\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("── Tips ──────────────────────────────────────────────\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "  • Use Plan mode for big tasks so you can review before Copilot acts.\r\n" +
+            "  • Drag files onto the prompt box to attach them.\r\n" +
+            "  • Click 📝 Summarize often to capture progress.\r\n" +
+            "  • Click 💾 Backup to save a resume you can attach to a future session.\r\n\r\n",
+            AppTheme.ColorDefault);
     }
 
     private async Task SendQuickCommandAsync(string prompt)
@@ -578,10 +640,16 @@ public partial class MainForm : Form
             AddAttachment(dialog.SelectedPath);
     }
 
+    private static bool IsHiddenAttachment(string path) =>
+        Path.GetFileName(path).Equals("kopilot-instructions.md", StringComparison.OrdinalIgnoreCase);
+
     private void AddAttachment(string path)
     {
         if (_attachments.Contains(path)) return;
         _attachments.Add(path);
+
+        // Behind-the-scenes files are attached silently — no chip, no prompt reference.
+        if (IsHiddenAttachment(path)) return;
 
         var chip = new Button
         {

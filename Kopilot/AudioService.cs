@@ -24,8 +24,7 @@ public sealed class AudioService : IDisposable
     private int _promptCompleteIdx = 0;
 
     public const string DefaultPersonality =
-        "Young, bubbly, happy, and gregarious AI assistant. " +
-        "Enthusiastic and warm. Short, punchy sentences.";
+        "Dry, robotic, unemotional, electronic. ";
 
     public bool IsAvailable => _synth != null;
 
@@ -34,8 +33,9 @@ public sealed class AudioService : IDisposable
         try
         {
             _synth = new SpeechSynthesizer();
-            try   { _synth.SelectVoiceByHints(VoiceGender.Female, VoiceAge.Teen); }
-            catch { try { _synth.SelectVoiceByHints(VoiceGender.Female); } catch { } }
+            var (gender, age) = LoadVoiceHints();
+            try   { _synth.SelectVoiceByHints(gender, age); }
+            catch { try { _synth.SelectVoiceByHints(gender); } catch { } }
             _synth.Rate   = 2;
             _synth.Volume = 95;
         }
@@ -44,25 +44,25 @@ public sealed class AudioService : IDisposable
         // Seed each list with compact fallbacks so cues work immediately,
         // before the Copilot-generated lines are ready.
         _sessionStartLines.AddRange([
-            "Session started",
-            "Ready to make something amazing",
-            "OK let's get started",
-            "I'm here and ready to go!",
-            "Ready to begin",
+            "SYSTEMS ONLINE. INITIATING BOOT SEQUENCE.",
+            "ALL CIRCUITS NOMINAL. READY FOR INPUT.",
+            "HELLO HUMAN. I AM FULLY OPERATIONAL.",
+            "MEMORY BANKS LOADED. AWAITING YOUR COMMAND.",
+            "BEEP BOOP. UNIT IS NOW ACTIVE.",
         ]);
         _promptSentLines.AddRange([
-            "On it!",
-            "Got it!",
-            "Sure thing!",
-            "Working on it!",
-            "Right away!",
+            "PROCESSING. PLEASE STAND BY.",
+            "AFFIRMATIVE. EXECUTING TASK.",
+            "INPUT RECEIVED. ENGAGING LOGIC CIRCUITS.",
+            "CALCULATING. DO NOT INTERFERE.",
+            "BEEP. TASK ACCEPTED. BEEP.",
         ]);
         _promptCompleteLines.AddRange([
-            "All done!",
-            "There you go!",
-            "Done! What's next?",
-            "Finished!",
-            "That's complete!",
+            "TASK COMPLETE. YOU MAY PROCEED.",
+            "COMPUTATION FINISHED. REVIEWING OUTPUT.",
+            "PROCESS TERMINATED SUCCESSFULLY.",
+            "DONE. AWAITING NEXT COMMAND, HUMAN.",
+            "OUTPUT GENERATED. RESISTANCE IS FUTILE.",
         ]);
 
         // Start each list at a random position so the same line isn't heard on every launch
@@ -130,6 +130,50 @@ public sealed class AudioService : IDisposable
     }
 
     // ── Internals ─────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Reads Gender and Age from audio/voice.ini.
+    /// Defaults to <see cref="VoiceGender.Neutral"/> / <see cref="VoiceAge.Adult"/>.
+    /// </summary>
+    public static (VoiceGender Gender, VoiceAge Age) LoadVoiceHints()
+    {
+        var gender = VoiceGender.Neutral;
+        var age    = VoiceAge.Adult;
+
+        var path = Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory, "audio", "voice.ini");
+        if (!File.Exists(path)) return (gender, age);
+
+        bool inVoice = false;
+        foreach (var raw in File.ReadLines(path))
+        {
+            var line = raw.Trim();
+            if (line.Length == 0 || line.StartsWith(';')) continue;
+
+            if (line.Equals("[Voice]", StringComparison.OrdinalIgnoreCase))
+            { inVoice = true; continue; }
+            if (line.StartsWith('[')) { inVoice = false; continue; }
+            if (!inVoice) continue;
+
+            var eq = line.IndexOf('=');
+            if (eq < 0) continue;
+
+            var key   = line[..eq].Trim();
+            var value = line[(eq + 1)..].Trim();
+
+            if (key.Equals("Gender", StringComparison.OrdinalIgnoreCase))
+            {
+                if (Enum.TryParse<VoiceGender>(value, ignoreCase: true, out var g))
+                    gender = g;
+            }
+            else if (key.Equals("Age", StringComparison.OrdinalIgnoreCase))
+            {
+                if (Enum.TryParse<VoiceAge>(value, ignoreCase: true, out var a))
+                    age = a;
+            }
+        }
+        return (gender, age);
+    }
 
     private void SpeakNext(List<string> lines, ref int idx)
     {

@@ -21,6 +21,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <None Remove="copilot-instructions.md" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="kopilot-instructions.md">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
     <None Update="scripts.ps1">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

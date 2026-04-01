@@ -11,39 +11,6 @@ function home
 	set-location $rootname
 }
 
-write-output "[azdev] open the azure dashboard for MightyStudios"
-function azdev
-{ 
-	& explorer https://dev.azure.com/mightystudios/
-}
-
-write-output "[azportal] open the azure portal for MightyStudios"
-function azportal
-{ 
-	& explorer https://portal.azure.com/#home
-}
-
-write-output "[scripts] go to scripts folder $env:SCRIPTS_FOLDER"
-function scripts
-{ 
-	set-location $env:SCRIPTS_FOLDER
-}
-
-write-output "[np] Notepad++ or Notepad with the argument list"
-function np
-{
-	$notepadApp = Join-Path -Path ${env:ProgramFiles(x86)} -ChildPath "\Notepad++\notepad++.exe"
-	
-	if (Test-Path -Path $notepadApp -PathType leaf)
-	{
-		& $notepadApp @Args
-	}
-	else
-	{
-		& notepad @Args
-	}
-}
-
 write-output "[exp] open explorer in the current folder"
 function exp
 { 
@@ -509,126 +476,6 @@ function refetch(){
 	}
 }
 
-write-output "[fetch_xb_logs] gather log data from xbox into C:\Temp\DebugLogs"
-function fetch_xb_logs(){
-	$subfolder = Get-Date -Format o | foreach {$_ -replace ":", "."}
-
-	if ($subfolder -is [String]) 
-	{
-		pushd "C:\Program Files (x86)\Microsoft Durango XDK\bin"
-		$subfolder = $subfolder.Trim()
-		$perfFolder = "C:\Temp\DebugLogs";
-
-		$destFolder = $perfFolder + "\" + $subfolder + "\"
-		If((Test-Path $destFolder) -eq $False) {
-			New-Item -Path $perfFolder -name $subfolder -ItemType "directory"
-		} # End of folder exists test
-		
-		.\xbcp xd:\games\com.mojang\Debug_Log_*.txt $destFolder
-		.\xbcp xd:\games\com.mojang\*.csv $destFolder
-		.\xbcp xd:\games\com.mojang\testartifacts\* $destFolder /S
-		write-output "Copied Files to $destFolder"
-		
-		if (yesOrNo("Delete copied files from device?") -eq $true)
-		{
-			.\xbdel xd:\games\com.mojang\Debug_Log_*.txt
-			.\xbdel xd:\games\com.mojang\*.csv
-			.\xbdel xd:\games\com.mojang\testartifacts\* /S
-		}
-		popd
-		
-		#open the folder with the results
-		invoke-item $destFolder
-	}
-}
-
-write-output "[xbperfcap] gather perf data from xbox into C:\Temp\PerfLogs\"
-function xbperfcap(){
-	$subfolder = Get-Date -Format o | foreach {$_ -replace ":", "."}
-	
-	if ($subfolder -is [String]) 
-	{
-		pushd "C:\Program Files (x86)\Microsoft Durango XDK\bin"
-		$subfolder = $subfolder.Trim()
-		$perfFolder = "C:\Temp\PerfLogs";
-
-		$destFolder = $perfFolder + "\" + $subfolder + "\"
-		If((Test-Path $destFolder) -eq $False) {
-			New-Item -Path $perfFolder -name $subfolder -ItemType "directory"
-		} # End of folder exists test
-	
-		$perfFile = $destFolder + "xbperf_capture.etl"
-		
-		# capture until told to stop by keypress
-		.\xbperf.exe /start /interval 100000		
-		
-		write-output "Hit 'c' to end capture"
-		$x = ""
-		do
-		{
-			$input = $host.UI.RawUI.ReadKey("NoEcho,IncludeKeyDown")
-			$x = $input.Character
-			write-output $x
-		} while ($x -ne 'c')
-		
-		write-output "Ending capture session. Please wait..."
-		.\xbperf.exe /stop $perfFile
-		
-		#copy files from xbox
-		$folders= .\xbdir xd:\DevelopmentFiles\Microsoft.MinecraftUWPConsoleVS.Xbox.Release_x64.*
-		$line = $folders | Select-String -Pattern "Microsoft.MinecraftUWPConsoleVS.Xbox.Release_x64.[^/*]"
-		$split = $line -split "Microsoft.MinecraftUWPConsoleVS.Xbox.Release_x64."
-		if ($split.count -gt 0)
-		{
-			$subname= $split[1]		
-			.\xbcp xd:\DevelopmentFiles\Microsoft.MinecraftUWPConsoleVS.Xbox.Release_x64.$subname\Minecraft.Windows.exe $destFolder 
-		}
-		.\xbcp xd:\games\com.mojang\Perf_Log.csv $destFolder
-		popd
-		
-		pushd $destFolder
-		#uncomment below to auto-open open the etl perf log in WPA
-		#. wpa $perfFile
-		
-		#open the CSV log in excel, chart and resave as an xlsx
-		$inputCSV = $destFolder + "Perf_Log.csv"
-		$outfile = $destFolder + "Perf_Log.xlsx"
-		write-output "Generating $outfile from $inputCSV"
-		
-		$xl=New-Object -com "Excel.Application" 
-		$xl.Visible=$false
-		$xl.displayalerts=$False 
-		$wb=$xl.workbooks.open($inputCSV) 
-		$ws = $wb.worksheets.item(1)
-		$ws.activate()
-			
-			$ListObject = $xl.ActiveSheet.ListObjects.Add([Microsoft.Office.Interop.Excel.XlListObjectSourceType]::xlSrcRange, $xl.ActiveCell.CurrentRegion, $null ,[Microsoft.Office.Interop.Excel.XlYesNoGuess]::xlYes)
-			$ListObject.Name = "TableData"
-			$ListObject.TableStyle = "TableStyleMedium9"
-		
-			$xlChart=[Microsoft.Office.Interop.Excel.XLChartType]
-			$tbl = $ws.Range("B1").CurrentRegion
-			$col = $tbl.Offset(0,1).Resize($tbl.Rows.Count, 1)
-			$chart = $ws.Shapes.AddChart().Chart
-			$chart.HasTitle = $true
-			$chart.ChartTitle.Text = "FPS"
-			$chart.ChartType=$xlChart::xlLine
-			$chart.SetSourceData($col)
-			
-		$wb.SaveAs($outfile,51) 
-		$wb.Close()	
-		$xl.Quit()
-		[System.Runtime.Interopservices.Marshal]::ReleaseComObject($xl)
-
-		#uncomment below to auto-open chart in excel
-		#invoke-item $outfile
-		popd
-	}
-	
-	#open the folder with the results
-	invoke-item $destFolder
-}
-
 write-output "[gitdiff] diff commitA vs commit B"
 function gitdiff ([string]$A, [string]$B){
 	write-output "command example:  git difftool --dir-diff head head~2"
@@ -673,112 +520,6 @@ function TimedPrompt($prompt, [int]$secondsToWait){
     return $false
 }
 
-function start_screensaver() {
-	# Start-ScreenSaver
-	# Version: 1.1
-
-	param ([String]$Include, [String]$Exclude)
-
-	#Avoid execution if a screen saver is already running
-	if (get-Process *.scr) {
-	 return
-	}
-
-	#If filters are not provided default to user preference.
-	if ( -not $Include -and -not $Exclude) {
-	 [String]$DefaultScreenSaver = (Get-ItemProperty ‘HKCU:Control PanelDesktop’).{SCRNSAVE.EXE}
-	 if ($DefaultScreenSaver) {
-	  & $DefaultScreenSaver
-	  return
-	 }
-	}
-
-	#Get a list of available screen savers and filter them.
-	[System.Management.Automation.ApplicationInfo[]]$ScreenSaverCommands = Get-Command *.scr -CommandType Application |
-	 Where-Object {
-	  $(
-	   if ($Include) { $_.Name -like $Include -or $_.Name -eq $Include + ‘.scr’ }
-	   else {$true}
-	  ) -and
-	  $(
-	   if ($Exclude) { -not ( $_.Name -like $Exclude ) }
-	   else {$true}
-	  )
-	 }
-
-	#Randomly choose a screen saver and execute it.
-	if ($ScreenSaverCommands) {
-	 & $(($ScreenSaverCommands[$(New-Object System.Random).Next($ScreenSaverCommands.Length)]).Definition)
-	}
-}
-
-write-output "[stress_suspend] stress suspend resume of the Minecraft UWP Windows APP"
-function stress_suspend() {
-	#find console window with tile "test" and close it. 
-	add-type -AssemblyName microsoft.VisualBasic
-	add-type -AssemblyName System.Windows.Forms
-
-	$previousTitle= $host.UI.RawUI.WindowTitle
-	$host.UI.RawUI.WindowTitle= "Powershell"
-	$exit = $false
-	
-	$sig = '
-	[DllImport("user32.dll")] public static extern int FindWindow(string lpClassName,string lpWindowName);
-    [DllImport("user32.dll")] public static extern bool ShowWindowAsync(IntPtr hWnd, int nCmdShow);
-    [DllImport("user32.dll")] public static extern int SetForegroundWindow(IntPtr hwnd);
-	public const int WM_SYSCOMMAND = 0x0112;
-	public const int SC_CLOSE = 0xF060;
-	'
-	$WIN32 = Add-Type -MemberDefinition $sig -Name WindowAPI -PassThru
-	
-	while ($exit -eq $false)
-	{
-		[int]$handle = $WIN32::FindWindow('ApplicationFrameWindow','Minecraft')
-		[int]$pshell = $WIN32::FindWindow('ConsoleWindowClass','Powershell')
-		if (($handle -eq 0) -or ($pshell -eq 0))
-		{
-			Write-Host "Waiting for windows: Minecraft=$handle, Powershell= $pshell"
-			Start-Sleep -s 2
-		}
-		else
-		{
-			$sec = Get-Random -Minimum 1 -Maximum 7
-			$exit= TimedPrompt "Press key to exit; will suspend app in $sec seconds" $sec		
-			if ($exit -eq $false)
-			{
-				Write-Host "Suspending..."
-				$WIN32::ShowWindowAsync($handle, 6) | Out-Null
-				$WIN32::ShowWindowAsync($pshell, 5) | Out-Null
-				$WIN32::SetForegroundWindow($pshell) | Out-Null
-				
-				$sec = Get-Random -Minimum 1 -Maximum 60
-				$exit= TimedPrompt "Press key to exit; will resume app in $sec seconds" $sec
-				
-				if ($exit -eq $false)
-				{			
-					Write-Host " ...Resuming"
-					$WIN32::ShowWindowAsync($handle, 9) | Out-Null
-					$WIN32::SetForegroundWindow($handle) | Out-Null
-					
-					
-					$sec = Get-Random -Minimum 1 -Maximum 5
-					$exit= TimedPrompt "Screensaver in $sec seconds" $sec
-					
-					if ($exit -eq $false)
-					{			
-						start_screensaver
-						Start-Sleep -s 4
-						[System.Windows.Forms.SendKeys]::SendWait(" ")
-						Start-Sleep -s 1
-					}
-				}
-			}	
-		}			
-	}  
-	
-	$host.UI.RawUI.WindowTitle = $previousTitle
-}
-
 write-output "[clone_to_subfolder] clone with submodules into a named subfolder"
 function clone_to_subfolder ([string]$GITPATH,[string]$FOLDER){
 	if ($FOLDER -is [String]) 
@@ -816,12 +557,6 @@ function clone_to_subfolder ([string]$GITPATH,[string]$FOLDER){
 	}
 }
 
-write-output "[clone_mighty_unreal] clone the MightyUnreal depot locally"
-function clone_mighty_unreal()
-{ 
-	clone_to_subfolder https://mightystudios@dev.azure.com/mightystudios/MightyUnreal/_git/MightyUnreal MightyUnreal
-}
-
 write-output "[vs22] launch visual studio"
 function vs22()
 {
@@ -832,16 +567,4 @@ write-output "[vscode] launch Visual Studio Code (detached)"
 function vscode()
 {
 	Start-Process -FilePath "cmd.exe" -ArgumentList '/c','start','""','"C:\Program Files\Microsoft VS Code\Code.exe"','.' -WindowStyle Hidden
-}
-
-write-output "[unreal] go to the mighty unreal project"
-function unreal()
-{
-	. cd "D:\dev\MightyStudios\MightyUnreal"
-}
-
-write-output "[comfy] go to the comfyui folder"
-function comfy()
-{
-	. cd "D:\Tools\Comfy\ComfyUI"
 }

@@ -440,6 +440,22 @@ public sealed class CopilotService : IAsyncDisposable
                 "Never create temporary files in the project root or elsewhere.");
         }
 
+        // Project-level instructions from copilot-instructions.md
+        if (WorkingDirectory != null)
+        {
+            var instructionsPath = Path.Combine(WorkingDirectory, "kopilot-instructions.md");
+            if (File.Exists(instructionsPath))
+            {
+                try
+                {
+                    var instructions = File.ReadAllText(instructionsPath);
+                    if (!string.IsNullOrWhiteSpace(instructions))
+                        parts.Add($"PROJECT INSTRUCTIONS (from kopilot-instructions.md):\n\n{instructions.Trim()}");
+                }
+                catch { /* best-effort; skip if unreadable */ }
+            }
+        }
+
         // Mode-specific directive
         switch (ActiveMode)
         {

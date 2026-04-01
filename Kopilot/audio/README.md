@@ -9,11 +9,11 @@ of three cue types by asking Copilot itself — so the dialog is always fresh.
 The lines are held in memory and played **sequentially**, wrapping back to the start
 once all 100 have been used.
 
-| Cue Type          | When spoken                                  |
-|-------------------|----------------------------------------------|
-| Session-start     | When a Copilot session connects              |
-| Prompt-sent       | When a prompt is submitted                   |
-| Prompt-complete   | When Copilot finishes responding             |
+|Cue Type|When spoken|
+|-|-|
+|Session-start|When a Copilot session connects|
+|Prompt-sent|When a prompt is submitted|
+|Prompt-complete|When Copilot finishes responding|
 
 Generation happens in the background after connecting, so the first cue may be
 silent if you send a message before generation completes.
@@ -25,7 +25,7 @@ See the comments inside that file for tips.
 
 ## Voice Settings (AudioService.cs)
 
-- Gender: Female
-- Age hint: Teen (falls back to any female, then system default)
-- Rate: 2 (slightly faster than default for an energetic feel)
-- Volume: 95
+* Gender: Male Robot
+* Rate: 2 (slightly faster than default for an energetic feel)
+* Volume: 95
+

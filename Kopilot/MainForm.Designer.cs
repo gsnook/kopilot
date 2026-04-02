@@ -26,6 +26,7 @@ partial class MainForm
     private void InitializeComponent()
     {
         components = new System.ComponentModel.Container();
+        System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
         splitContainerMain = new SplitContainer();
         richTextBoxPrompt = new PlainRichTextBox();
         panelHistoryNav = new Panel();
@@ -577,6 +578,7 @@ partial class MainForm
         Controls.Add(splitContainerMain);
         Controls.Add(statusStrip);
         Font = new Font("Segoe UI", 9F);
+        Icon = (Icon)resources.GetObject("$this.Icon");
         MinimumSize = new Size(1050, 600);
         Name = "MainForm";
         Text = "Kopilot";

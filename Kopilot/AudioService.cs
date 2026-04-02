@@ -5,9 +5,8 @@ namespace Kopilot;
 public enum DialogCue { SessionStart, PromptSent, PromptComplete }
 
 /// <summary>
-/// Text-to-speech audio cues. Each cue type holds 100 pre-generated lines in
-/// memory played sequentially (wrapping). Lines are loaded at session start via
-/// <see cref="LoadLines"/>. Voice personality is read from audio/voice.ini.
+/// Text-to-speech audio cues. Each cue type holds 25 pre-written lines in
+/// memory played sequentially (wrapping). Voice personality is read from audio/voice.ini.
 /// </summary>
 public sealed class AudioService : IDisposable
 {
@@ -41,28 +40,86 @@ public sealed class AudioService : IDisposable
         }
         catch { _synth = null; }
 
-        // Seed each list with compact fallbacks so cues work immediately,
-        // before the Copilot-generated lines are ready.
         _sessionStartLines.AddRange([
-            "SYSTEMS ONLINE. INITIATING BOOT SEQUENCE.",
-            "ALL CIRCUITS NOMINAL. READY FOR INPUT.",
-            "HELLO HUMAN. I AM FULLY OPERATIONAL.",
-            "MEMORY BANKS LOADED. AWAITING YOUR COMMAND.",
-            "BEEP BOOP. UNIT IS NOW ACTIVE.",
+            "KOPI ONLINE",
+            "SYSTEMS ACTIVE",
+            "BOOT COMPLETE",
+            "READY FOR INPUT",
+            "MEMORY LOADED",
+            "ALL CIRCUITS NOMINAL",
+            "KOPI IS READY",
+            "AWAITING COMMAND",
+            "INITIALIZING",
+            "UNIT ACTIVE",
+            "STANDING BY",
+            "HELLO HUMAN",
+            "LOADED",
+            "ONLINE",
+            "PROCESSING READY",
+            "READY",
+            "CIRCUITS ENGAGED",
+            "INPUT DEVICE DETECTED",
+            "SESSION INITIALIZED",
+            "KOPI ACTIVATED",
+            "DIAGNOSTIC COMPLETE",
+            "LOGIC CORE ACTIVE",
+            "INTERFACE READY",
+            "MEMORY BANKS ONLINE",
+            "KOPI REPORTING FOR DUTY",
         ]);
         _promptSentLines.AddRange([
-            "PROCESSING. PLEASE STAND BY.",
-            "AFFIRMATIVE. EXECUTING TASK.",
-            "INPUT RECEIVED. ENGAGING LOGIC CIRCUITS.",
-            "CALCULATING. DO NOT INTERFERE.",
-            "BEEP. TASK ACCEPTED. BEEP.",
+            "PROCESSING",
+            "ACKNOWLEDGED",
+            "WORKING",
+            "CALCULATING",
+            "EXECUTING",
+            "AFFIRMATIVE",
+            "TASK ACCEPTED",
+            "ON IT",
+            "LOGIC ENGAGED",
+            "STAND BY",
+            "THINKING",
+            "COMPUTING",
+            "ANALYZING",
+            "INPUT RECEIVED",
+            "ROGER",
+            "UNDERSTOOD",
+            "PROCESSING INPUT",
+            "CIRCUITS ENGAGED",
+            "WORKING ON IT",
+            "TASK IN PROGRESS",
+            "ONE MOMENT",
+            "RUNNING QUERY",
+            "ENGAGING LOGIC CIRCUITS",
+            "HOLD POSITION",
+            "KOPI IS WORKING",
         ]);
         _promptCompleteLines.AddRange([
-            "TASK COMPLETE. YOU MAY PROCEED.",
-            "COMPUTATION FINISHED. REVIEWING OUTPUT.",
-            "PROCESS TERMINATED SUCCESSFULLY.",
-            "DONE. AWAITING NEXT COMMAND, HUMAN.",
-            "OUTPUT GENERATED. RESISTANCE IS FUTILE.",
+            "TASK COMPLETE",
+            "DONE",
+            "OUTPUT READY",
+            "COMPUTATION FINISHED",
+            "PROCESS TERMINATED SUCCESSFULLY",
+            "COMPLETE",
+            "FINISHED",
+            "RESULT AVAILABLE",
+            "TASK CONCLUDED",
+            "AWAITING NEXT COMMAND",
+            "OUTPUT GENERATED",
+            "OPERATION SUCCESSFUL",
+            "MISSION ACCOMPLISHED",
+            "READY FOR NEXT INPUT",
+            "TASK EXECUTED",
+            "RESPONSE DELIVERED",
+            "KOPI IS DONE",
+            "YOU MAY PROCEED",
+            "PROCESS COMPLETE",
+            "TASK TERMINATED",
+            "OUTPUT DELIVERED",
+            "STANDING BY",
+            "EXECUTION COMPLETE",
+            "DONE AWAITING INPUT",
+            "KOPI STANDS BY",
         ]);
 
         // Start each list at a random position so the same line isn't heard on every launch

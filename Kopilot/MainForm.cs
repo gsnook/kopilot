@@ -41,6 +41,7 @@ public partial class MainForm : Form
     private string? _mainSessionId;
     private int _pendingCount = 0; // number of prompts awaiting a response
     private bool _reconnecting = false; // true while an automatic reconnect is in progress
+    private bool _skipCloseBackupPrompt = false; // set after backup-on-close completes
 
 
     public MainForm()
@@ -541,8 +542,6 @@ public partial class MainForm : Form
             if (_copilot.KopilotPath != null)
                 AppendOutput($"[Scratchpad: {_copilot.KopilotPath}]\r\n\r\n", AppTheme.ColorMeta);
 
-            // Generate all dialog line pools in the background — non-blocking
-            _ = GenerateAllDialogLinesAsync();
         }
         catch (Exception ex)
         {
@@ -556,28 +555,6 @@ public partial class MainForm : Form
         {
             buttonOpenFolder.Enabled = true;
         }
-    }
-
-    private async Task GenerateAllDialogLinesAsync()
-    {
-        var personality = AudioService.LoadVoicePersonality();
-        try
-        {
-            // Generate all three cue pools in parallel
-            var ssTask = _copilot.GenerateDialogBatchAsync(DialogCue.SessionStart,   personality);
-            var psTask = _copilot.GenerateDialogBatchAsync(DialogCue.PromptSent,     personality);
-            var pcTask = _copilot.GenerateDialogBatchAsync(DialogCue.PromptComplete, personality);
-
-            await Task.WhenAll(ssTask, psTask, pcTask);
-
-            InvokeOnUI(() =>
-            {
-                _audio.LoadLines(DialogCue.SessionStart,   ssTask.Result);
-                _audio.LoadLines(DialogCue.PromptSent,     psTask.Result);
-                _audio.LoadLines(DialogCue.PromptComplete, pcTask.Result);
-            });
-        }
-        catch { /* voice generation is non-critical — silent failure is fine */ }
     }
 
     // ── Prompt history navigation ─────────────────────────────────────────────
@@ -1135,6 +1112,40 @@ public partial class MainForm : Form
     }
 
     // ── Cleanup ───────────────────────────────────────────────────────────────
+
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        base.OnFormClosing(e);
+
+        if (_skipCloseBackupPrompt) return;
+        if (!_copilot.IsConnected || _mainSessionId == null) return;
+
+        var result = MessageBox.Show(
+            "Would you like to save a Backup before closing?\r\n\r\n" +
+            "A backup lets you resume this session later.",
+            "Save Backup?",
+            MessageBoxButtons.YesNoCancel,
+            MessageBoxIcon.Question);
+
+        if (result == DialogResult.Cancel)
+        {
+            e.Cancel = true;
+            return;
+        }
+
+        if (result == DialogResult.Yes)
+        {
+            e.Cancel = true;
+            _ = BackupThenCloseAsync();
+        }
+    }
+
+    private async Task BackupThenCloseAsync()
+    {
+        await BackupSessionAsync();
+        _skipCloseBackupPrompt = true;
+        Close();
+    }
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {

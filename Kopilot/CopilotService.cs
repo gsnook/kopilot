@@ -255,7 +255,9 @@ public sealed class CopilotService : IAsyncDisposable
 
         _client = new CopilotClient(new CopilotClientOptions
         {
+            CliPath = ResolveCliFromPath(),
             Cwd = WorkingDirectory,
+            Environment = BuildCliEnvironment(),
         });
 
         _lifecycleSubscription = _client.On(SessionLifecycleEventTypes.Created, evt =>
@@ -583,12 +585,91 @@ public sealed class CopilotService : IAsyncDisposable
     // ── 3-Tier helpers ────────────────────────────────────────────────────────
 
     /// <summary>
+    /// Builds the environment dictionary to pass to the Copilot CLI process.
+    /// Inherits the current process environment and sets
+    /// <c>COPILOT_CUSTOM_INSTRUCTIONS_DIRS</c> so the CLI can discover
+    /// <c>AGENTS.md</c> and <c>.github/instructions/**/*.instructions.md</c>
+    /// files in the personal and org tier folders.
+    ///
+    /// The project tier is already covered by the <c>Cwd</c> option; the CLI
+    /// natively loads instructions from its working directory.  Personal
+    /// <c>copilot-instructions.md</c> is loaded automatically from
+    /// <c>~/.copilot</c> by the CLI, but <c>AGENTS.md</c> and
+    /// <c>.github/instructions/</c> in that folder require an explicit entry
+    /// in this env var.
+    ///
+    /// Any directories already present in the process-level
+    /// <c>COPILOT_CUSTOM_INSTRUCTIONS_DIRS</c> are preserved after the
+    /// Kopilot-managed tiers so that user-level customisation is not lost.
+    /// </summary>
+    private IReadOnlyDictionary<string, string> BuildCliEnvironment()
+    {
+        // Inherit the full process environment so the CLI continues to work.
+        var env = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (System.Collections.DictionaryEntry entry in System.Environment.GetEnvironmentVariables())
+        {
+            if (entry.Key is string k && entry.Value is string v)
+                env[k] = v;
+        }
+
+        // Build COPILOT_CUSTOM_INSTRUCTIONS_DIRS in Personal -> Org order.
+        // Deduplication is case-insensitive (Windows paths).
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var dirs = new List<string>();
+
+        var personal = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            ".copilot");
+        if (Directory.Exists(personal) && seen.Add(personal))
+            dirs.Add(personal);
+
+        if (!string.IsNullOrEmpty(OrgFolder) && Directory.Exists(OrgFolder) && seen.Add(OrgFolder))
+            dirs.Add(OrgFolder);
+
+        // Preserve any extra directories the user has configured in the env var.
+        if (env.TryGetValue("COPILOT_CUSTOM_INSTRUCTIONS_DIRS", out var existing))
+        {
+            foreach (var d in existing.Split(',',
+                StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+            {
+                if (seen.Add(d))
+                    dirs.Add(d);
+            }
+        }
+
+        if (dirs.Count > 0)
+            env["COPILOT_CUSTOM_INSTRUCTIONS_DIRS"] = string.Join(",", dirs);
+        else
+            env.Remove("COPILOT_CUSTOM_INSTRUCTIONS_DIRS");
+
+        return env;
+    }
+
+    /// <summary>
+    /// Searches PATH for a <c>copilot.exe</c> installation and returns its full path.
+    /// Returns <c>null</c> when not found; the SDK will then fall back to its bundled CLI.
+    /// </summary>
+    private static string? ResolveCliFromPath()
+    {
+        var pathVar = System.Environment.GetEnvironmentVariable("PATH") ?? "";
+        foreach (var dir in pathVar.Split(Path.PathSeparator))
+        {
+            var trimmed = dir.Trim();
+            if (string.IsNullOrEmpty(trimmed)) continue;
+            var candidate = Path.Combine(trimmed, "copilot.exe");
+            if (File.Exists(candidate))
+                return candidate;
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Returns the active tier folders in Personal -> Org -> Project order.
     /// Only tiers whose root directory actually exists are included.
     /// </summary>
     internal IEnumerable<(string Label, string Path)> GetTierFolders()
     {
-        var personal = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        var personal = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".copilot");
         if (!string.IsNullOrEmpty(personal) && Directory.Exists(personal))
             yield return ("PERSONAL", personal);
 

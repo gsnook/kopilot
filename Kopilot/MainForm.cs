@@ -1188,6 +1188,11 @@ public partial class MainForm : Form
                         AppTheme.ColorMeta);
                 scrollNeeded = true;
                 break;
+
+            case MessageKind.Status:
+                AppendOutput($"[{args.Content}]\r\n", AppTheme.ColorMeta);
+                scrollNeeded = true;
+                break;
         }
 
         if (scrollNeeded)

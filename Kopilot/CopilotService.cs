@@ -21,6 +21,7 @@ public enum MessageKind
     CustomAgentsUpdated,
     BytesUpdate,
     Error,
+    Status,
 }
 
 public sealed class SessionEventArgs : EventArgs
@@ -87,6 +88,8 @@ public sealed class CopilotService : IAsyncDisposable
     private CommandsChangedDataCommandsItem[] _cachedSdkCommands = [];
     // Sessions created internally (dialog generation) — suppressed from sub-agent UI events
     private readonly ConcurrentDictionary<string, byte> _internalSessionIds = new();
+    // Status message produced by BuildSystemMessage(); emitted once the session ID is known
+    private string? _pendingStatusMessage;
 
     private CancellationTokenSource? _keepAliveCts;
     private const int KeepAliveIntervalSeconds = 30;
@@ -431,6 +434,7 @@ public sealed class CopilotService : IAsyncDisposable
                 _mainSession = session;
                 _sessions[session.SessionId] = session;
                 session.On(evt => HandleSessionEvent(session.SessionId, evt));
+                EmitPendingStatus(session.SessionId);
                 return;
             }
             catch { /* Session disk data also gone; fall through to a fresh session. */ }
@@ -487,6 +491,20 @@ public sealed class CopilotService : IAsyncDisposable
             SessionId = session.SessionId,
             IsSubAgent = false,
         });
+        EmitPendingStatus(session.SessionId);
+    }
+
+    private void EmitPendingStatus(string sessionId)
+    {
+        if (_pendingStatusMessage == null) return;
+        var msg = _pendingStatusMessage;
+        _pendingStatusMessage = null;
+        MessageReceived?.Invoke(this, new SessionMessageEventArgs
+        {
+            SessionId = sessionId,
+            Content   = msg,
+            Kind      = MessageKind.Status,
+        });
     }
 
     private SystemMessageConfig? BuildSystemMessage()
@@ -504,6 +522,7 @@ public sealed class CopilotService : IAsyncDisposable
         }
 
         // Tiered instructions: Personal -> Org -> Project
+        var loadedTiers = new List<string>();
         foreach (var (label, folder) in GetTierFolders())
         {
             var instructionsPath = Path.Combine(folder, "kopilot-instructions.md");
@@ -512,10 +531,15 @@ public sealed class CopilotService : IAsyncDisposable
             {
                 var instructions = File.ReadAllText(instructionsPath);
                 if (!string.IsNullOrWhiteSpace(instructions))
+                {
                     parts.Add($"{label} INSTRUCTIONS (from kopilot-instructions.md):\n\n{instructions.Trim()}");
+                    loadedTiers.Add(label);
+                }
             }
             catch { /* best-effort; skip if unreadable */ }
         }
+        if (loadedTiers.Count > 0)
+            _pendingStatusMessage = $"Instructions loaded: {string.Join(", ", loadedTiers)}";
 
         // Mode-specific directive
         switch (ActiveMode)

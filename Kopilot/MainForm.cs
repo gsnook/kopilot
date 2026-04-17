@@ -549,13 +549,20 @@ public partial class MainForm : Form
         }
 
         // Ask user where to save
+        var kopilotDir = _copilot.WorkingDirectory != null
+            ? Path.Combine(_copilot.WorkingDirectory, ".kopilot")
+            : null;
+        var backupInitialDir = kopilotDir != null && Directory.Exists(kopilotDir)
+            ? kopilotDir
+            : _copilot.WorkingDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
+
         using var saveDialog = new SaveFileDialog
         {
             Title = "Save Session Backup",
             Filter = "Markdown files (*.md)|*.md|All files (*.*)|*.*",
             DefaultExt = "md",
             FileName = $"copilot-session-{DateTime.Now:yyyy-MM-dd-HHmm}.md",
-            InitialDirectory = _copilot.WorkingDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments),
+            InitialDirectory = backupInitialDir,
         };
 
         if (saveDialog.ShowDialog(this) != DialogResult.OK) return;
@@ -618,6 +625,52 @@ public partial class MainForm : Form
             buttonBackup.Text = "💾 Backup";
             SetSendingState(false);
         }
+    }
+
+    private async Task OfferLoadBackupAsync(string projectRoot)
+    {
+        var kopilotDir = Path.Combine(projectRoot, ".kopilot");
+        if (!Directory.Exists(kopilotDir)) return;
+
+        var newest = Directory.GetFiles(kopilotDir, "*.md")
+            .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
+            .FirstOrDefault();
+
+        if (newest == null) return;
+
+        var fileName = Path.GetFileName(newest);
+        var modified = File.GetLastWriteTime(newest);
+
+        var result = MessageBox.Show(
+            $"A session backup was found in .kopilot:\r\n\r\n" +
+            $"  {fileName}\r\n" +
+            $"  Saved: {modified:g}\r\n\r\n" +
+            "Load it to continue the previous session?",
+            "Resume Previous Session?",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question,
+            MessageBoxDefaultButton.Button1);
+
+        if (result != DialogResult.Yes) return;
+
+        string content;
+        try
+        {
+            content = await File.ReadAllTextAsync(newest);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Could not read backup file:\r\n\r\n{ex.Message}",
+                "Load Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+
+        AppendOutput($"[Loading session backup: {fileName}]\r\n\r\n", AppTheme.ColorMeta);
+
+        await DispatchPromptAsync(
+            "I am providing a session resume document from our last session. " +
+            "Please read it and confirm you understand the context so we can continue where we left off.\r\n\r\n" +
+            content);
     }
 
     private async Task OpenFolderAndConnectAsync()
@@ -728,6 +781,7 @@ public partial class MainForm : Form
 
             AppendOutput("\r\n", AppTheme.ColorMeta);
 
+            await OfferLoadBackupAsync(dialog.SelectedPath);
         }
         catch (Exception ex)
         {

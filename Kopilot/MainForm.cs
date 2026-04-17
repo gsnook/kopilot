@@ -1,6 +1,7 @@
 namespace Kopilot;
 
 using System.Runtime.InteropServices;
+using GitHub.Copilot.SDK.Rpc;
 
 public partial class MainForm : Form
 {
@@ -42,23 +43,24 @@ public partial class MainForm : Form
     private int _pendingCount = 0; // number of prompts awaiting a response
     private bool _reconnecting = false; // true while an automatic reconnect is in progress
     private bool _skipCloseBackupPrompt = false; // set after backup-on-close completes
+    private KopilotSettings _settings = new();
 
 
     public MainForm()
     {
         InitializeComponent();
         WireUpEvents();
-        // Default to the highest-available Claude Sonnet model
-        var sonnetIdx = comboBoxModel.Items.Cast<string>()
-            .Select((m, i) => (model: m, idx: i))
-            .Where(x => x.model.StartsWith("claude-sonnet", StringComparison.OrdinalIgnoreCase))
-            .OrderByDescending(x => x.model)
-            .Select(x => x.idx)
-            .DefaultIfEmpty(0)
-            .First();
-        comboBoxModel.SelectedIndex = sonnetIdx;
-        comboBoxMode.SelectedIndex = 0;
-        // Sync service with the UI defaults set in the designer
+
+        // Load persisted settings and sync with service
+        _settings = KopilotSettings.Load();
+        _copilot.OrgFolder = _settings.OrgFolder;
+        if (!string.IsNullOrEmpty(_settings.OrgFolder))
+            toolTipMain.SetToolTip(buttonSetOrgFolder,
+                $"Org folder: {_settings.OrgFolder}\n(click to change)");
+
+        // Populate mode combo from the SDK enum and select the first entry
+        PopulateModeCombo();
+        // Sync service with the UI defaults set above
         _copilot.AutoApprove = checkBoxAutoApprove.Checked;
         _copilot.FleetMode   = checkBoxFleet.Checked;
     }
@@ -81,7 +83,13 @@ public partial class MainForm : Form
                 AddAttachment(path);
 		};
 
-		buttonHelp.Click += (_, _) => ShowHelp();
+        this.Shown += async (_, _) =>
+        {
+            await CheckForUpdatesAsync();
+            await PopulateModelsAsync();
+        };
+
+        buttonHelp.Click += (_, _) => ShowHelpAsync();
 		buttonPowershell.Click += (_, _) => OpenPowershell();
         buttonSummarize.Click += async (_, _) => await SendQuickCommandAsync(
             "Please provide a concise summary of what we've discussed and accomplished so far in this session.");
@@ -89,6 +97,7 @@ public partial class MainForm : Form
         buttonBackup.Click += async (_, _) => await BackupSessionAsync();
         buttonOpenExplorer.Click += (_, _) => OpenExplorer();
         buttonOpenVSCode.Click += async (_, _) => await OpenVSCodeAsync();
+        buttonSetOrgFolder.Click += (_, _) => SetOrgFolder();
 
         checkBoxAutoApprove.CheckedChanged += (_, _) =>
             _copilot.AutoApprove = checkBoxAutoApprove.Checked;
@@ -140,7 +149,65 @@ public partial class MainForm : Form
             action();
     }
 
-    // ── Sending ───────────────────────────────────────────────────────────────
+    // ── Combo population ──────────────────────────────────────────────────────
+
+    // Maps each SDK mode enum value to the display name used throughout the app.
+    private static readonly Dictionary<SessionModeGetResultMode, string> _modeDisplayNames =
+        new()
+        {
+            [SessionModeGetResultMode.Interactive] = "Standard",
+            [SessionModeGetResultMode.Plan]        = "Plan",
+            [SessionModeGetResultMode.Autopilot]   = "Autopilot",
+        };
+
+    /// <summary>
+    /// Populates comboBoxMode from the SDK SessionModeGetResultMode enum values,
+    /// using display names that match the rest of the app (Interactive -> "Standard").
+    /// </summary>
+    private void PopulateModeCombo()
+    {
+        comboBoxMode.Items.Clear();
+        foreach (var mode in Enum.GetValues<SessionModeGetResultMode>())
+        {
+            var display = _modeDisplayNames.TryGetValue(mode, out var name) ? name : mode.ToString();
+            comboBoxMode.Items.Add(display);
+        }
+        comboBoxMode.SelectedIndex = 0;
+    }
+
+    /// <summary>
+    /// Queries the Copilot SDK for available models and populates comboBoxModel.
+    /// Selects the highest-available Claude Sonnet model by default.
+    /// Falls back silently if the SDK is unavailable.
+    /// </summary>
+    private async Task PopulateModelsAsync()
+    {
+        var ids = await _copilot.ListModelsAsync();
+        if (ids.Count == 0) return;
+
+        comboBoxModel.BeginUpdate();
+        try
+        {
+            comboBoxModel.Items.Clear();
+            foreach (var id in ids)
+                comboBoxModel.Items.Add(id);
+        }
+        finally
+        {
+            comboBoxModel.EndUpdate();
+        }
+
+        var sonnetIdx = comboBoxModel.Items.Cast<string>()
+            .Select((m, i) => (model: m, idx: i))
+            .Where(x => x.model.StartsWith("claude-sonnet", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.model)
+            .Select(x => x.idx)
+            .DefaultIfEmpty(0)
+            .First();
+        comboBoxModel.SelectedIndex = sonnetIdx;
+    }
+
+
 
     private async Task SendPromptAsync(bool recordHistory = true)
     {
@@ -225,6 +292,93 @@ public partial class MainForm : Form
             "  • Click 📝 Summarize often to capture progress.\r\n" +
             "  • Click 💾 Backup to save a resume you can attach to a future session.\r\n\r\n",
             AppTheme.ColorDefault);
+
+        AppendOutput("── Copilot slash commands (/…) ───────────────────────\r\n", AppTheme.ColorMeta);
+
+        AppendOutput("  Conversation\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "  /clear, /new [PROMPT]         Start a new conversation\r\n" +
+            "  /compact                       Summarize history to save context window\r\n" +
+            "  /copy                          Copy last response to clipboard\r\n" +
+            "  /diff                          Review changes made in the current directory\r\n" +
+            "  /plan [PROMPT]                 Create an implementation plan before coding\r\n" +
+            "  /undo, /rewind                 Revert last turn and undo file changes\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("  Session\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "  /cwd, /cd [PATH]               Show or change the working directory\r\n" +
+            "  /rename [NAME]                 Rename the current session\r\n" +
+            "  /resume [SESSION-ID]           Switch to a different session\r\n" +
+            "  /session [subcommand]          Show session info and workspace summary\r\n" +
+            "  /tasks                         View and manage background tasks and subagents\r\n" +
+            "  /usage                         Show session usage metrics and statistics\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("  Agents & Research\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "  /agent                         Browse and select available agents\r\n" +
+            "  /delegate [PROMPT]             Delegate task to a remote agent (creates PR)\r\n" +
+            "  /fleet [PROMPT]                Run task in parallel with sub-agents\r\n" +
+            "  /pr [view|create|fix|auto]     Operate on pull requests for the current branch\r\n" +
+            "  /research TOPIC                Deep research with GitHub search and web sources\r\n" +
+            "  /review [PROMPT]               Run the code review agent\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("  Permissions & Paths\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "  /add-dir PATH                  Add directory to allowed file access list\r\n" +
+            "  /allow-all, /yolo              Enable all permissions (tools, paths, URLs)\r\n" +
+            "  /list-dirs                     List all allowed directories\r\n" +
+            "  /reset-allowed-tools           Reset the list of allowed tools\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("  Tools & Integrations\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "  /ide                           Connect to an IDE workspace (e.g. VS Code)\r\n" +
+            "  /lsp [show|test|reload|help]   Manage language server configuration\r\n" +
+            "  /mcp [show|add|edit|delete|…]  Manage MCP server configuration\r\n" +
+            "  /plugin [install|list|…]       Manage plugins and plugin marketplaces\r\n" +
+            "  /skills [list|add|remove|…]    Manage agent skills\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("  Configuration\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "  /experimental [on|off|show]    Toggle or show experimental features\r\n" +
+            "  /init                          Initialize Copilot custom instructions\r\n" +
+            "  /instructions                  View and toggle custom instruction files\r\n" +
+            "  /keep-alive [on|busy|NUMBERm]  Prevent the machine from going to sleep\r\n" +
+            "  /model, /models [MODEL]        Select the AI model\r\n" +
+            "  /on-air, /streamer-mode        Toggle streamer mode (hides model names)\r\n" +
+            "  /terminal-setup                Configure terminal for multiline input\r\n" +
+            "  /theme [show|set|list]         View or configure the terminal theme\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("  Info & Sharing\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "  /changelog [SUMMARIZE]         Display the CLI changelog\r\n" +
+            "  /context                       Show context window token usage\r\n" +
+            "  /feedback                      Send feedback about the CLI to GitHub\r\n" +
+            "  /help                          Show CLI built-in help\r\n" +
+            "  /remote                        Enable remote access from GitHub.com / Mobile\r\n" +
+            "  /share [file|gist]             Share session as Markdown file or GitHub gist\r\n" +
+            "  /version                       Display version info and check for updates\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("  Auth & Lifecycle\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "  /login                         Log in to Copilot\r\n" +
+            "  /logout                        Log out of Copilot\r\n" +
+            "  /update                        Update the CLI to the latest version\r\n" +
+            "  /user [show|list|switch]       Manage the current GitHub user\r\n" +
+            "  /restart                       Restart the CLI, preserving the session\r\n" +
+            "  /exit, /quit                   Exit the CLI\r\n\r\n",
+            AppTheme.ColorDefault);
+    }
+
+    private void ShowHelpAsync()
+    {
+        ShowHelp();
     }
 
     private async Task SendQuickCommandAsync(string prompt)
@@ -540,7 +694,39 @@ public partial class MainForm : Form
                 toolStripStatusLabelVersion.Text = $"v{version}";
 
             if (_copilot.KopilotPath != null)
-                AppendOutput($"[Scratchpad: {_copilot.KopilotPath}]\r\n\r\n", AppTheme.ColorMeta);
+                AppendOutput($"[Scratchpad: {_copilot.KopilotPath}]\r\n", AppTheme.ColorMeta);
+
+            // Report which instruction tiers were loaded
+            foreach (var (label, folder) in _copilot.GetTierFolders())
+            {
+                var instructionsPath = System.IO.Path.Combine(folder, "kopilot-instructions.md");
+                var agentsDir        = System.IO.Path.Combine(folder, "agents");
+                var skillsDir        = System.IO.Path.Combine(folder, "skills");
+
+                var hasMd     = System.IO.File.Exists(instructionsPath);
+                var agentCount = System.IO.Directory.Exists(agentsDir)
+                    ? System.IO.Directory.GetFiles(agentsDir, "*.md", System.IO.SearchOption.TopDirectoryOnly).Length
+                    : 0;
+                var hasSkills = System.IO.Directory.Exists(skillsDir);
+
+                var parts = new System.Text.StringBuilder();
+                if (hasMd)     parts.Append("instructions");
+                if (agentCount > 0)
+                {
+                    if (parts.Length > 0) parts.Append(", ");
+                    parts.Append($"{agentCount} agent{(agentCount == 1 ? "" : "s")}");
+                }
+                if (hasSkills)
+                {
+                    if (parts.Length > 0) parts.Append(", ");
+                    parts.Append("skills");
+                }
+
+                var summary = parts.Length > 0 ? parts.ToString() : "no files";
+                AppendOutput($"[{label} tier: {folder} ({summary})]\r\n", AppTheme.ColorMeta);
+            }
+
+            AppendOutput("\r\n", AppTheme.ColorMeta);
 
         }
         catch (Exception ex)
@@ -557,7 +743,40 @@ public partial class MainForm : Form
         }
     }
 
+    // ── Org folder configuration ──────────────────────────────────────────────
+
+    private void SetOrgFolder()
+    {
+        using var dialog = new FolderBrowserDialog
+        {
+            Description = "Select the organization-level instructions folder\n" +
+                          "(should contain kopilot-instructions.md and/or agents/ and skills/ subfolders)",
+            UseDescriptionForTitle = true,
+            SelectedPath = _settings.OrgFolder ?? "",
+        };
+
+        if (dialog.ShowDialog(this) != DialogResult.OK) return;
+
+        _settings.OrgFolder = dialog.SelectedPath;
+        _copilot.OrgFolder  = dialog.SelectedPath;
+
+        toolTipMain.SetToolTip(buttonSetOrgFolder,
+            $"Org folder: {dialog.SelectedPath}\n(click to change)");
+
+        try
+        {
+            _settings.Save();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(
+                $"Could not save settings to kopilot.ini:\n\n{ex.Message}",
+                "Settings Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
     // ── Prompt history navigation ─────────────────────────────────────────────
+
 
     private void NavigateHistoryBack()
     {
@@ -975,8 +1194,23 @@ public partial class MainForm : Form
 
     private void AppendOutput(string text, Color color)
     {
-        AppendColoredText(richTextBoxOutput, text, color);
-        richTextBoxOutput.ScrollToCaret();
+        // Suppress redraws for the entire append + scroll sequence.
+        // ScrollToCaret must happen while WM_SETREDRAW is still false so the scroll
+        // position is already at the bottom when painting resumes.  If ScrollToCaret
+        // were called after Invalidate() the control would queue a WM_PAINT at the old
+        // scroll position, then scroll (BitBlt), then paint the new bottom strip --
+        // producing the "top-half jitter" seen during streaming.
+        SendMessage(richTextBoxOutput.Handle, WM_SETREDRAW, false, 0);
+        try
+        {
+            AppendColoredText(richTextBoxOutput, text, color);
+            richTextBoxOutput.ScrollToCaret();
+        }
+        finally
+        {
+            SendMessage(richTextBoxOutput.Handle, WM_SETREDRAW, true, 0);
+            richTextBoxOutput.Invalidate();
+        }
     }
 
     private static void AppendColoredText(RichTextBox box, string text, Color color)
@@ -985,6 +1219,12 @@ public partial class MainForm : Form
         box.SelectionLength = 0;
         box.SelectionColor = color;
         box.AppendText(text);
+        // TextBoxBase.AppendText restores the selection to the pre-append position
+        // (old TextLength), leaving the caret at the START of the appended text rather
+        // than the end.  Explicitly move to the true end so ScrollToCaret does not
+        // jump back on the next delta.
+        box.SelectionStart = box.TextLength;
+        box.SelectionLength = 0;
         box.SelectionColor = box.ForeColor;
     }
 
@@ -1056,6 +1296,7 @@ public partial class MainForm : Form
         {
             _reconnecting = false;
             UpdateWorkingState();
+            _ = ShowCliVersionAsync();
         }
         else
         {
@@ -1109,6 +1350,55 @@ public partial class MainForm : Form
             using var dialog = new UserInputDialog(args);
             dialog.ShowDialog(this);
         });
+    }
+
+    // ── Update checking ───────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Checks NuGet for a newer GitHub.Copilot.SDK release and notifies the user
+    /// if one is found. Runs asynchronously at startup without blocking the UI.
+    /// </summary>
+    private async Task CheckForUpdatesAsync()
+    {
+        var current = UpdateChecker.GetCurrentSdkVersion();
+        string? latest;
+
+        try
+        {
+            latest = await UpdateChecker.GetLatestSdkVersionAsync();
+        }
+        catch
+        {
+            latest = null;
+        }
+
+        if (latest == null)
+        {
+            AppendOutput($"[SDK v{current} — update check unavailable]\r\n", AppTheme.ColorMeta);
+            return;
+        }
+
+        if (UpdateChecker.IsNewer(current, latest))
+        {
+            AppendOutput(
+                $"[Update available: SDK v{current} -> v{latest}]\r\n",
+                AppTheme.ColorTool);
+
+            using var dlg = new UpdateNotificationDialog(current, latest);
+            dlg.ShowDialog(this);
+        }
+        else
+        {
+            AppendOutput($"[SDK v{current} — up to date]\r\n", AppTheme.ColorMeta);
+        }
+    }
+
+    /// <summary>Displays the running Copilot CLI version in the output panel after a connection.</summary>
+    private async Task ShowCliVersionAsync()
+    {
+        var version = await _copilot.GetVersionAsync();
+        if (!string.IsNullOrEmpty(version))
+            AppendOutput($"[Copilot CLI v{version}]\r\n", AppTheme.ColorMeta);
     }
 
     // ── Cleanup ───────────────────────────────────────────────────────────────

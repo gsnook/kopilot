@@ -51,6 +51,7 @@ partial class MainForm
         buttonBackup = new Button();
         buttonOpenExplorer = new Button();
         buttonOpenVSCode = new Button();
+        buttonSetOrgFolder = new Button();
         panelAttachments = new Panel();
         flowLayoutPanelChips = new FlowLayoutPanel();
         buttonAddFolder = new Button();
@@ -219,7 +220,6 @@ partial class MainForm
         comboBoxModel.Font = new Font("Segoe UI", 9F);
         comboBoxModel.ForeColor = Color.FromArgb(218, 218, 218);
         comboBoxModel.FormattingEnabled = true;
-        comboBoxModel.Items.AddRange(new object[] { "gpt-4.1", "gpt-5", "claude-sonnet-4.5", "claude-sonnet-4.6", "claude-opus-4.5" });
         comboBoxModel.Location = new Point(199, 7);
         comboBoxModel.Name = "comboBoxModel";
         comboBoxModel.Size = new Size(184, 23);
@@ -244,7 +244,6 @@ partial class MainForm
         comboBoxMode.Font = new Font("Segoe UI", 9F);
         comboBoxMode.ForeColor = Color.FromArgb(218, 218, 218);
         comboBoxMode.FormattingEnabled = true;
-        comboBoxMode.Items.AddRange(new object[] { "Standard", "Plan", "Autopilot" });
         comboBoxMode.Location = new Point(442, 7);
         comboBoxMode.Name = "comboBoxMode";
         comboBoxMode.Size = new Size(184, 23);
@@ -336,6 +335,7 @@ partial class MainForm
         panelQuickCommands.BackColor = Color.FromArgb(74, 74, 74);
         panelQuickCommands.Controls.Add(buttonHelp);
         panelQuickCommands.Controls.Add(buttonPowershell);
+        panelQuickCommands.Controls.Add(buttonSetOrgFolder);
         panelQuickCommands.Controls.Add(buttonSummarize);
         panelQuickCommands.Controls.Add(buttonClearOutput);
         panelQuickCommands.Controls.Add(buttonBackup);
@@ -380,6 +380,54 @@ partial class MainForm
         toolTipMain.SetToolTip(buttonPowershell, "Open PowerShell in the current project folder");
         buttonPowershell.UseVisualStyleBackColor = false;
         // 
+        // buttonSetOrgFolder
+        // 
+        buttonSetOrgFolder.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        buttonSetOrgFolder.BackColor = Color.FromArgb(86, 86, 86);
+        buttonSetOrgFolder.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+        buttonSetOrgFolder.FlatStyle = FlatStyle.Flat;
+        buttonSetOrgFolder.Font = new Font("Segoe UI", 8.5F);
+        buttonSetOrgFolder.ForeColor = Color.FromArgb(218, 218, 218);
+        buttonSetOrgFolder.Location = new Point(187, 7);
+        buttonSetOrgFolder.Name = "buttonSetOrgFolder";
+        buttonSetOrgFolder.Size = new Size(100, 26);
+        buttonSetOrgFolder.TabIndex = 7;
+        buttonSetOrgFolder.Text = "🏢 Org Folder...";
+        toolTipMain.SetToolTip(buttonSetOrgFolder, "Set the organization-level instructions folder (kopilot.ini)");
+        buttonSetOrgFolder.UseVisualStyleBackColor = false;
+        // 
+        // buttonOpenExplorer
+        // 
+        buttonOpenExplorer.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        buttonOpenExplorer.BackColor = Color.FromArgb(86, 86, 86);
+        buttonOpenExplorer.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+        buttonOpenExplorer.FlatStyle = FlatStyle.Flat;
+        buttonOpenExplorer.Font = new Font("Segoe UI", 8.5F);
+        buttonOpenExplorer.ForeColor = Color.FromArgb(218, 218, 218);
+        buttonOpenExplorer.Location = new Point(293, 8);
+        buttonOpenExplorer.Name = "buttonOpenExplorer";
+        buttonOpenExplorer.Size = new Size(88, 26);
+        buttonOpenExplorer.TabIndex = 5;
+        buttonOpenExplorer.Text = "📂 Explorer";
+        toolTipMain.SetToolTip(buttonOpenExplorer, "Open File Explorer in the current session folder");
+        buttonOpenExplorer.UseVisualStyleBackColor = false;
+        // 
+        // buttonOpenVSCode
+        // 
+        buttonOpenVSCode.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        buttonOpenVSCode.BackColor = Color.FromArgb(86, 86, 86);
+        buttonOpenVSCode.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+        buttonOpenVSCode.FlatStyle = FlatStyle.Flat;
+        buttonOpenVSCode.Font = new Font("Segoe UI", 8.5F);
+        buttonOpenVSCode.ForeColor = Color.FromArgb(218, 218, 218);
+        buttonOpenVSCode.Location = new Point(387, 8);
+        buttonOpenVSCode.Name = "buttonOpenVSCode";
+        buttonOpenVSCode.Size = new Size(90, 26);
+        buttonOpenVSCode.TabIndex = 6;
+        buttonOpenVSCode.Text = "💻 VS Code";
+        toolTipMain.SetToolTip(buttonOpenVSCode, "Open VS Code in the session folder and connect with /ide");
+        buttonOpenVSCode.UseVisualStyleBackColor = false;
+        // 
         // buttonSummarize
         // 
         buttonSummarize.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
@@ -388,7 +436,7 @@ partial class MainForm
         buttonSummarize.FlatStyle = FlatStyle.Flat;
         buttonSummarize.Font = new Font("Segoe UI", 8.5F);
         buttonSummarize.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonSummarize.Location = new Point(377, 7);
+        buttonSummarize.Location = new Point(483, 7);
         buttonSummarize.Name = "buttonSummarize";
         buttonSummarize.Size = new Size(100, 26);
         buttonSummarize.TabIndex = 2;
@@ -404,7 +452,7 @@ partial class MainForm
         buttonClearOutput.FlatStyle = FlatStyle.Flat;
         buttonClearOutput.Font = new Font("Segoe UI", 8.5F);
         buttonClearOutput.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonClearOutput.Location = new Point(519, 7);
+        buttonClearOutput.Location = new Point(589, 7);
         buttonClearOutput.Name = "buttonClearOutput";
         buttonClearOutput.Size = new Size(68, 26);
         buttonClearOutput.TabIndex = 3;
@@ -427,38 +475,6 @@ partial class MainForm
         buttonBackup.Text = "💾 Backup";
         toolTipMain.SetToolTip(buttonBackup, "Ask Copilot to write a session-resume document to a Markdown file");
         buttonBackup.UseVisualStyleBackColor = false;
-        // 
-        // buttonOpenExplorer
-        // 
-        buttonOpenExplorer.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        buttonOpenExplorer.BackColor = Color.FromArgb(86, 86, 86);
-        buttonOpenExplorer.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonOpenExplorer.FlatStyle = FlatStyle.Flat;
-        buttonOpenExplorer.Font = new Font("Segoe UI", 8.5F);
-        buttonOpenExplorer.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonOpenExplorer.Location = new Point(187, 8);
-        buttonOpenExplorer.Name = "buttonOpenExplorer";
-        buttonOpenExplorer.Size = new Size(88, 26);
-        buttonOpenExplorer.TabIndex = 5;
-        buttonOpenExplorer.Text = "📂 Explorer";
-        toolTipMain.SetToolTip(buttonOpenExplorer, "Open File Explorer in the current session folder");
-        buttonOpenExplorer.UseVisualStyleBackColor = false;
-        // 
-        // buttonOpenVSCode
-        // 
-        buttonOpenVSCode.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        buttonOpenVSCode.BackColor = Color.FromArgb(86, 86, 86);
-        buttonOpenVSCode.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonOpenVSCode.FlatStyle = FlatStyle.Flat;
-        buttonOpenVSCode.Font = new Font("Segoe UI", 8.5F);
-        buttonOpenVSCode.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonOpenVSCode.Location = new Point(281, 8);
-        buttonOpenVSCode.Name = "buttonOpenVSCode";
-        buttonOpenVSCode.Size = new Size(90, 26);
-        buttonOpenVSCode.TabIndex = 6;
-        buttonOpenVSCode.Text = "💻 VS Code";
-        toolTipMain.SetToolTip(buttonOpenVSCode, "Open VS Code in the session folder and connect with /ide");
-        buttonOpenVSCode.UseVisualStyleBackColor = false;
         // 
         // panelAttachments
         // 
@@ -629,6 +645,7 @@ partial class MainForm
     private System.Windows.Forms.Button buttonOpenFolder;
     private System.Windows.Forms.Button buttonStop;
     private System.Windows.Forms.Button buttonSend;
+    private System.Windows.Forms.Button buttonSetOrgFolder;
     private System.Windows.Forms.StatusStrip statusStrip;
     private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabelConnection;
     private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabelVersion;

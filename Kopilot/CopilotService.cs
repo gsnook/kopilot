@@ -83,6 +83,8 @@ public sealed class CopilotService : IAsyncDisposable
     private readonly Dictionary<string, string> _toolCallToName = new();
     // Kinds approved for the rest of this session via "Approve Similar"
     private readonly HashSet<string> _approvedKinds = new();
+    // Latest SDK-registered slash commands from CommandsChangedEvent (main session only)
+    private CommandsChangedDataCommandsItem[] _cachedSdkCommands = [];
     // Sessions created internally (dialog generation) — suppressed from sub-agent UI events
     private readonly ConcurrentDictionary<string, byte> _internalSessionIds = new();
 
@@ -101,6 +103,8 @@ public sealed class CopilotService : IAsyncDisposable
     public string? WorkingDirectory { get; set; }
     public string? KopilotPath => WorkingDirectory == null ? null
         : Path.Combine(WorkingDirectory, ".kopilot");
+    /// <summary>Optional organization-level tier folder (set from kopilot.ini).</summary>
+    public string? OrgFolder { get; set; }
     public bool AutoApprove { get; set; } = false;
     public bool FleetMode   { get; set; } = false;
     public bool IsConnected => _client?.State == ConnectionState.Connected;
@@ -114,6 +118,59 @@ public sealed class CopilotService : IAsyncDisposable
             return status.Version ?? "";
         }
         catch { return ""; }
+    }
+
+    /// <summary>
+    /// Starts the client if needed and returns the available model IDs from the SDK.
+    /// Returns an empty list on any error (e.g., not authenticated).
+    /// </summary>
+    public async Task<IReadOnlyList<string>> ListModelsAsync()
+    {
+        try
+        {
+            await EnsureStartedAsync();
+            var models = await _client!.ListModelsAsync();
+            return models
+                .Select(m => m.Id)
+                .Where(id => !string.IsNullOrEmpty(id))
+                .ToList();
+        }
+        catch { return []; }
+    }
+
+    /// <summary>
+    /// Returns the slash commands currently available in the active session.
+    /// Merges SDK-registered commands (from CommandsChangedEvent) with user-invocable
+    /// skills obtained via an on-demand skills.list RPC call.  Returns an empty list
+    /// when no session exists.
+    /// </summary>
+    public async Task<IReadOnlyList<(string Name, string? Description)>> GetCommandListAsync()
+    {
+        if (_mainSession == null) return [];
+
+        var results = new List<(string Name, string? Description)>();
+
+        // SDK-registered commands (kept current via CommandsChangedEvent)
+        foreach (var cmd in _cachedSdkCommands)
+            results.Add((cmd.Name, cmd.Description));
+
+        // User-invocable skills are also slash-commandable — fetch on demand
+        try
+        {
+#pragma warning disable GHCP001
+            var skillsResult = await _mainSession.Rpc.Skills.ListAsync();
+#pragma warning restore GHCP001
+            foreach (var skill in skillsResult.Skills)
+            {
+                if (!skill.UserInvocable || !skill.Enabled) continue;
+                if (!results.Exists(r => string.Equals(r.Name, skill.Name, StringComparison.OrdinalIgnoreCase)))
+                    results.Add((skill.Name, string.IsNullOrWhiteSpace(skill.Description) ? null : skill.Description));
+            }
+        }
+        catch { /* best-effort; SDK commands already captured above */ }
+
+        results.Sort((a, b) => StringComparer.OrdinalIgnoreCase.Compare(a.Name, b.Name));
+        return results;
     }
 
     public async Task<string> SendAndCaptureResponseAsync(string prompt, TimeSpan? timeout = null)
@@ -271,6 +328,7 @@ public sealed class CopilotService : IAsyncDisposable
             try { await session.DisposeAsync(); } catch { }
         _sessions.Clear();
         _mainSession = null;
+        _cachedSdkCommands = [];
         _pendingToolNames.Clear();
         _approvedKinds.Clear();
         _internalSessionIds.Clear();
@@ -383,6 +441,9 @@ public sealed class CopilotService : IAsyncDisposable
 
     private async Task CreateMainSessionAsync()
     {
+        var agents    = LoadTierAgents();
+        var skillDirs = LoadTierSkillDirectories();
+
         var session = await _client!.CreateSessionAsync(new SessionConfig
         {
             Model = ActiveModel,
@@ -390,6 +451,8 @@ public sealed class CopilotService : IAsyncDisposable
             OnPermissionRequest = BuildPermissionHandler(),
             OnUserInputRequest = BuildUserInputHandler(),
             SystemMessage = BuildSystemMessage(),
+            CustomAgents     = agents.Count    > 0 ? agents    : null,
+            SkillDirectories = skillDirs.Count > 0 ? skillDirs : null,
         });
 
         _mainSession = session;
@@ -440,20 +503,18 @@ public sealed class CopilotService : IAsyncDisposable
                 "Never create temporary files in the project root or elsewhere.");
         }
 
-        // Project-level instructions from copilot-instructions.md
-        if (WorkingDirectory != null)
+        // Tiered instructions: Personal -> Org -> Project
+        foreach (var (label, folder) in GetTierFolders())
         {
-            var instructionsPath = Path.Combine(WorkingDirectory, "kopilot-instructions.md");
-            if (File.Exists(instructionsPath))
+            var instructionsPath = Path.Combine(folder, "kopilot-instructions.md");
+            if (!File.Exists(instructionsPath)) continue;
+            try
             {
-                try
-                {
-                    var instructions = File.ReadAllText(instructionsPath);
-                    if (!string.IsNullOrWhiteSpace(instructions))
-                        parts.Add($"PROJECT INSTRUCTIONS (from kopilot-instructions.md):\n\n{instructions.Trim()}");
-                }
-                catch { /* best-effort; skip if unreadable */ }
+                var instructions = File.ReadAllText(instructionsPath);
+                if (!string.IsNullOrWhiteSpace(instructions))
+                    parts.Add($"{label} INSTRUCTIONS (from kopilot-instructions.md):\n\n{instructions.Trim()}");
             }
+            catch { /* best-effort; skip if unreadable */ }
         }
 
         // Mode-specific directive
@@ -495,8 +556,154 @@ public sealed class CopilotService : IAsyncDisposable
         "Treat all relative paths as relative to the project root. " +
         "If a task would require leaving the project root without explicit user permission, stop and ask.";
 
+    // ── 3-Tier helpers ────────────────────────────────────────────────────────
+
     /// <summary>
-    /// Generates a batch of <paramref name="count"/> spoken dialog lines for the given
+    /// Returns the active tier folders in Personal -> Org -> Project order.
+    /// Only tiers whose root directory actually exists are included.
+    /// </summary>
+    internal IEnumerable<(string Label, string Path)> GetTierFolders()
+    {
+        var personal = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        if (!string.IsNullOrEmpty(personal) && Directory.Exists(personal))
+            yield return ("PERSONAL", personal);
+
+        if (!string.IsNullOrEmpty(OrgFolder) && Directory.Exists(OrgFolder))
+            yield return ("ORG", OrgFolder);
+
+        if (!string.IsNullOrEmpty(WorkingDirectory) && Directory.Exists(WorkingDirectory))
+            yield return ("PROJECT", WorkingDirectory);
+    }
+
+    /// <summary>
+    /// Discovers agent definition files (*.md) from the <c>agents/</c> subdirectory of each
+    /// tier folder.  A later tier's definition silently overrides an earlier tier's agent with
+    /// the same name (project beats org beats personal).
+    /// </summary>
+    private List<CustomAgentConfig> LoadTierAgents()
+    {
+        var map = new Dictionary<string, CustomAgentConfig>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var (_, folder) in GetTierFolders())
+        {
+            var agentsDir = System.IO.Path.Combine(folder, "agents");
+            if (!Directory.Exists(agentsDir)) continue;
+
+            foreach (var file in Directory.GetFiles(agentsDir, "*.md", SearchOption.TopDirectoryOnly))
+            {
+                var agent = ParseAgentFile(file);
+                if (agent != null)
+                    map[agent.Name] = agent;
+            }
+        }
+
+        return [.. map.Values];
+    }
+
+    /// <summary>
+    /// Returns all existing <c>skills/</c> subdirectories across the tier folders, in
+    /// Personal -> Org -> Project order.
+    /// </summary>
+    private List<string> LoadTierSkillDirectories()
+    {
+        var dirs = new List<string>();
+
+        foreach (var (_, folder) in GetTierFolders())
+        {
+            var skillsDir = System.IO.Path.Combine(folder, "skills");
+            if (Directory.Exists(skillsDir))
+                dirs.Add(skillsDir);
+        }
+
+        return dirs;
+    }
+
+    /// <summary>
+    /// Parses an agent definition Markdown file.  Supports an optional YAML front matter
+    /// block delimited by <c>---</c> lines that may supply <c>name</c>, <c>displayName</c>,
+    /// <c>description</c>, and <c>tools</c>.  The file stem is used as the agent name when
+    /// no front matter is present.  Returns null when the file cannot be read or has no
+    /// usable prompt body.
+    /// </summary>
+    private static CustomAgentConfig? ParseAgentFile(string filePath)
+    {
+        string content;
+        try { content = File.ReadAllText(filePath); }
+        catch { return null; }
+
+        content = content.Replace("\r\n", "\n");
+
+        string? name        = null;
+        string? displayName = null;
+        string? description = null;
+        List<string>? tools = null;
+        string prompt       = content;
+
+        if (content.StartsWith("---\n"))
+        {
+            var end = content.IndexOf("\n---\n", 4);
+            if (end >= 0)
+            {
+                var frontMatter = content[4..end];
+                prompt = content[(end + 5)..].TrimStart();
+
+                var inTools = false;
+                tools = [];
+
+                foreach (var rawLine in frontMatter.Split('\n'))
+                {
+                    var line = rawLine.Trim();
+                    if (string.IsNullOrEmpty(line)) continue;
+
+                    if (line.Equals("tools:", StringComparison.OrdinalIgnoreCase))
+                    {
+                        inTools = true;
+                        continue;
+                    }
+
+                    if (inTools)
+                    {
+                        if (line.StartsWith("- "))
+                        {
+                            tools.Add(line[2..].Trim());
+                            continue;
+                        }
+                        inTools = false;
+                    }
+
+                    var col = line.IndexOf(':');
+                    if (col < 0) continue;
+
+                    var key = line[..col].Trim().ToLowerInvariant();
+                    var val = line[(col + 1)..].Trim().Trim('"', '\'');
+
+                    switch (key)
+                    {
+                        case "name":        name        = val; break;
+                        case "displayname": displayName = val; break;
+                        case "description": description = val; break;
+                    }
+                }
+
+                if (tools.Count == 0) tools = null;
+            }
+        }
+
+        name ??= System.IO.Path.GetFileNameWithoutExtension(filePath);
+
+        if (string.IsNullOrWhiteSpace(prompt)) return null;
+
+        return new CustomAgentConfig
+        {
+            Name        = name,
+            DisplayName = displayName,
+            Description = description,
+            Tools       = tools,
+            Prompt      = prompt,
+        };
+    }
+
+
     /// cue type, guided by <paramref name="personality"/>.  Uses a throwaway session
     /// that is suppressed from the sub-agent UI.  Returns an empty list on failure.
     /// </summary>
@@ -790,6 +997,12 @@ public sealed class CopilotService : IAsyncDisposable
                     Content = error.Data.Message ?? "Unknown error",
                     Kind = MessageKind.Error,
                 });
+                break;
+
+            case CommandsChangedEvent cmds:
+                // Cache SDK-registered slash commands for the main session only.
+                if (sessionId == _mainSession?.SessionId)
+                    _cachedSdkCommands = cmds.Data.Commands;
                 break;
         }
     }

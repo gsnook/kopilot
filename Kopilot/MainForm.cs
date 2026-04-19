@@ -177,7 +177,8 @@ public partial class MainForm : Form
 
     /// <summary>
     /// Queries the Copilot SDK for available models and populates comboBoxModel.
-    /// Selects the highest-available Claude Sonnet model by default.
+    /// Selects the highest-available Claude Opus model by default, falling back to
+    /// the highest-available Claude Sonnet model if no Opus model is present.
     /// Falls back silently if the SDK is unavailable.
     /// </summary>
     private async Task PopulateModelsAsync()
@@ -197,14 +198,23 @@ public partial class MainForm : Form
             comboBoxModel.EndUpdate();
         }
 
-        var sonnetIdx = comboBoxModel.Items.Cast<string>()
+        var items = comboBoxModel.Items.Cast<string>()
             .Select((m, i) => (model: m, idx: i))
+            .ToList();
+
+        var opusIdx = items
+            .Where(x => x.model.StartsWith("claude-opus", StringComparison.OrdinalIgnoreCase))
+            .OrderByDescending(x => x.model)
+            .Select(x => (int?)x.idx)
+            .FirstOrDefault();
+
+        var defaultIdx = opusIdx ?? items
             .Where(x => x.model.StartsWith("claude-sonnet", StringComparison.OrdinalIgnoreCase))
             .OrderByDescending(x => x.model)
-            .Select(x => x.idx)
-            .DefaultIfEmpty(0)
-            .First();
-        comboBoxModel.SelectedIndex = sonnetIdx;
+            .Select(x => (int?)x.idx)
+            .FirstOrDefault() ?? 0;
+
+        comboBoxModel.SelectedIndex = defaultIdx;
     }
 
 
@@ -607,7 +617,13 @@ public partial class MainForm : Form
 
             var markdown = await _copilot.SendAndCaptureResponseAsync(backupPrompt, TimeSpan.FromMinutes(5));
 
-            await File.WriteAllTextAsync(filePath, markdown);
+            var model = comboBoxModel.SelectedItem?.ToString() ?? string.Empty;
+            var mode  = comboBoxMode.SelectedItem?.ToString()  ?? string.Empty;
+            var metadata =
+                $"\r\n<!-- kopilot-model: {model} -->\r\n" +
+                $"<!-- kopilot-mode: {mode} -->\r\n";
+
+            await File.WriteAllTextAsync(filePath, markdown + metadata);
 
             AppendOutput($"[Backup saved to: {filePath}]\r\n\r\n", AppTheme.ColorMeta);
 
@@ -743,11 +759,15 @@ public partial class MainForm : Form
             ? string.Empty
             : $"  Goal: {goalSummary}\r\n";
 
+        var (savedModel, savedMode) = ExtractBackupSettings(content);
+        var modelLine = string.IsNullOrWhiteSpace(savedModel) ? string.Empty : $"  Model: {savedModel}\r\n";
+        var modeLine  = string.IsNullOrWhiteSpace(savedMode)  ? string.Empty : $"  Mode:  {savedMode}\r\n";
+
         var result = MessageBox.Show(
             $"A session backup was found in .kopilot:\r\n\r\n" +
             $"  {fileName}\r\n" +
             $"  Saved: {modified:g}\r\n" +
-            goalLine + "\r\n" +
+            goalLine + modelLine + modeLine + "\r\n" +
             "Load it to continue the previous session?",
             "Resume Previous Session?",
             MessageBoxButtons.YesNo,
@@ -755,6 +775,30 @@ public partial class MainForm : Form
             MessageBoxDefaultButton.Button1);
 
         if (result != DialogResult.Yes) return;
+
+        // Restore model selection if the saved model is still available.
+        if (!string.IsNullOrWhiteSpace(savedModel))
+        {
+            var modelIdx = comboBoxModel.Items.Cast<string>()
+                .Select((m, i) => (m, i))
+                .Where(x => x.m.Equals(savedModel, StringComparison.OrdinalIgnoreCase))
+                .Select(x => (int?)x.i)
+                .FirstOrDefault();
+            if (modelIdx.HasValue)
+                comboBoxModel.SelectedIndex = modelIdx.Value;
+        }
+
+        // Restore mode selection if the saved mode is still available.
+        if (!string.IsNullOrWhiteSpace(savedMode))
+        {
+            var modeIdx = comboBoxMode.Items.Cast<string>()
+                .Select((m, i) => (m, i))
+                .Where(x => x.m.Equals(savedMode, StringComparison.OrdinalIgnoreCase))
+                .Select(x => (int?)x.i)
+                .FirstOrDefault();
+            if (modeIdx.HasValue)
+                comboBoxMode.SelectedIndex = modeIdx.Value;
+        }
 
         AppendOutput($"[Loading session backup: {fileName}]\r\n\r\n", AppTheme.ColorMeta);
 
@@ -801,6 +845,27 @@ public partial class MainForm : Form
         if (matches.Count == 1) return first;
         var second = matches[1].Value.Trim();
         return (first + " " + second).Trim();
+    }
+
+    /// <summary>
+    /// Extracts the kopilot-model and kopilot-mode values written as HTML comments
+    /// at the end of a backup file, e.g. &lt;!-- kopilot-model: claude-opus-4.7 --&gt;.
+    /// Returns empty strings for any value that is absent.
+    /// </summary>
+    private static (string model, string mode) ExtractBackupSettings(string markdown)
+    {
+        var modelMatch = System.Text.RegularExpressions.Regex.Match(
+            markdown, @"<!--\s*kopilot-model:\s*(.+?)\s*-->",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        var modeMatch = System.Text.RegularExpressions.Regex.Match(
+            markdown, @"<!--\s*kopilot-mode:\s*(.+?)\s*-->",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        return (
+            modelMatch.Success ? modelMatch.Groups[1].Value.Trim() : string.Empty,
+            modeMatch.Success  ? modeMatch.Groups[1].Value.Trim()  : string.Empty
+        );
     }
 
     private async Task OpenFolderAndConnectAsync()
@@ -911,9 +976,9 @@ public partial class MainForm : Form
 
             AppendOutput("\r\n", AppTheme.ColorMeta);
 
-            await OfferReadReadmeAsync(dialog.SelectedPath);
-
             await OfferLoadBackupAsync(dialog.SelectedPath);
+
+            await OfferReadReadmeAsync(dialog.SelectedPath);
         }
         catch (Exception ex)
         {

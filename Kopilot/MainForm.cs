@@ -641,18 +641,6 @@ public partial class MainForm : Form
         var fileName = Path.GetFileName(newest);
         var modified = File.GetLastWriteTime(newest);
 
-        var result = MessageBox.Show(
-            $"A session backup was found in .kopilot:\r\n\r\n" +
-            $"  {fileName}\r\n" +
-            $"  Saved: {modified:g}\r\n\r\n" +
-            "Load it to continue the previous session?",
-            "Resume Previous Session?",
-            MessageBoxButtons.YesNo,
-            MessageBoxIcon.Question,
-            MessageBoxDefaultButton.Button1);
-
-        if (result != DialogResult.Yes) return;
-
         string content;
         try
         {
@@ -665,12 +653,69 @@ public partial class MainForm : Form
             return;
         }
 
+        var goalSummary = ExtractGoalSummary(content);
+        var goalLine = string.IsNullOrWhiteSpace(goalSummary)
+            ? string.Empty
+            : $"  Goal: {goalSummary}\r\n";
+
+        var result = MessageBox.Show(
+            $"A session backup was found in .kopilot:\r\n\r\n" +
+            $"  {fileName}\r\n" +
+            $"  Saved: {modified:g}\r\n" +
+            goalLine + "\r\n" +
+            "Load it to continue the previous session?",
+            "Resume Previous Session?",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question,
+            MessageBoxDefaultButton.Button1);
+
+        if (result != DialogResult.Yes) return;
+
         AppendOutput($"[Loading session backup: {fileName}]\r\n\r\n", AppTheme.ColorMeta);
 
         await DispatchPromptAsync(
             "I am providing a session resume document from our last session. " +
             "Please read it and confirm you understand the context so we can continue where we left off.\r\n\r\n" +
             content);
+    }
+
+    private static string ExtractGoalSummary(string markdown)
+    {
+        if (string.IsNullOrEmpty(markdown)) return string.Empty;
+
+        var lines = markdown.Replace("\r\n", "\n").Split('\n');
+        int start = -1;
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var trimmed = lines[i].TrimStart();
+            if (trimmed.StartsWith("##", StringComparison.Ordinal) &&
+                trimmed.TrimStart('#').Trim().Equals("Goal", StringComparison.OrdinalIgnoreCase))
+            {
+                start = i + 1;
+                break;
+            }
+        }
+
+        if (start < 0) return string.Empty;
+
+        var body = new System.Text.StringBuilder();
+        for (int i = start; i < lines.Length; i++)
+        {
+            if (lines[i].TrimStart().StartsWith("#", StringComparison.Ordinal)) break;
+            body.Append(lines[i].Trim()).Append(' ');
+        }
+
+        var text = System.Text.RegularExpressions.Regex.Replace(body.ToString(), @"\s+", " ").Trim();
+        if (text.Length == 0) return string.Empty;
+
+        // Take first one or two sentences.
+        var matches = System.Text.RegularExpressions.Regex.Matches(text, @"[^.!?]+[.!?]+");
+        if (matches.Count == 0) return text;
+
+        var first = matches[0].Value.Trim();
+        if (matches.Count == 1) return first;
+        var second = matches[1].Value.Trim();
+        return (first + " " + second).Trim();
     }
 
     private async Task OpenFolderAndConnectAsync()

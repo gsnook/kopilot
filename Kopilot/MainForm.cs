@@ -627,6 +627,91 @@ public partial class MainForm : Form
         }
     }
 
+    /// <summary>
+    /// When a workspace folder is opened, look for README.md (preferred) then
+    /// README.txt in the project root. If found, prompt the user for permission
+    /// to read it so Kopilot can better understand the project. The prompt
+    /// includes an option to first preview the file in VS Code.
+    /// </summary>
+    private async Task OfferReadReadmeAsync(string projectRoot)
+    {
+        if (string.IsNullOrEmpty(projectRoot) || !Directory.Exists(projectRoot)) return;
+
+        // Priority order: README.md before README.txt. Windows file system
+        // lookups are case-insensitive, so this also matches Readme.md, etc.
+        string? readmePath = null;
+        foreach (var name in new[] { "README.md", "README.txt" })
+        {
+            var candidate = Path.Combine(projectRoot, name);
+            if (File.Exists(candidate))
+            {
+                readmePath = candidate;
+                break;
+            }
+        }
+
+        if (readmePath == null) return;
+
+        var fileName = Path.GetFileName(readmePath);
+
+        while (true)
+        {
+            using var dialog = new ReadmePromptDialog(fileName);
+            dialog.ShowDialog(this);
+
+            switch (dialog.Result)
+            {
+                case ReadmePromptResult.Yes:
+                    string content;
+                    try
+                    {
+                        content = await File.ReadAllTextAsync(readmePath);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(this,
+                            $"Could not read {fileName}:\r\n\r\n{ex.Message}",
+                            "Read Failed", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                        return;
+                    }
+
+                    AppendOutput($"[Sharing {fileName} with Copilot for project context]\r\n\r\n",
+                        AppTheme.ColorMeta);
+
+                    await DispatchPromptAsync(
+                        $"Here is the contents of '{fileName}' from the workspace root. " +
+                        "Please read it to better understand the project we are working on, " +
+                        "then briefly confirm you have done so.\r\n\r\n" +
+                        content);
+                    return;
+
+                case ReadmePromptResult.OpenInVSCode:
+                    try
+                    {
+                        System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                        {
+                            FileName = "code",
+                            Arguments = $"\"{readmePath}\"",
+                            UseShellExecute = true,
+                        });
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show(this,
+                            $"Could not open {fileName} in VS Code:\r\n\r\n{ex.Message}\r\n\r\n" +
+                            "Make sure the 'code' command is on your PATH.",
+                            "VS Code Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    }
+                    // Re-prompt so the user can decide after previewing.
+                    continue;
+
+                case ReadmePromptResult.No:
+                default:
+                    return;
+            }
+        }
+    }
+
     private async Task OfferLoadBackupAsync(string projectRoot)
     {
         var kopilotDir = Path.Combine(projectRoot, ".kopilot");
@@ -825,6 +910,8 @@ public partial class MainForm : Form
             }
 
             AppendOutput("\r\n", AppTheme.ColorMeta);
+
+            await OfferReadReadmeAsync(dialog.SelectedPath);
 
             await OfferLoadBackupAsync(dialog.SelectedPath);
         }

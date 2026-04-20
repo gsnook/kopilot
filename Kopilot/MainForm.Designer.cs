@@ -48,6 +48,7 @@ partial class MainForm
         buttonPowershell = new Button();
         buttonSummarize = new Button();
         buttonClearOutput = new Button();
+        buttonRefresh = new Button();
         buttonBackup = new Button();
         buttonOpenExplorer = new Button();
         buttonOpenVSCode = new Button();
@@ -62,6 +63,8 @@ partial class MainForm
         toolStripStatusLabelVersion = new ToolStripStatusLabel();
         toolStripStatusLabelSep = new ToolStripSeparator();
         toolStripStatusLabelAgentStatus = new ToolStripStatusLabel();
+        toolStripProgressBarContext = new ToolStripProgressBar();
+        toolStripStatusLabelContext = new ToolStripStatusLabel();
         toolStripStatusLabelSession = new ToolStripStatusLabel();
         toolTipMain = new ToolTip(components);
         ((System.ComponentModel.ISupportInitialize)splitContainerMain).BeginInit();
@@ -338,6 +341,7 @@ partial class MainForm
         panelQuickCommands.Controls.Add(buttonSetOrgFolder);
         panelQuickCommands.Controls.Add(buttonSummarize);
         panelQuickCommands.Controls.Add(buttonClearOutput);
+        panelQuickCommands.Controls.Add(buttonRefresh);
         panelQuickCommands.Controls.Add(buttonBackup);
         panelQuickCommands.Controls.Add(buttonOpenExplorer);
         panelQuickCommands.Controls.Add(buttonOpenVSCode);
@@ -460,6 +464,22 @@ partial class MainForm
         toolTipMain.SetToolTip(buttonClearOutput, "Clear the current output window");
         buttonClearOutput.UseVisualStyleBackColor = false;
         // 
+        // buttonRefresh
+        // 
+        buttonRefresh.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        buttonRefresh.BackColor = Color.FromArgb(86, 86, 86);
+        buttonRefresh.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+        buttonRefresh.FlatStyle = FlatStyle.Flat;
+        buttonRefresh.Font = new Font("Segoe UI", 8.5F);
+        buttonRefresh.ForeColor = Color.FromArgb(218, 218, 218);
+        buttonRefresh.Location = new Point(663, 7);
+        buttonRefresh.Name = "buttonRefresh";
+        buttonRefresh.Size = new Size(94, 26);
+        buttonRefresh.TabIndex = 8;
+        buttonRefresh.Text = "💤 Refresh ▾";
+        toolTipMain.SetToolTip(buttonRefresh, "Free up context window — Compact (in place) or Restart with summary");
+        buttonRefresh.UseVisualStyleBackColor = false;
+        // 
         // buttonBackup
         // 
         buttonBackup.Anchor = AnchorStyles.Right;
@@ -544,7 +564,7 @@ partial class MainForm
         // statusStrip
         // 
         statusStrip.BackColor = Color.FromArgb(56, 56, 56);
-        statusStrip.Items.AddRange(new ToolStripItem[] { toolStripStatusLabelConnection, toolStripStatusLabelVersion, toolStripStatusLabelSep, toolStripStatusLabelAgentStatus, toolStripStatusLabelSession });
+        statusStrip.Items.AddRange(new ToolStripItem[] { toolStripStatusLabelConnection, toolStripStatusLabelVersion, toolStripStatusLabelSep, toolStripStatusLabelAgentStatus, toolStripProgressBarContext, toolStripStatusLabelContext, toolStripStatusLabelSession });
         statusStrip.Location = new Point(0, 1095);
         statusStrip.Name = "statusStrip";
         statusStrip.Size = new Size(1034, 23);
@@ -577,6 +597,26 @@ partial class MainForm
         toolStripStatusLabelAgentStatus.Size = new Size(921, 18);
         toolStripStatusLabelAgentStatus.Spring = true;
         toolStripStatusLabelAgentStatus.Text = "Ready for next command";
+        // 
+        // toolStripProgressBarContext
+        // 
+        toolStripProgressBarContext.Name = "toolStripProgressBarContext";
+        toolStripProgressBarContext.Size = new Size(80, 16);
+        toolStripProgressBarContext.Minimum = 0;
+        toolStripProgressBarContext.Maximum = 100;
+        toolStripProgressBarContext.Value = 0;
+        toolStripProgressBarContext.Style = ProgressBarStyle.Continuous;
+        toolStripProgressBarContext.BackColor = Color.FromArgb(46, 46, 46);
+        toolStripProgressBarContext.ForeColor = Color.FromArgb(148, 220, 148);
+        toolStripProgressBarContext.Margin = new Padding(4, 3, 0, 3);
+        // 
+        // toolStripStatusLabelContext
+        // 
+        toolStripStatusLabelContext.ForeColor = Color.FromArgb(148, 148, 148);
+        toolStripStatusLabelContext.Name = "toolStripStatusLabelContext";
+        toolStripStatusLabelContext.Padding = new Padding(8, 0, 8, 0);
+        toolStripStatusLabelContext.Size = new Size(16, 18);
+        toolStripStatusLabelContext.Text = "";
         // 
         // toolStripStatusLabelSession
         // 
@@ -623,6 +663,7 @@ partial class MainForm
     private System.Windows.Forms.Button buttonPowershell;
     private System.Windows.Forms.Button buttonSummarize;
     private System.Windows.Forms.Button buttonClearOutput;
+    private System.Windows.Forms.Button buttonRefresh;
     private System.Windows.Forms.Button buttonBackup;
     private System.Windows.Forms.Button buttonOpenExplorer;
     private System.Windows.Forms.Button buttonOpenVSCode;
@@ -651,6 +692,8 @@ partial class MainForm
     private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabelVersion;
     private System.Windows.Forms.ToolStripSeparator toolStripStatusLabelSep;
     private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabelAgentStatus;
+    private System.Windows.Forms.ToolStripProgressBar toolStripProgressBarContext;
+    private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabelContext;
     private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabelSession;
     private System.Windows.Forms.ToolTip toolTipMain;
 }

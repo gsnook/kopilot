@@ -74,6 +74,14 @@ public sealed class UserInputEventArgs : EventArgs
     public TaskCompletionSource<string> Answer { get; } = new();
 }
 
+public sealed class ContextUsageEventArgs : EventArgs
+{
+    public string SessionId       { get; init; } = "";
+    public double InputTokens     { get; init; }
+    public double MaxPromptTokens { get; init; }
+    public double Percent => MaxPromptTokens > 0 ? (InputTokens / MaxPromptTokens) * 100.0 : 0;
+}
+
 public sealed class CopilotService : IAsyncDisposable
 {
     private CopilotClient? _client;
@@ -100,6 +108,18 @@ public sealed class CopilotService : IAsyncDisposable
     public event EventHandler<UserInputEventArgs>? UserInputRequested;
     public event EventHandler<string>? ConnectionStateChanged;
     public event EventHandler<string>? SessionIdleForSession;
+    public event EventHandler<ContextUsageEventArgs>? ContextUsageChanged;
+
+    // Most recent input-token reading from the main session (size of the prompt
+    // window the model just consumed) and the active model's prompt-token ceiling.
+    private double _currentInputTokens     = 0;
+    private double _currentMaxPromptTokens = 0;
+    // Cache of per-model prompt-token limits, populated by ListModelsAsync.
+    private readonly Dictionary<string, double> _modelPromptLimits =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    public double CurrentInputTokens     => _currentInputTokens;
+    public double CurrentMaxPromptTokens => _currentMaxPromptTokens;
 
     public string ActiveModel { get; set; } = "claude-sonnet-4.6";
     public string ActiveMode  { get; set; } = "Standard";
@@ -133,12 +153,55 @@ public sealed class CopilotService : IAsyncDisposable
         {
             await EnsureStartedAsync();
             var models = await _client!.ListModelsAsync();
+
+            // Capture per-model prompt-token ceiling for the context meter.
+            foreach (var m in models)
+            {
+                if (string.IsNullOrEmpty(m.Id)) continue;
+                var limits = m.Capabilities.Limits;
+                var max = limits.MaxPromptTokens
+                       ?? (limits.MaxContextWindowTokens > 0 ? limits.MaxContextWindowTokens : 0);
+                if (max > 0) _modelPromptLimits[m.Id] = max;
+            }
+            // Reflect the current model's limit immediately so the meter has a
+            // denominator before the first turn arrives.
+            _currentMaxPromptTokens = LookupMaxPromptTokens(ActiveModel);
+
             return models
                 .Select(m => m.Id)
                 .Where(id => !string.IsNullOrEmpty(id))
                 .ToList();
         }
         catch { return []; }
+    }
+
+    /// <summary>
+    /// Returns the prompt-token ceiling for <paramref name="modelId"/>.  Prefers the
+    /// SDK-reported value; otherwise picks a reasonable default based on the model
+    /// family prefix; otherwise falls back to a generic 200K window.
+    /// </summary>
+    private double LookupMaxPromptTokens(string? modelId)
+    {
+        if (string.IsNullOrEmpty(modelId)) return 200_000;
+        if (_modelPromptLimits.TryGetValue(modelId, out var v) && v > 0) return v;
+
+        // Family-level fallbacks for models the SDK has not reported limits for.
+        if (modelId.StartsWith("gpt-4.1",  StringComparison.OrdinalIgnoreCase)) return 1_000_000;
+        if (modelId.StartsWith("gpt-5",    StringComparison.OrdinalIgnoreCase)) return 200_000;
+        if (modelId.StartsWith("claude-",  StringComparison.OrdinalIgnoreCase)) return 200_000;
+        return 200_000;
+    }
+
+    // True when an AssistantUsageEvent represents a top-level user-driven
+    // request, as opposed to a sub-agent or sampling call whose tokens should
+    // not be charged to the visible context-window meter.  The SDK schema says
+    // Initiator is absent for user-initiated calls, but some models emit the
+    // literal string "user", so we accept both forms.  Known non-user values
+    // ("sub-agent", "mcp-sampling", and any future additions) are rejected.
+    private static bool IsUserInitiatedUsage(string? initiator)
+    {
+        if (string.IsNullOrEmpty(initiator)) return true;
+        return string.Equals(initiator, "user", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>
@@ -231,6 +294,7 @@ public sealed class CopilotService : IAsyncDisposable
     public async Task UpdateModelAsync(string model)
     {
         ActiveModel = model;
+        _currentMaxPromptTokens = LookupMaxPromptTokens(model);
         if (_mainSession != null)
         {
             try { await _mainSession.SetModelAsync(model); }
@@ -925,6 +989,59 @@ public sealed class CopilotService : IAsyncDisposable
             _mainSession = null;
         }
         _approvedKinds.Clear();
+        _currentInputTokens = 0;
+    }
+
+    /// <summary>
+    /// Asks the CLI to compact the current session in place, summarising history
+    /// to free context-window headroom while preserving the session ID.
+    /// Returns true on success; false if the SDK call throws (e.g. the experimental
+    /// endpoint is unavailable for this server build).
+    /// </summary>
+    public async Task<bool> CompactSessionAsync()
+    {
+        if (_mainSession == null) return false;
+        try
+        {
+#pragma warning disable GHCP001
+            var result = await _mainSession.Rpc.History.CompactAsync();
+#pragma warning restore GHCP001
+            if (!result.Success) return false;
+
+            // Optimistically zero the meter — the next AssistantUsageEvent will
+            // restore the true value once the user sends another prompt.
+            _currentInputTokens = 0;
+            ContextUsageChanged?.Invoke(this, new ContextUsageEventArgs
+            {
+                SessionId       = _mainSession.SessionId,
+                InputTokens     = 0,
+                MaxPromptTokens = _currentMaxPromptTokens,
+            });
+            return true;
+        }
+        catch { return false; }
+    }
+
+    /// <summary>
+    /// Tears down the current main session, opens a fresh one in the same workspace,
+    /// and seeds it with <paramref name="summary"/> via <paramref name="seedPrompt"/>.
+    /// The new session inherits the active model, mode, and Fleet setting.
+    /// </summary>
+    public async Task RestartSessionWithSummaryAsync(string summary, string seedPrompt)
+    {
+        await ResetSessionAsync();
+        await EnsureSessionAsync();
+
+        _currentInputTokens = 0;
+        ContextUsageChanged?.Invoke(this, new ContextUsageEventArgs
+        {
+            SessionId       = _mainSession?.SessionId ?? "",
+            InputTokens     = 0,
+            MaxPromptTokens = _currentMaxPromptTokens,
+        });
+
+        var fullPrompt = seedPrompt + "\r\n\r\n" + summary;
+        await _mainSession!.SendAsync(new MessageOptions { Prompt = fullPrompt });
     }
 
     /// <summary>
@@ -1108,6 +1225,42 @@ public sealed class CopilotService : IAsyncDisposable
                 // Cache SDK-registered slash commands for the main session only.
                 if (sessionId == _mainSession?.SessionId)
                     _cachedSdkCommands = cmds.Data.Commands;
+                break;
+
+            case AssistantUsageEvent usage:
+                // Update the context-window meter from the main user-driven flow only:
+                // ignore sub-agents (ParentToolCallId set) and non-user initiators
+                // (e.g. "sub-agent", "mcp-sampling").  The SDK schema documents
+                // Initiator as absent for user-initiated calls, but some models
+                // (observed: claude-opus-4.7) emit the literal string "user"
+                // instead, so we accept both.  Use an allow-list so any future
+                // non-user initiator type stays correctly excluded.
+                if (sessionId == _mainSession?.SessionId
+                    && usage.Data.ParentToolCallId == null
+                    && IsUserInitiatedUsage(usage.Data.Initiator)
+                    && usage.Data.InputTokens.HasValue)
+                {
+                    _currentInputTokens = usage.Data.InputTokens.Value;
+                    if (_currentMaxPromptTokens <= 0)
+                        _currentMaxPromptTokens = LookupMaxPromptTokens(usage.Data.Model);
+                    ContextUsageChanged?.Invoke(this, new ContextUsageEventArgs
+                    {
+                        SessionId       = sessionId ?? "",
+                        InputTokens     = _currentInputTokens,
+                        MaxPromptTokens = _currentMaxPromptTokens,
+                    });
+                }
+                break;
+
+            case SessionInfoEvent info
+                when sessionId == _mainSession?.SessionId
+                  && string.Equals(info.Data.InfoType, "context_window", StringComparison.OrdinalIgnoreCase):
+                MessageReceived?.Invoke(this, new SessionMessageEventArgs
+                {
+                    SessionId = sessionId,
+                    Content   = info.Data.Message ?? "",
+                    Kind      = MessageKind.Status,
+                });
                 break;
         }
     }

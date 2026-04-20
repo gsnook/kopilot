@@ -105,6 +105,7 @@ One-click shortcuts for common actions:
 | **📂 Explorer** | Open File Explorer at the current project folder. |
 | **💻 VS Code** | Launch VS Code in the project folder and send the `/ide` command to connect Copilot to it. |
 | **📝 Summarize** | Request a summary of the current session from Copilot. |
+| **💤 Refresh** | Free up context: compact the session in place, or restart with a summary. See [Refreshing the Session](#refreshing-the-session). |
 | **🗑 Clear** | Clear the output panel (asks for confirmation). |
 | **💾 Backup** | Ask Copilot to write a Markdown resume file for the current session. |
 
@@ -117,7 +118,24 @@ The bar at the bottom of the window shows:
 - **Connection status** — folder path once connected, or "Not connected"
 - **Copilot version**
 - **Agent status** — live activity message (e.g., "Ready for next command")
+- **Context meter** — current prompt-token usage as `Context: 42K / 200K (21%)`. Coloured green below 60%, amber at 60–85%, red above 85%.
 - **Session info**
+
+---
+
+## Refreshing the Session
+
+Long sessions accumulate context until model accuracy degrades. The **💤 Refresh** button offers two ways to reclaim space without losing your place:
+
+| Option | What it does | When to use |
+|---|---|---|
+| **⚡ Compact (fast)** | Calls the CLI's in-place compaction (`session.history.compact`). Session ID is preserved; conversation continues seamlessly. | First choice. Fast, cheap, keeps everything intact. |
+| **🔄 Restart with summary** | Asks Copilot to write a one-page Markdown summary, saves it to `.kopilot\dreams\dream-{timestamp}.md`, opens a fresh session in the same folder, and seeds it with the summary. | When Compact isn't enough or you want a truly clean window. |
+| **🆕 Fresh start (no carry-over)** | Discards all context with no summary, opens a brand-new session in the same folder, then offers to load a backup file and read the README — exactly like clicking **📂 Open Folder…** on the current path. | When you want to switch tasks completely and start clean, with no memory of the previous conversation. |
+
+When the context meter crosses **85%**, Kopilot automatically prompts you to choose Compact or Restart (or dismiss for the rest of the session). After either action, a `─── session refreshed ───` divider is written to the output panel — your transcript is never cleared.
+
+**Automatic carry-over on option changes.** Switching **Mode** or toggling **Fleet** during an active session forces a new session (the system message is baked in at creation time). Rather than discarding context, Kopilot defers the reset: on your next send it runs the same summary-and-restart flow used by Refresh, then forwards your prompt to the fresh session. A dream file is saved under `.kopilot\dreams\` for each automatic handoff.
 
 ---
 
@@ -200,5 +218,6 @@ kopilot/
 - **Start simple** — open a folder and ask *"What does this project do?"* to orient yourself.
 - **Use Plan mode** for big tasks so you can review the plan before Copilot acts.
 - **Summarize often** — click 📝 Summarize to capture progress before starting a new topic.
+- **Watch the Context meter** — when it goes amber (60%) plan to refresh; at 85% Kopilot will offer to do it for you.
 - **Backup your session** — click 💾 Backup to save a Markdown resume file you can attach to a future session.
 - **Attach context** — drag in relevant files or folders before sending a prompt to give Copilot targeted context.

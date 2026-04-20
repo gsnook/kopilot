@@ -43,6 +43,13 @@ public partial class MainForm : Form
     private int _pendingCount = 0; // number of prompts awaiting a response
     private bool _reconnecting = false; // true while an automatic reconnect is in progress
     private bool _skipCloseBackupPrompt = false; // set after backup-on-close completes
+    private bool _autoRefreshPromptShown = false; // suppresses the 85% nag once per session
+    private bool _refreshInProgress = false; // gate to prevent overlapping Compact/Restart calls
+    // Reason a deferred handoff is pending (e.g. mode/fleet change). When non-null,
+    // the next DispatchPromptAsync runs an automatic summary-and-restart before
+    // forwarding the user's prompt, so context survives the option change.
+    private string? _pendingHandoffReason = null;
+    private const int AutoRefreshThresholdPercent = 85;
     private KopilotSettings _settings = new();
 
 
@@ -63,6 +70,10 @@ public partial class MainForm : Form
         // Sync service with the UI defaults set above
         _copilot.AutoApprove = checkBoxAutoApprove.Checked;
         _copilot.FleetMode   = checkBoxFleet.Checked;
+
+        // A3: seed the meter with a visible "starting state" so the affordance
+        // is discoverable before the first AssistantUsageEvent arrives.
+        OnContextUsageChanged(new ContextUsageEventArgs());
     }
 
     // ── Event wiring ─────────────────────────────────────────────────────────
@@ -95,6 +106,7 @@ public partial class MainForm : Form
             "Please provide a concise summary of what we've discussed and accomplished so far in this session.");
         buttonClearOutput.Click += (_, _) => ClearActiveOutput();
         buttonBackup.Click += async (_, _) => await BackupSessionAsync();
+        buttonRefresh.Click += (_, _) => ShowRefreshMenu();
         buttonOpenExplorer.Click += (_, _) => OpenExplorer();
         buttonOpenVSCode.Click += async (_, _) => await OpenVSCodeAsync();
         buttonSetOrgFolder.Click += (_, _) => SetOrgFolder();
@@ -102,17 +114,13 @@ public partial class MainForm : Form
         checkBoxAutoApprove.CheckedChanged += (_, _) =>
             _copilot.AutoApprove = checkBoxAutoApprove.Checked;
 
-        checkBoxFleet.CheckedChanged += async (_, _) =>
+        checkBoxFleet.CheckedChanged += (_, _) =>
         {
             _copilot.FleetMode = checkBoxFleet.Checked;
             if (_copilot.IsConnected && _mainSessionId != null)
             {
                 var state = checkBoxFleet.Checked ? "enabled" : "disabled";
-                AppendOutput($"\r\n[Fleet mode {state} — new session will start on next send]\r\n\r\n", AppTheme.ColorMeta);
-                await _copilot.ResetSessionAsync();
-                _mainSessionId = null;
-                _pendingCount = 0;
-                _mainSessionIdle = false;
+                ScheduleHandoff($"Fleet {state}");
             }
         };
 
@@ -139,6 +147,9 @@ public partial class MainForm : Form
 
         _copilot.PermissionRequested += Copilot_PermissionRequested;
         _copilot.UserInputRequested += Copilot_UserInputRequested;
+
+        _copilot.ContextUsageChanged += (_, args) =>
+            InvokeOnUI(() => OnContextUsageChanged(args));
     }
 
     private void InvokeOnUI(Action action)
@@ -272,6 +283,7 @@ public partial class MainForm : Form
             "  📂 Explorer   – Open File Explorer at the project folder\r\n" +
             "  💻 VS Code    – Launch VS Code and connect the IDE\r\n" +
             "  📝 Summarize  – Ask Copilot for a session summary\r\n" +
+            "  💤 Refresh    – Free context: Compact in place, or Restart with summary\r\n" +
             "  💾 Backup     – Save a Markdown resume of the session\r\n" +
             "  🗑 Clear      – Clear the output panel\r\n\r\n",
             AppTheme.ColorDefault);
@@ -300,7 +312,8 @@ public partial class MainForm : Form
             "  • Use Plan mode for big tasks so you can review before Copilot acts.\r\n" +
             "  • Drag files onto the prompt box to attach them.\r\n" +
             "  • Click 📝 Summarize often to capture progress.\r\n" +
-            "  • Click 💾 Backup to save a resume you can attach to a future session.\r\n\r\n",
+            "  • Click 💾 Backup to save a resume you can attach to a future session.\r\n" +
+            "  • Watch the Context meter in the status bar. At 85% Kopilot will offer to refresh.\r\n\r\n",
             AppTheme.ColorDefault);
 
         AppendOutput("── Copilot slash commands (/…) ───────────────────────\r\n", AppTheme.ColorMeta);
@@ -407,6 +420,18 @@ public partial class MainForm : Form
         _copilot.ActiveMode  = comboBoxMode.SelectedItem?.ToString()  ?? "Standard";
         _copilot.AutoApprove = checkBoxAutoApprove.Checked;
         _copilot.FleetMode   = checkBoxFleet.Checked;
+
+        // If a UI option change scheduled a deferred handoff, run it now BEFORE
+        // the user's prompt so context survives mode/fleet switches automatically.
+        if (_pendingHandoffReason != null
+            && _copilot.IsConnected
+            && _mainSessionId != null
+            && !_refreshInProgress)
+        {
+            var reason = _pendingHandoffReason;
+            _pendingHandoffReason = null;
+            await PerformHandoffAsync(reason, waitForSeedAck: true);
+        }
 
         _pendingCount++;
         UpdateWorkingState();
@@ -532,20 +557,444 @@ public partial class MainForm : Form
         if (mode == "Autopilot" && !checkBoxAutoApprove.Checked)
             checkBoxAutoApprove.Checked = true;
 
-        // Mode is baked into the session's system message at creation time, so we
-        // reset the active session. The existing output tab stays visible; a new
-        // session (and tab) will be created on the next send.
+        // Mode is baked into the session's system message at creation time.
+        // Defer the session reset to the next send so we can summarise the
+        // current conversation and seed it into the new session automatically.
         if (_copilot.IsConnected && _mainSessionId != null)
-        {
-            AppendOutput(
-                $"\r\n[Mode changed to {mode} — new session will start on next send]\r\n\r\n",
-                AppTheme.ColorMeta);
+            ScheduleHandoff($"Mode changed to {mode}");
 
-            await _copilot.ResetSessionAsync();
-            _mainSessionId = null;
-            _pendingCount  = 0;
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Marks the current session for an automatic summary-and-restart on the
+    /// next prompt dispatch. Idempotent — repeated changes overwrite the reason.
+    /// </summary>
+    private void ScheduleHandoff(string reason)
+    {
+        _pendingHandoffReason = reason;
+        AppendOutput(
+            $"\r\n[{reason} — context will be summarised and carried into a new session on your next send]\r\n\r\n",
+            AppTheme.ColorMeta);
+    }
+
+    // ── Context meter & session refresh ──────────────────────────────────────
+
+    private void OnContextUsageChanged(ContextUsageEventArgs args)
+    {
+        var input = args.InputTokens;
+        var max   = args.MaxPromptTokens;
+        var pct   = args.Percent;
+
+        string text;
+        Color color;
+        int barValue;
+        Color barColor;
+
+        if (max <= 0)
+        {
+            text     = "Context: \u2014 / \u2014 (\u2014)";
+            color    = Color.FromArgb(148, 148, 148);
+            barValue = 0;
+            barColor = Color.FromArgb(96, 96, 96);
+        }
+        else if (input <= 0)
+        {
+            text     = $"Context: 0 / {FormatTokens(max)} (0%)";
+            color    = Color.FromArgb(148, 220, 148); // green
+            barValue = 0;
+            barColor = Color.FromArgb(148, 220, 148);
+        }
+        else
+        {
+            text = $"Context: {FormatTokens(input)} / {FormatTokens(max)} ({pct:0}%)";
+            color = pct < 60  ? Color.FromArgb(148, 220, 148)  // green
+                  : pct < 85  ? Color.FromArgb(232, 200, 110)  // amber
+                              : Color.FromArgb(240, 120, 120); // red
+            barColor = color;
+            barValue = (int)Math.Clamp(Math.Round(pct), 0, 100);
+        }
+
+        toolStripStatusLabelContext.Text      = text;
+        toolStripStatusLabelContext.ForeColor = color;
+        toolStripProgressBarContext.Value     = barValue;
+        toolStripProgressBarContext.ForeColor = barColor;
+        toolTipMain.SetToolTip(statusStrip,
+            max > 0
+                ? $"Context window usage: {input:N0} / {max:N0} prompt tokens ({pct:0.0}%)\nClick \ud83d\udca4 Refresh to free space."
+                : "Context window usage will appear here after the first response.");
+
+        UpdateRefreshButtonAffordance(max > 0 ? pct : 0);
+
+        // Auto-prompt at the configured threshold, once per session, and only when
+        // we are not already mid-refresh or sending a turn.
+        if (!_autoRefreshPromptShown
+            && !_refreshInProgress
+            && _pendingCount == 0
+            && pct >= AutoRefreshThresholdPercent
+            && _copilot.IsConnected
+            && _mainSessionId != null)
+        {
+            _autoRefreshPromptShown = true;
+            // Defer to avoid blocking the event handler.
+            BeginInvoke(new Action(PromptAutoRefresh));
+        }
+    }
+
+    private static string FormatTokens(double tokens)
+    {
+        if (tokens >= 1_000_000) return $"{tokens / 1_000_000:0.#}M";
+        if (tokens >= 1_000)     return $"{tokens / 1_000:0.#}K";
+        return ((int)tokens).ToString();
+    }
+
+    // Decorates the Refresh button with a glyph and tooltip that escalates with
+    // context-window pressure: idle (\ud83d\udca4) below 60%, warning (\u26a0\ufe0f)
+    // at 60%, critical (\ud83d\udd25) at 85%. Keeps the trailing dropdown caret.
+    private void UpdateRefreshButtonAffordance(double pct)
+    {
+        string glyph;
+        string tip;
+
+        if (pct >= 85)
+        {
+            glyph = "\ud83d\udd25"; // fire
+            tip   = $"Context at {pct:0}% \u2014 strongly recommend Compact or Restart now.";
+        }
+        else if (pct >= 60)
+        {
+            glyph = "\u26a0\ufe0f"; // warning sign
+            tip   = $"Context at {pct:0}% \u2014 consider Compact or Restart soon.";
+        }
+        else
+        {
+            glyph = "\ud83d\udca4"; // zzz (idle)
+            tip   = "Free up context window \u2014 Compact (in place) or Restart with summary";
+        }
+
+        var newText = $"{glyph} Refresh \u25be";
+        if (!string.Equals(buttonRefresh.Text, newText, StringComparison.Ordinal))
+            buttonRefresh.Text = newText;
+        toolTipMain.SetToolTip(buttonRefresh, tip);
+    }
+
+    private void PromptAutoRefresh()
+    {
+        var pct = _copilot.CurrentMaxPromptTokens > 0
+            ? (_copilot.CurrentInputTokens / _copilot.CurrentMaxPromptTokens) * 100.0
+            : 0;
+
+        var result = MessageBox.Show(this,
+            $"Context window is at {pct:0}% — accuracy may start to degrade.\r\n\r\n" +
+            "Refresh now?\r\n\r\n" +
+            "  Yes  – Compact in place (fast, keeps session ID)\r\n" +
+            "  No   – Restart with summary (clean window, new session)\r\n" +
+            "  Cancel – Don't ask again this session",
+            "Context Window Filling Up",
+            MessageBoxButtons.YesNoCancel,
+            MessageBoxIcon.Warning,
+            MessageBoxDefaultButton.Button1);
+
+        switch (result)
+        {
+            case DialogResult.Yes:
+                _ = RunCompactAsync();
+                break;
+            case DialogResult.No:
+                _ = RunRestartWithSummaryAsync();
+                break;
+            // Cancel: stay silent for the rest of the session.
+        }
+    }
+
+    private void ShowRefreshMenu()
+    {
+        var menu = new ContextMenuStrip
+        {
+            BackColor = Color.FromArgb(56, 56, 56),
+            ForeColor = Color.FromArgb(218, 218, 218),
+            ShowImageMargin = false,
+        };
+
+        var compact = new ToolStripMenuItem("⚡ Compact (fast, keeps session)")
+        {
+            ToolTipText = "Ask the CLI to summarise history in place. Session ID is preserved.",
+        };
+        compact.Click += async (_, _) => await RunCompactAsync();
+
+        var restart = new ToolStripMenuItem("🔄 Restart with summary (clean window)")
+        {
+            ToolTipText = "Save a Markdown dream file, open a fresh session in this folder, and seed it with the summary.",
+        };
+        restart.Click += async (_, _) => await RunRestartWithSummaryAsync();
+
+        var fresh = new ToolStripMenuItem("🆕 Fresh start (no carry-over)")
+        {
+            ToolTipText = "Discard all context and open a brand-new session in this folder, as if you had just used Open Folder.",
+        };
+        fresh.Click += async (_, _) => await RunFreshStartAsync();
+
+        menu.Items.Add(compact);
+        menu.Items.Add(restart);
+        menu.Items.Add(fresh);
+        menu.Show(buttonRefresh, new Point(0, buttonRefresh.Height));
+    }
+
+    /// <summary>
+    /// Discards the current session entirely — no summary, no seed — and opens
+    /// a fresh session rooted at the same folder.  Behaves like clicking
+    /// Open Folder on the existing path: reconnects, then offers to load any
+    /// backup files and to read the project's README.
+    /// </summary>
+    private async Task RunFreshStartAsync()
+    {
+        if (_refreshInProgress) return;
+        if (_copilot.WorkingDirectory == null)
+        {
+            MessageBox.Show(this, "No active workspace. Open a folder first.",
+                "Nothing to Refresh", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var confirm = MessageBox.Show(this,
+            "Start a brand-new session in this folder?\r\n\r\n" +
+            "All current conversation context will be discarded — no summary will be carried over.\r\n\r\n" +
+            "You will be offered the chance to load a backup file and to have the README read, " +
+            "just like opening the folder fresh.",
+            "Fresh Start", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning,
+            MessageBoxDefaultButton.Button2);
+
+        if (confirm != DialogResult.OK) return;
+
+        _refreshInProgress = true;
+        var oldText = buttonRefresh.Text;
+        buttonRefresh.Enabled = false;
+        buttonRefresh.Text = "⏳ Fresh start…";
+        SetSendingState(true);
+
+        var workingDir = _copilot.WorkingDirectory;
+
+        try
+        {
+            AppendOutput("\r\n🆕 Discarding context and opening a fresh session…\r\n\r\n", AppTheme.ColorMeta);
+
+            if (_copilot.IsConnected)
+                await _copilot.ResetSessionAsync();
+
+            _mainSessionId   = null;
+            _pendingCount    = 0;
             _mainSessionIdle = false;
-            UpdateWorkingState();
+
+            // Sync UI state to service before session creation so the system message is correct
+            _copilot.ActiveMode  = comboBoxMode.SelectedItem?.ToString() ?? "Standard";
+            _copilot.AutoApprove = checkBoxAutoApprove.Checked;
+            _copilot.FleetMode   = checkBoxFleet.Checked;
+
+            await _copilot.EnsureSessionAsync();
+
+            AppendOutput("─────────── session refreshed ───────────\r\n\r\n", AppTheme.ColorMeta);
+            _autoRefreshPromptShown = false;
+
+            await OfferLoadBackupAsync(workingDir);
+            await OfferReadReadmeAsync(workingDir);
+        }
+        catch (Exception ex)
+        {
+            AppendOutput($"[Fresh start failed: {ex.Message}]\r\n\r\n", AppTheme.ColorError);
+            MessageBox.Show(this, $"Fresh start failed:\r\n\r\n{ex.Message}",
+                "Refresh Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            buttonRefresh.Text = oldText;
+            buttonRefresh.Enabled = true;
+            SetSendingState(false);
+            _refreshInProgress = false;
+        }
+    }
+
+    private async Task RunCompactAsync()
+    {
+        if (_refreshInProgress) return;
+        if (!_copilot.IsConnected || _mainSessionId == null)
+        {
+            MessageBox.Show(this, "No active session to refresh. Open a folder and send at least one message first.",
+                "Nothing to Refresh", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        _refreshInProgress = true;
+        var oldText = buttonRefresh.Text;
+        buttonRefresh.Enabled = false;
+        buttonRefresh.Text = "⏳ Compacting…";
+        SetSendingState(true);
+
+        try
+        {
+            AppendOutput("\r\n💤 Compacting session in place…\r\n\r\n", AppTheme.ColorMeta);
+
+            var ok = await _copilot.CompactSessionAsync();
+            if (ok)
+            {
+                AppendOutput("─────────── session refreshed ───────────\r\n\r\n", AppTheme.ColorMeta);
+                _autoRefreshPromptShown = false; // allow another nag if context fills again
+            }
+            else
+            {
+                AppendOutput(
+                    "[Compact failed — falling back to Restart with summary]\r\n\r\n",
+                    AppTheme.ColorMeta);
+                _refreshInProgress = false; // RunRestart will reacquire the gate
+                buttonRefresh.Text = oldText;
+                buttonRefresh.Enabled = true;
+                SetSendingState(false);
+                await RunRestartWithSummaryAsync();
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Compact failed:\r\n\r\n{ex.Message}",
+                "Refresh Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            buttonRefresh.Text = oldText;
+            buttonRefresh.Enabled = true;
+            SetSendingState(false);
+            _refreshInProgress = false;
+        }
+    }
+
+    // Shared summary prompt for both manual and automatic handoffs. The model is
+    // told NOT to use tools so the capture is a pure conversation distillation.
+    private const string HandoffSummaryPrompt =
+        """
+        Write a brief session-resume note in Markdown — use ONLY what is already in our conversation history. Do NOT use any tools, do NOT read any files or directories.
+
+        Structure it as:
+
+        # Session Resume
+
+        ## Goal
+        One or two sentences: what we set out to accomplish.
+
+        ## What Was Done
+        Short bullet list of the key things completed or decided this session.
+
+        ## Current State
+        One paragraph describing exactly where things stand right now.
+
+        ## Next Step
+        The single most important thing to do when resuming.
+
+        ## Context to Remember
+        Any non-obvious decisions, constraints, or gotchas a new session needs to know.
+
+        Keep the whole document under one page. Draw entirely from our conversation — do not invoke tools.
+        """;
+
+    private const string HandoffSeedPrompt =
+        "I am providing a session resume document from our previous session in this same workspace. " +
+        "Please read it and confirm you understand the context so we can continue where we left off.";
+
+    private Task RunRestartWithSummaryAsync()
+        => PerformHandoffAsync("user requested", waitForSeedAck: false);
+
+    /// <summary>
+    /// Captures a conversation summary from the current session, persists it to
+    /// <c>.kopilot\dreams\</c>, tears the session down, opens a fresh one in the
+    /// same workspace, and seeds it with the summary.
+    /// </summary>
+    /// <param name="reason">Short human-readable trigger (shown in the output panel).</param>
+    /// <param name="waitForSeedAck">When true, awaits the assistant's acknowledgement
+    /// of the seed before returning.  Used by automatic handoffs so the user's next
+    /// prompt arrives after the new session has loaded the context.</param>
+    /// <returns>True on success.  On failure the active session is reset so the next
+    /// send still works (without preserved context).</returns>
+    private async Task<bool> PerformHandoffAsync(string reason, bool waitForSeedAck)
+    {
+        if (_refreshInProgress) return false;
+        if (!_copilot.IsConnected || _mainSessionId == null || _copilot.WorkingDirectory == null)
+        {
+            // Caller-driven UI flow (manual button) shows a dialog; automatic flow stays silent.
+            if (!waitForSeedAck)
+            {
+                MessageBox.Show(this, "No active session to refresh. Open a folder and send at least one message first.",
+                    "Nothing to Refresh", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            return false;
+        }
+
+        _refreshInProgress = true;
+        var oldText = buttonRefresh.Text;
+        buttonRefresh.Enabled = false;
+        buttonRefresh.Text = "⏳ Handoff…";
+        SetSendingState(true);
+
+        try
+        {
+            AppendOutput($"\r\n💤 Capturing session summary — {reason}…\r\n\r\n", AppTheme.ColorMeta);
+
+            var summary = await _copilot.SendAndCaptureResponseAsync(HandoffSummaryPrompt, TimeSpan.FromMinutes(5));
+
+            // Persist the dream alongside manual backups but in its own subfolder
+            // so OfferLoadBackupAsync (which scans .kopilot\*.md non-recursively)
+            // does not mistake it for a between-session resume.
+            var dreamsDir = Path.Combine(_copilot.WorkingDirectory, ".kopilot", "dreams");
+            Directory.CreateDirectory(dreamsDir);
+            var dreamPath = Path.Combine(dreamsDir, $"dream-{DateTime.Now:yyyy-MM-dd-HHmmss}.md");
+
+            var model = comboBoxModel.SelectedItem?.ToString() ?? string.Empty;
+            var mode  = comboBoxMode.SelectedItem?.ToString()  ?? string.Empty;
+            var metadata =
+                $"\r\n<!-- kopilot-model: {model} -->\r\n" +
+                $"<!-- kopilot-mode: {mode} -->\r\n" +
+                $"<!-- kopilot-source: dream -->\r\n" +
+                $"<!-- kopilot-reason: {reason} -->\r\n";
+
+            await File.WriteAllTextAsync(dreamPath, summary + metadata);
+
+            AppendOutput($"[Dream saved: {dreamPath}]\r\n", AppTheme.ColorMeta);
+            AppendOutput("💤 Opening fresh session in this workspace…\r\n\r\n", AppTheme.ColorMeta);
+
+            // Tear down + recreate so the new session honours the latest mode/fleet.
+            await _copilot.ResetSessionAsync();
+            await _copilot.EnsureSessionAsync();
+
+            // Seed the new session.  When the caller is about to send a user prompt,
+            // we wait for the assistant's ACK so the prompt is interpreted with full context.
+            var seedFull = HandoffSeedPrompt + "\r\n\r\n" + summary;
+            if (waitForSeedAck)
+                await _copilot.SendAndCaptureResponseAsync(seedFull, TimeSpan.FromMinutes(2));
+            else
+                await _copilot.SendMessageAsync(seedFull, Array.Empty<string>());
+
+            AppendOutput("─────────── session refreshed ───────────\r\n\r\n", AppTheme.ColorMeta);
+            _autoRefreshPromptShown = false;
+            return true;
+        }
+        catch (Exception ex)
+        {
+            AppendOutput($"[Handoff failed: {ex.Message} — falling back to clean restart]\r\n\r\n", AppTheme.ColorError);
+            // Fall back to a plain reset so the user's next send still works,
+            // even though context will be lost.
+            try
+            {
+                await _copilot.ResetSessionAsync();
+                _mainSessionId   = null;
+                _pendingCount    = 0;
+                _mainSessionIdle = false;
+            }
+            catch { /* best-effort */ }
+            return false;
+        }
+        finally
+        {
+            buttonRefresh.Text = oldText;
+            buttonRefresh.Enabled = true;
+            SetSendingState(false);
+            _refreshInProgress = false;
         }
     }
 

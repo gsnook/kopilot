@@ -344,7 +344,7 @@ partial class MainForm
 		richTextBoxOutput.Name = "richTextBoxOutput";
 		richTextBoxOutput.ReadOnly = true;
 		richTextBoxOutput.ScrollBars = RichTextBoxScrollBars.Vertical;
-		richTextBoxOutput.Size = new Size(1158, 1012);
+		richTextBoxOutput.Size = new Size(1158, 1011);
 		richTextBoxOutput.TabIndex = 0;
 		richTextBoxOutput.Text = "";
 		// 
@@ -557,7 +557,7 @@ partial class MainForm
 		buttonAddFolder.Location = new Point(210, 0);
 		buttonAddFolder.Margin = new Padding(3, 4, 3, 4);
 		buttonAddFolder.Name = "buttonAddFolder";
-		buttonAddFolder.Size = new Size(114, 35);
+		buttonAddFolder.Size = new Size(121, 35);
 		buttonAddFolder.TabIndex = 2;
 		buttonAddFolder.Text = "📁 Add Folder";
 		toolTipMain.SetToolTip(buttonAddFolder, "Attach a folder to the prompt");

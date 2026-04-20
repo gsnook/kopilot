@@ -5,7 +5,7 @@
 
 ## Why this exists
 
-This is intended as an aide for my own personal workflow using Copilot CLI. I find it difficult to work in the terminal, so I built a Windows app that makes it easier for me to edit prompts, save and retore session state, launch tools within the workspace, etc.
+This is intended as an aide for my own personal workflow using Copilot CLI. I find it difficult to work in the terminal, so I built a Windows app that makes it easier for me to edit prompts, save and restore session state, launch tools within the workspace, etc.
 
 Think of this as an alternate front-end for the Copilot CLI for people too accustomed to using standard Windows forms and editors. :)
 

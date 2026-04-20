@@ -28,6 +28,9 @@ public partial class MainForm : Form
     private readonly PromptHistory  _promptHistory = new();
     private readonly List<string> _attachments = new();
     private readonly HashSet<string> _streamingSessions = new();
+    // Structured output blocks feeding the WebView2 Rendered tab
+    private readonly List<OutputBlock> _outputBlocks = new();
+    private bool _webViewReady = false;
     // Maps toolCallId → char offset AFTER "  🔧 name  args" text (insertion point for ✓/✗)
     private readonly Dictionary<string, int> _toolStartPositions = new();
     // Maps toolCallId → char offset of the ○ character for retroactive ○→◉/✗ replacement
@@ -96,6 +99,7 @@ public partial class MainForm : Form
 
         this.Shown += async (_, _) =>
         {
+            await InitializeWebViewAsync();
             await CheckForUpdatesAsync();
             await PopulateModelsAsync();
         };
@@ -158,6 +162,76 @@ public partial class MainForm : Form
             BeginInvoke(action);
         else
             action();
+    }
+
+    // ── WebView2 initialization ──────────────────────────────────────────────
+
+    private async Task InitializeWebViewAsync()
+    {
+        try
+        {
+            var userDataFolder = Path.Combine(
+                _copilot.WorkingDirectory ?? AppContext.BaseDirectory,
+                ".kopilot", "webview2-data");
+            Directory.CreateDirectory(userDataFolder);
+
+            var env = await Microsoft.Web.WebView2.Core.CoreWebView2Environment
+                .CreateAsync(null, userDataFolder);
+            await webViewOutput.EnsureCoreWebView2Async(env);
+
+            // Navigate to the bundled output.html
+            var htmlPath = Path.Combine(AppContext.BaseDirectory, "web", "output.html");
+            if (File.Exists(htmlPath))
+            {
+                webViewOutput.CoreWebView2.Navigate(new Uri(htmlPath).AbsoluteUri);
+                _webViewReady = true;
+            }
+            else
+            {
+                // Fall back to Raw tab if assets are missing
+                tabControlOutput.SelectedTab = tabPageRaw;
+            }
+        }
+        catch
+        {
+            // WebView2 runtime not available — fall back to Raw tab
+            tabControlOutput.SelectedTab = tabPageRaw;
+            tabControlOutput.TabPages.Remove(tabPageRendered);
+        }
+    }
+
+    // ── Tab control dark theme drawing ───────────────────────────────────────
+
+    private void TabControlOutput_DrawItem(object? sender, DrawItemEventArgs e)
+    {
+        var tabCtrl = (TabControl)sender!;
+        var page = tabCtrl.TabPages[e.Index];
+        var bounds = tabCtrl.GetTabRect(e.Index);
+
+        bool isSelected = tabCtrl.SelectedIndex == e.Index;
+        var bgColor = isSelected ? AppTheme.OutputBox : AppTheme.Surface;
+        var fgColor = isSelected ? AppTheme.TextPrimary : AppTheme.TextMuted;
+
+        using var bgBrush = new SolidBrush(bgColor);
+        using var fgBrush = new SolidBrush(fgColor);
+
+        // Inflate generously to overpaint the bright visual-styles border
+        // that the system renderer draws around each tab header. Extend
+        // further downward so the white seam between the tab and the
+        // content area is also covered for both selected and unselected tabs.
+        var fillRect = bounds;
+        fillRect.Inflate(3, 3);
+        fillRect.Height += 4;
+        e.Graphics!.SetClip(fillRect);
+        e.Graphics.FillRectangle(bgBrush, fillRect);
+        e.Graphics.ResetClip();
+
+        var sf = new StringFormat
+        {
+            Alignment = StringAlignment.Center,
+            LineAlignment = StringAlignment.Center
+        };
+        e.Graphics.DrawString(page.Text, tabCtrl.Font, fgBrush, bounds, sf);
     }
 
     // ── Combo population ──────────────────────────────────────────────────────
@@ -444,7 +518,17 @@ public partial class MainForm : Form
 
             // Echo user message
             if (_mainSessionId != null)
-                AppendOutput($"👤 You: {prompt}\r\n\r\n", AppTheme.ColorUser);
+            {
+                AppendOutput($"\U0001f464 You: {prompt}\r\n\r\n", AppTheme.ColorUser);
+                var userBlock = new OutputBlock(BlockKind.User)
+                {
+                    Label = "\U0001f464 You:",
+                    Content = prompt,
+                    IsComplete = true
+                };
+                _outputBlocks.Add(userBlock);
+                WebViewAppendBlock(userBlock);
+            }
         }
         catch (Exception ex)
         {
@@ -457,7 +541,7 @@ public partial class MainForm : Form
 
     private void ClearActiveOutput()
     {
-        if (richTextBoxOutput.TextLength == 0) return;
+        if (richTextBoxOutput.TextLength == 0 && _outputBlocks.Count == 0) return;
         if (MessageBox.Show("Clear all output?", "Clear Output",
                 MessageBoxButtons.YesNo, MessageBoxIcon.Question,
                 MessageBoxDefaultButton.Button2) == DialogResult.Yes)
@@ -468,6 +552,12 @@ public partial class MainForm : Form
             _activeSubAgents.Clear();
             _completedAgentCount = 0;
             _mainSessionIdle = false;
+            // Clear the Rendered tab
+            _outputBlocks.Clear();
+            _streamingBlocks.Clear();
+            _renderedToolBlocks.Clear();
+            _renderedSubAgentBlocks.Clear();
+            WebViewClearAll();
         }
     }
 
@@ -1171,7 +1261,7 @@ public partial class MainForm : Form
                         $"Here is the contents of '{fileName}' from the workspace root. " +
                         "Please read it to better understand the project we are working on, " +
                         "then briefly confirm you have done so.\r\n\r\n" +
-                        content);
+                        $"```\r\n{content}\r\n```");
                     return;
 
                 case ReadmePromptResult.OpenInVSCode:
@@ -1651,6 +1741,15 @@ public partial class MainForm : Form
         AppendOutput($"[{label} {sessionId[..Math.Min(8, sessionId.Length)]}… started]\r\n\r\n",
             AppTheme.ColorMeta);
 
+        // Also push to the Rendered tab
+        var sessionBlock = new OutputBlock(BlockKind.Status)
+        {
+            Content = $"[{label} {sessionId[..Math.Min(8, sessionId.Length)]}... started]",
+            IsComplete = true
+        };
+        _outputBlocks.Add(sessionBlock);
+        WebViewAppendBlock(sessionBlock);
+
         toolStripStatusLabelSession.Text =
             $"Session: {sessionId[..Math.Min(8, sessionId.Length)]}…";
     }
@@ -1659,6 +1758,9 @@ public partial class MainForm : Form
 
     private void AppendMessage(SessionMessageEventArgs args)
     {
+        // Dual-write: push to the WebView2 Rendered tab
+        AppendRenderedMessage(args);
+
         bool scrollNeeded = false;
 
         switch (args.Kind)
@@ -1920,6 +2022,308 @@ public partial class MainForm : Form
             parts.Add($"{args.SubAgentDurationMs.Value / 1000:F1}s");
         return parts.Count > 0 ? string.Join(" · ", parts) : null;
     }
+
+    // ── Rendered output (WebView2) ──────────────────────────────────────────
+
+    // Maps sessionId → current streaming OutputBlock for that session
+    private readonly Dictionary<string, OutputBlock> _streamingBlocks = new();
+
+    private void AppendRenderedMessage(SessionMessageEventArgs args)
+    {
+        if (!_webViewReady) return;
+
+        switch (args.Kind)
+        {
+            case MessageKind.AssistantDelta:
+            {
+                if (!_streamingBlocks.TryGetValue(args.SessionId, out var block))
+                {
+                    block = new OutputBlock(BlockKind.Assistant) { Label = "\U0001f916 Assistant:" };
+                    _outputBlocks.Add(block);
+                    _streamingBlocks[args.SessionId] = block;
+                    WebViewAppendBlock(block);
+                }
+                block.Content += args.Content;
+                WebViewUpdateBlock(block);
+                break;
+            }
+
+            case MessageKind.AssistantFinal:
+            {
+                if (_streamingBlocks.TryGetValue(args.SessionId, out var block))
+                {
+                    block.IsComplete = true;
+                    _streamingBlocks.Remove(args.SessionId);
+                    WebViewFinalizeBlock(block);
+                }
+                else
+                {
+                    // Non-streamed final message
+                    var finalBlock = new OutputBlock(BlockKind.Assistant)
+                    {
+                        Label = "\U0001f916 Assistant:",
+                        Content = args.Content,
+                        IsComplete = true
+                    };
+                    _outputBlocks.Add(finalBlock);
+                    WebViewAppendBlock(finalBlock);
+                    WebViewFinalizeBlock(finalBlock);
+                }
+                break;
+            }
+
+            case MessageKind.Reasoning:
+            {
+                var block = new OutputBlock(BlockKind.Reasoning)
+                {
+                    Label = "\U0001f4ad Reasoning:",
+                    Content = args.Content,
+                    IsComplete = true
+                };
+                _outputBlocks.Add(block);
+                WebViewAppendBlock(block);
+                break;
+            }
+
+            case MessageKind.SubAgentStart:
+            {
+                FinalizeStreamingBlock(args.SessionId);
+                var saName = args.SubAgentDisplayName ?? args.Content;
+                var saDesc = string.IsNullOrEmpty(args.SubAgentDescription) ? ""
+                    : $" -- {(args.SubAgentDescription.Length > 60 ? args.SubAgentDescription[..60] + "..." : args.SubAgentDescription)}";
+                var block = new OutputBlock(BlockKind.SubAgent)
+                {
+                    Content = $"\u25CB {saName}{saDesc}"
+                };
+                _outputBlocks.Add(block);
+                if (!string.IsNullOrEmpty(args.ToolCallId))
+                    _renderedSubAgentBlocks[args.ToolCallId] = block;
+                WebViewAppendBlock(block);
+                break;
+            }
+
+            case MessageKind.SubAgentComplete:
+            {
+                if (!string.IsNullOrEmpty(args.ToolCallId) &&
+                    _renderedSubAgentBlocks.TryGetValue(args.ToolCallId, out var saBlock))
+                {
+                    _renderedSubAgentBlocks.Remove(args.ToolCallId);
+                    var stats = FormatSubAgentStats(args);
+                    if (stats != null)
+                        WebViewAppendToolStatus(saBlock,
+                            $"<span class=\"subagent-complete\">\u25C9</span> {EscapeForJs(stats)}");
+                }
+                break;
+            }
+
+            case MessageKind.SubAgentFailed:
+            {
+                if (!string.IsNullOrEmpty(args.ToolCallId) &&
+                    _renderedSubAgentBlocks.TryGetValue(args.ToolCallId, out var saBlock))
+                {
+                    _renderedSubAgentBlocks.Remove(args.ToolCallId);
+                    var msg = !string.IsNullOrEmpty(args.Content)
+                        ? $"<span class=\"subagent-failed\">\u2717 {EscapeForJs(args.SubAgentDisplayName ?? "")}: {EscapeForJs(args.Content)}</span>"
+                        : "<span class=\"subagent-failed\">\u2717</span>";
+                    WebViewAppendToolStatus(saBlock, msg);
+                }
+                break;
+            }
+
+            case MessageKind.SkillInvoked:
+            {
+                FinalizeStreamingBlock(args.SessionId);
+                var desc = string.IsNullOrEmpty(args.SubAgentDescription) ? ""
+                    : $" -- {args.SubAgentDescription}";
+                var block = new OutputBlock(BlockKind.Status)
+                {
+                    Content = $"\U0001f4da Skill: {args.Content}{desc}",
+                    IsComplete = true
+                };
+                _outputBlocks.Add(block);
+                WebViewAppendBlock(block);
+                break;
+            }
+
+            case MessageKind.CustomAgentsUpdated:
+            {
+                var block = new OutputBlock(BlockKind.Status)
+                {
+                    Content = $"[{args.Content}]",
+                    IsComplete = true
+                };
+                _outputBlocks.Add(block);
+                WebViewAppendBlock(block);
+                break;
+            }
+
+            case MessageKind.ToolStart:
+            {
+                FinalizeStreamingBlock(args.SessionId);
+                var argPart = string.IsNullOrEmpty(args.ToolArgSummary) ? "" : $"  {args.ToolArgSummary}";
+                var block = new OutputBlock(BlockKind.Tool)
+                {
+                    Content = $"\U0001f527 {args.Content}{argPart}"
+                };
+                _outputBlocks.Add(block);
+                if (!string.IsNullOrEmpty(args.ToolCallId))
+                    _renderedToolBlocks[args.ToolCallId] = block;
+                WebViewAppendBlock(block);
+                break;
+            }
+
+            case MessageKind.ToolProgress:
+            {
+                if (!string.IsNullOrEmpty(args.Content) &&
+                    !string.IsNullOrEmpty(args.ToolCallId) &&
+                    _renderedToolBlocks.TryGetValue(args.ToolCallId, out var tBlock))
+                {
+                    WebViewAppendToolStatus(tBlock,
+                        $"<br/><span class=\"tool-dim\">\u2502 {EscapeForJs(args.Content)}</span>");
+                }
+                break;
+            }
+
+            case MessageKind.ToolComplete:
+            {
+                if (!string.IsNullOrEmpty(args.ToolCallId) &&
+                    _renderedToolBlocks.TryGetValue(args.ToolCallId, out var tBlock))
+                {
+                    _renderedToolBlocks.Remove(args.ToolCallId);
+                    tBlock.IsComplete = true;
+                    var tick = args.ToolSuccess
+                        ? "<span class=\"tool-success\"> \u2713</span>"
+                        : "<span class=\"tool-failure\"> \u2717</span>";
+                    WebViewAppendToolStatus(tBlock, tick);
+
+                    if (!string.IsNullOrEmpty(args.ToolResultSummary))
+                    {
+                        var cls = args.ToolSuccess ? "tool-dim" : "tool-failure";
+                        WebViewAppendToolStatus(tBlock,
+                            $"<br/><span class=\"{cls}\">\u2514 {EscapeForJs(args.ToolResultSummary)}</span>");
+                    }
+                }
+                break;
+            }
+
+            case MessageKind.Error:
+            {
+                FinalizeStreamingBlock(args.SessionId);
+                var block = new OutputBlock(BlockKind.Error)
+                {
+                    Content = $"\u274C Error: {args.Content}",
+                    IsComplete = true
+                };
+                _outputBlocks.Add(block);
+                WebViewAppendBlock(block);
+
+                if (args.Content.Contains("CAPIError: 400") || args.Content.Contains("400 Bad Request"))
+                {
+                    var tipBlock = new OutputBlock(BlockKind.Status)
+                    {
+                        Content = "\U0001f4a1 Tip: This usually means the session's context window is full. " +
+                            "Try changing the mode or model to start a fresh session.",
+                        IsComplete = true
+                    };
+                    _outputBlocks.Add(tipBlock);
+                    WebViewAppendBlock(tipBlock);
+                }
+                break;
+            }
+
+            case MessageKind.Status:
+            {
+                var block = new OutputBlock(BlockKind.Status)
+                {
+                    Content = $"[{args.Content}]",
+                    IsComplete = true
+                };
+                _outputBlocks.Add(block);
+                WebViewAppendBlock(block);
+                break;
+            }
+        }
+    }
+
+    // Maps toolCallId -> rendered block for tool and sub-agent tracking
+    private readonly Dictionary<string, OutputBlock> _renderedToolBlocks = new();
+    private readonly Dictionary<string, OutputBlock> _renderedSubAgentBlocks = new();
+
+    private void FinalizeStreamingBlock(string sessionId)
+    {
+        if (_streamingBlocks.TryGetValue(sessionId, out var block))
+        {
+            block.IsComplete = true;
+            _streamingBlocks.Remove(sessionId);
+            WebViewFinalizeBlock(block);
+        }
+    }
+
+    // ── WebView2 JS bridge helpers ───────────────────────────────────────────
+
+    private void WebViewAppendBlock(OutputBlock block)
+    {
+        if (!_webViewReady) return;
+        var js = $"appendBlock({JsString(block.Id)}, {JsString(block.CssKind)}, " +
+                 $"{JsString(block.Label)}, {JsString(block.Content)}, {(block.IsMarkdown ? "true" : "false")})";
+        _ = webViewOutput.CoreWebView2.ExecuteScriptAsync(js);
+    }
+
+    private void WebViewUpdateBlock(OutputBlock block)
+    {
+        if (!_webViewReady) return;
+        var js = $"updateBlock({JsString(block.Id)}, {JsString(block.Content)})";
+        _ = webViewOutput.CoreWebView2.ExecuteScriptAsync(js);
+    }
+
+    private void WebViewFinalizeBlock(OutputBlock block)
+    {
+        if (!_webViewReady) return;
+        // Flush content one last time, then finalize
+        var js = $"updateBlock({JsString(block.Id)}, {JsString(block.Content)}); " +
+                 $"finalizeBlock({JsString(block.Id)})";
+        _ = webViewOutput.CoreWebView2.ExecuteScriptAsync(js);
+    }
+
+    private void WebViewAppendToolStatus(OutputBlock block, string html)
+    {
+        if (!_webViewReady) return;
+        var js = $"appendToolStatus({JsString(block.Id)}, {JsString(html)})";
+        _ = webViewOutput.CoreWebView2.ExecuteScriptAsync(js);
+    }
+
+    private void WebViewClearAll()
+    {
+        if (!_webViewReady) return;
+        _ = webViewOutput.CoreWebView2.ExecuteScriptAsync("clearAll()");
+    }
+
+    /// <summary>Wraps a string as a JS string literal, escaping special characters.</summary>
+    private static string JsString(string? value)
+    {
+        if (value == null) return "\"\"";
+        var escaped = value
+            .Replace("\\", "\\\\")
+            .Replace("\"", "\\\"")
+            .Replace("\r", "\\r")
+            .Replace("\n", "\\n")
+            .Replace("\t", "\\t")
+            .Replace("<", "\\x3c")
+            .Replace(">", "\\x3e");
+        return $"\"{escaped}\"";
+    }
+
+    /// <summary>Escapes text for safe insertion into HTML within JS calls.</summary>
+    private static string EscapeForJs(string value)
+    {
+        return value
+            .Replace("&", "&amp;")
+            .Replace("<", "&lt;")
+            .Replace(">", "&gt;")
+            .Replace("\"", "&quot;");
+    }
+
+    // ── Raw output (RichTextBox) ─────────────────────────────────────────────
 
     private void AppendOutput(string text, Color color)
     {

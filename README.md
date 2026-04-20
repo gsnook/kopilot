@@ -98,7 +98,14 @@ Attached items appear as labelled chips with a **×** button to remove them befo
 
 ### Output Panel
 
-Displays the streaming Copilot response in real time. Color coding:
+Displays the streaming Copilot response in real time. The panel has two tabs:
+
+| Tab | Description |
+|---|---|
+| **Rendered** | Rich HTML view (WebView2). Markdown is parsed, code blocks are syntax-highlighted, and Mermaid diagrams are rendered as SVG. This is the default view. |
+| **Raw** | Plain-text transcript in a classic RichTextBox. Useful for copying unformatted output, debugging, or as a fallback when the WebView2 runtime isn't available. |
+
+Color coding (used in both tabs where applicable):
 
 | Color | Meaning |
 |---|---|
@@ -106,6 +113,26 @@ Displays the streaming Copilot response in real time. Color coding:
 | 🟢 Green | Copilot's response |
 | 🟡 Yellow | Tool / operation activity |
 | 🔴 Red | Errors |
+
+#### Pan & zoom for large content (Rendered tab)
+
+Mermaid diagrams, wide code blocks, and large tables are automatically wrapped in a scrollable, zoomable viewport so they fit the output window without losing detail. Hover over a diagram or oversized block to reveal a small floating toolbar in the top-right corner:
+
+| Control | Action |
+|---|---|
+| **+** | Zoom in |
+| **-** | Zoom out |
+| **Fit** | Reset zoom and pan to the original fit |
+| **Full** | Promote the block to a fullscreen overlay that fills the whole window |
+
+Direct gestures are also supported:
+
+- **Mouse wheel** — zoom in/out, centered on the cursor (range 0.1x–8x)
+- **Left-drag** — pan the content
+- **Double-click** — reset to the default fit
+- **Esc** — exit fullscreen mode
+
+A block is treated as "oversized" when it overflows the viewport width or exceeds roughly 480 px in height; Mermaid diagrams always get the zoomable wrap.
 
 ---
 
@@ -212,17 +239,32 @@ If Copilot needs clarification mid-task, a dialog will appear with a question an
 
 ```
 kopilot/
-├── Kopilot/               # Main WinForms application
-│   ├── MainForm.cs        # Primary window and interaction logic
-│   ├── CopilotService.cs  # Copilot SDK integration
-│   ├── AudioService.cs    # Sound cues
-│   ├── PromptHistory.cs   # Prompt navigation history
-│   ├── AppTheme.cs        # Dark theme color definitions
+├── Kopilot/                 # Main WinForms application
+│   ├── MainForm.cs          # Primary window and interaction logic
+│   ├── CopilotService.cs    # Copilot SDK integration
+│   ├── AudioService.cs      # Sound cues
+│   ├── PromptHistory.cs     # Prompt navigation history
+│   ├── KopilotSettings.cs   # Persisted user settings
+│   ├── UpdateChecker.cs     # Self-update check
+│   ├── OutputBlock.cs       # Output-panel block model
+│   ├── AppTheme.cs          # Dark theme color definitions
+│   ├── DarkTabControl.cs    # Owner-drawn dark TabControl
+│   ├── PlainRichTextBox.cs  # Lightweight RichTextBox subclass
 │   ├── PermissionDialog.cs
 │   ├── UserInputDialog.cs
-│   └── audio/             # Audio assets
+│   ├── ReadmePromptDialog.cs
+│   ├── UpdateNotificationDialog.cs
+│   ├── audio/               # Audio assets
+│   └── web/                 # WebView2 renderer assets
+│       ├── output.html      # Host page loaded by the Rendered tab
+│       ├── output.js        # Streaming renderer + pan/zoom logic
+│       ├── output.css       # Dark theme styles
+│       ├── marked.min.js    # Markdown parser
+│       ├── mermaid.min.js   # Mermaid diagrams
+│       ├── highlight.min.js # Syntax highlighting
+│       └── hljs-dark.css
 ├── libs/
-│   └── copilot-sdk/       # GitHub Copilot SDK (submodule)
+│   └── copilot-sdk/         # GitHub Copilot SDK (submodule)
 └── Kopilot.sln
 ```
 
@@ -236,3 +278,5 @@ kopilot/
 - **Watch the Context meter** — when it goes amber (60%) plan to refresh; at 85% Kopilot will offer to do it for you.
 - **Backup your session** — click 💾 Backup to save a Markdown resume file you can attach to a future session.
 - **Attach context** — drag in relevant files or folders before sending a prompt to give Copilot targeted context.
+- **Switch to the Raw tab** if you want to copy unformatted text, or if a rendered block isn't displaying as you expect.
+- **Zoom into diagrams** — for big Mermaid charts, hover and click **Full** (or use the wheel to zoom) so you can read every node.

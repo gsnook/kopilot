@@ -42,6 +42,10 @@ partial class MainForm
 		buttonStop = new Button();
 		buttonSend = new Button();
 		checkBoxFleet = new CheckBox();
+		tabControlOutput = new DarkTabControl();
+		tabPageRendered = new TabPage();
+		tabPageRaw = new TabPage();
+		webViewOutput = new Microsoft.Web.WebView2.WinForms.WebView2();
 		richTextBoxOutput = new RichTextBox();
 		panelQuickCommands = new Panel();
 		buttonHelp = new Button();
@@ -96,7 +100,7 @@ partial class MainForm
 		// 
 		// splitContainerMain.Panel2
 		// 
-		splitContainerMain.Panel2.Controls.Add(richTextBoxOutput);
+		splitContainerMain.Panel2.Controls.Add(tabControlOutput);
 		splitContainerMain.Panel2.Controls.Add(panelQuickCommands);
 		splitContainerMain.Panel2.Controls.Add(panelAttachments);
 		splitContainerMain.Panel2MinSize = 180;
@@ -331,20 +335,54 @@ partial class MainForm
 		toolTipMain.SetToolTip(checkBoxFleet, "Activate Fleet mode — Copilot spawns and coordinates multiple sub-agents to work in parallel on complex tasks");
 		checkBoxFleet.UseVisualStyleBackColor = true;
 		// 
+		// tabControlOutput
+		// 
+		tabControlOutput.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+		tabControlOutput.Location = new Point(7, 43);
+		tabControlOutput.Margin = new Padding(0);
+		tabControlOutput.Name = "tabControlOutput";
+		tabControlOutput.SelectedIndex = 0;
+		tabControlOutput.Size = new Size(1158, 1011);
+		tabControlOutput.TabIndex = 0;
+		tabControlOutput.TabPages.Add(tabPageRendered);
+		tabControlOutput.TabPages.Add(tabPageRaw);
+		// Dark theme styling
+		tabControlOutput.BackColor = Color.FromArgb(0, 0, 0);
+		tabControlOutput.ForeColor = Color.FromArgb(218, 218, 218);
+		tabControlOutput.DrawMode = TabDrawMode.OwnerDrawFixed;
+		tabControlOutput.DrawItem += TabControlOutput_DrawItem;
+		// 
+		// tabPageRendered
+		// 
+		tabPageRendered.Text = "Rendered";
+		tabPageRendered.BackColor = Color.FromArgb(0, 0, 0);
+		tabPageRendered.Padding = new Padding(0);
+		tabPageRendered.Controls.Add(webViewOutput);
+		// 
+		// tabPageRaw
+		// 
+		tabPageRaw.Text = "Raw";
+		tabPageRaw.BackColor = Color.FromArgb(0, 0, 0);
+		tabPageRaw.Padding = new Padding(0);
+		tabPageRaw.Controls.Add(richTextBoxOutput);
+		// 
+		// webViewOutput
+		// 
+		webViewOutput.Dock = DockStyle.Fill;
+		webViewOutput.Name = "webViewOutput";
+		webViewOutput.DefaultBackgroundColor = Color.FromArgb(0, 0, 0);
+		// 
 		// richTextBoxOutput
 		// 
-		richTextBoxOutput.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+		richTextBoxOutput.Dock = DockStyle.Fill;
 		richTextBoxOutput.BackColor = Color.FromArgb(0, 0, 0);
 		richTextBoxOutput.BorderStyle = BorderStyle.None;
 		richTextBoxOutput.DetectUrls = false;
 		richTextBoxOutput.Font = new Font("Consolas", 10F);
 		richTextBoxOutput.ForeColor = Color.FromArgb(218, 218, 218);
-		richTextBoxOutput.Location = new Point(7, 43);
-		richTextBoxOutput.Margin = new Padding(3, 4, 3, 4);
 		richTextBoxOutput.Name = "richTextBoxOutput";
 		richTextBoxOutput.ReadOnly = true;
 		richTextBoxOutput.ScrollBars = RichTextBoxScrollBars.Vertical;
-		richTextBoxOutput.Size = new Size(1158, 1011);
 		richTextBoxOutput.TabIndex = 0;
 		richTextBoxOutput.Text = "";
 		// 
@@ -685,6 +723,10 @@ partial class MainForm
 	#endregion
 
 	private System.Windows.Forms.SplitContainer splitContainerMain;
+	private DarkTabControl tabControlOutput;
+	private System.Windows.Forms.TabPage tabPageRendered;
+	private System.Windows.Forms.TabPage tabPageRaw;
+	private Microsoft.Web.WebView2.WinForms.WebView2 webViewOutput;
     private System.Windows.Forms.RichTextBox richTextBoxOutput;
     private System.Windows.Forms.Panel panelQuickCommands;
     private System.Windows.Forms.Button buttonHelp;

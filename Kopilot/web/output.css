@@ -1,0 +1,336 @@
+/* Kopilot Output — Dark Theme
+ * Colours match AppTheme.cs
+ */
+
+* {
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
+}
+
+html, body {
+	background: #000000;
+	color: #d2d2d2;
+	font-family: "Segoe UI", -apple-system, sans-serif;
+	font-size: 10px;
+	line-height: 1.5;
+	overflow-x: hidden;
+}
+
+#output {
+	padding: 8px 12px;
+}
+
+/* ── Message blocks ─────────────────────────────────────────────── */
+
+.block {
+	margin-bottom: 6px;
+	padding: 4px 0;
+}
+
+.block-label {
+	font-weight: 600;
+	margin-bottom: 2px;
+}
+
+/* User prompt */
+.block-user .block-label {
+	color: #64a0dc;
+}
+.block-user .block-content {
+	white-space: pre-wrap;
+}
+
+/* Assistant response */
+.block-assistant .block-label {
+	color: #64be64;
+}
+.block-assistant .block-content {
+	color: #d2d2d2;
+}
+
+/* Reasoning */
+.block-reasoning .block-label {
+	color: #9494d2;
+}
+.block-reasoning .block-content {
+	color: #9494d2;
+	font-style: italic;
+}
+
+/* Tool activity */
+.block-tool {
+	color: #cdb45a;
+	font-family: "Consolas", "Cascadia Mono", monospace;
+	font-size: 11px;
+}
+.block-tool .tool-success {
+	color: #64be64;
+}
+.block-tool .tool-failure {
+	color: #d74b4b;
+}
+.block-tool .tool-dim {
+	color: #a08c41;
+}
+
+/* Sub-agent */
+.block-subagent {
+	color: #82b4d2;
+	font-family: "Consolas", "Cascadia Mono", monospace;
+	font-size: 11px;
+}
+.block-subagent .subagent-complete {
+	color: #64be64;
+}
+.block-subagent .subagent-failed {
+	color: #d74b4b;
+}
+
+/* Error */
+.block-error {
+	color: #d74b4b;
+}
+
+/* Status / meta */
+.block-status {
+	color: #8c8c8c;
+}
+
+/* ── Markdown content styling ───────────────────────────────────── */
+
+.block-content h1,
+.block-content h2,
+.block-content h3,
+.block-content h4 {
+	color: #e0e0e0;
+	margin-top: 12px;
+	margin-bottom: 6px;
+}
+.block-content h1 { font-size: 1.4em; border-bottom: 1px solid #333; padding-bottom: 4px; }
+.block-content h2 { font-size: 1.2em; border-bottom: 1px solid #2a2a2a; padding-bottom: 3px; }
+.block-content h3 { font-size: 1.1em; }
+
+.block-content p {
+	margin-bottom: 8px;
+}
+
+.block-content ul,
+.block-content ol {
+	margin-left: 20px;
+	margin-bottom: 8px;
+}
+
+.block-content li {
+	margin-bottom: 2px;
+}
+
+.block-content a {
+	color: #64a0dc;
+	text-decoration: none;
+}
+.block-content a:hover {
+	text-decoration: underline;
+}
+
+.block-content strong {
+	color: #e0e0e0;
+}
+
+.block-content em {
+	font-style: italic;
+}
+
+/* Inline code */
+.block-content code {
+	background: #1a1a1a;
+	color: #e0a050;
+	padding: 1px 5px;
+	border-radius: 3px;
+	font-family: "Consolas", "Cascadia Mono", monospace;
+	font-size: 0.92em;
+}
+
+/* Fenced code blocks */
+.block-content pre {
+	background: #0d0d0d;
+	border: 1px solid #252525;
+	border-radius: 4px;
+	padding: 10px 12px;
+	margin: 8px 0;
+	overflow-x: auto;
+}
+.block-content pre code {
+	background: none;
+	color: inherit;
+	padding: 0;
+	border-radius: 0;
+	font-size: 11px;
+	line-height: 1.45;
+}
+
+/* Tables */
+.block-content table {
+	border-collapse: collapse;
+	margin: 8px 0;
+	width: 100%;
+}
+.block-content th,
+.block-content td {
+	border: 1px solid #333;
+	padding: 5px 10px;
+	text-align: left;
+}
+.block-content th {
+	background: #1a1a1a;
+	color: #e0e0e0;
+	font-weight: 600;
+}
+.block-content tr:nth-child(even) {
+	background: #0a0a0a;
+}
+
+/* Blockquotes */
+.block-content blockquote {
+	border-left: 3px solid #444;
+	color: #aaa;
+	padding-left: 12px;
+	margin: 8px 0;
+}
+
+/* Horizontal rules */
+.block-content hr {
+	border: none;
+	border-top: 1px solid #333;
+	margin: 12px 0;
+}
+
+/* Mermaid diagrams */
+.mermaid-container {
+	background: #0d0d0d;
+	border: 1px solid #252525;
+	border-radius: 4px;
+	padding: 12px;
+	margin: 8px 0;
+	text-align: center;
+}
+.mermaid-container svg {
+	max-width: 100%;
+}
+
+/* ── Pan / Zoom wrapper ─────────────────────────────────────────── */
+
+.kp-zoom-wrap {
+	position: relative;
+	margin: 8px 0;
+	background: #0d0d0d;
+	border: 1px solid #252525;
+	border-radius: 4px;
+	overflow: hidden;
+}
+
+.kp-zoom-viewport {
+	overflow: hidden;
+	cursor: grab;
+	max-height: 480px;
+	min-height: 80px;
+}
+.kp-zoom-viewport.kp-zoom-dragging {
+	cursor: grabbing;
+}
+
+.kp-zoom-inner {
+	transform-origin: 0 0;
+	display: inline-block;
+	min-width: 100%;
+}
+
+/* When wrapping a <pre> or <table>, suppress its own scroll/border */
+.kp-zoom-wrap .kp-zoom-inner > pre,
+.kp-zoom-wrap .kp-zoom-inner > table {
+	margin: 0;
+	border: none;
+	border-radius: 0;
+	overflow: visible;
+	max-width: none;
+}
+
+/* Mermaid: SVGs render full-size inside the viewport */
+.kp-zoom-mermaid .kp-zoom-inner > .mermaid-container {
+	background: transparent;
+	border: none;
+	padding: 12px;
+	margin: 0;
+	text-align: left;
+}
+.kp-zoom-mermaid .kp-zoom-inner > .mermaid-container svg {
+	max-width: none;
+	display: block;
+}
+
+/* Toolbar */
+.kp-zoom-toolbar {
+	position: absolute;
+	top: 4px;
+	right: 4px;
+	display: flex;
+	gap: 2px;
+	background: rgba(20, 20, 20, 0.85);
+	border: 1px solid #333;
+	border-radius: 3px;
+	padding: 2px;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+	z-index: 2;
+}
+.kp-zoom-wrap:hover .kp-zoom-toolbar,
+.kp-zoom-wrap.kp-zoom-full .kp-zoom-toolbar {
+	opacity: 1;
+}
+
+.kp-zb {
+	background: #1a1a1a;
+	color: #d2d2d2;
+	border: 1px solid #333;
+	border-radius: 2px;
+	padding: 2px 6px;
+	font-family: "Segoe UI", sans-serif;
+	font-size: 10px;
+	line-height: 1.2;
+	cursor: pointer;
+	min-width: 22px;
+}
+.kp-zb:hover {
+	background: #2a2a2a;
+	border-color: #4a4a4a;
+}
+
+/* Fullscreen overlay */
+.kp-zoom-wrap.kp-zoom-full {
+	position: fixed;
+	top: 0;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	margin: 0;
+	border-radius: 0;
+	z-index: 9999;
+	background: #000;
+}
+.kp-zoom-wrap.kp-zoom-full .kp-zoom-viewport {
+	max-height: none;
+	height: 100vh;
+}
+body.kp-zoom-body-locked {
+	overflow: hidden;
+}
+
+/* Session divider */
+.block-divider {
+	border: none;
+	border-top: 1px dashed #444;
+	margin: 12px 0;
+	color: #8c8c8c;
+	text-align: center;
+	font-size: 10px;
+}

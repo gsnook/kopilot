@@ -2,6 +2,8 @@
 
 **Kopilot** (nicknamed *Kopi*) is a Windows desktop GUI for the [GitHub Copilot SDK](libs/copilot-sdk). It wraps the Copilot CLI experience in a friendly WinForms interface so you can chat with Copilot, approve tool operations, and manage your session — all without leaving a graphical window.
 
+
+![screenshot](screenshot.png)
 ---
 
 ## Requirements

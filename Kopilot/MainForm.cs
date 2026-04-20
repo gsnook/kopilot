@@ -499,9 +499,11 @@ public partial class MainForm : Form
                 ? $"-NoExit -Command \". '{scriptsPath.Replace("'", "''")}'\""
                 : "-NoExit";
 
+            var fileName = ResolvePowerShellExecutable();
+
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
             {
-                FileName = "powershell.exe",
+                FileName = fileName,
                 Arguments = arguments,
                 WorkingDirectory = dir,
                 UseShellExecute = true,
@@ -512,6 +514,28 @@ public partial class MainForm : Form
             MessageBox.Show($"Could not open PowerShell:\n\n{ex.Message}",
                 "PowerShell Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
+    }
+
+    private static string ResolvePowerShellExecutable()
+    {
+        // Prefer PowerShell 7+ (pwsh.exe) so users get their modern profile (and
+        // modules like posh-git that are typically installed there). Fall back to
+        // the in-box Windows PowerShell 5.1 if pwsh isn't available.
+        var pathExt = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
+        foreach (var dir in pathExt.Split(Path.PathSeparator))
+        {
+            if (string.IsNullOrWhiteSpace(dir)) continue;
+            try
+            {
+                var candidate = Path.Combine(dir.Trim(), "pwsh.exe");
+                if (File.Exists(candidate)) return candidate;
+            }
+            catch
+            {
+                // Ignore malformed PATH entries.
+            }
+        }
+        return "powershell.exe";
     }
 
     private async Task OpenVSCodeAsync()

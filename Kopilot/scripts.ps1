@@ -557,10 +557,60 @@ function clone_to_subfolder ([string]$GITPATH,[string]$FOLDER){
 	}
 }
 
-write-output "[vs22] launch visual studio"
+write-output "[vs22] launch visual studio 2022"
 function vs22()
 {
-	. "C:\Program Files\Microsoft Visual Studio\2022\Enterprise\Common7\IDE\devenv.exe"
+	$devenv = $null
+
+	# Preferred: ask vswhere (ships with any VS 2017+ installer at a fixed location)
+	$vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio\Installer\vswhere.exe'
+	if (Test-Path $vswhere)
+	{
+		$devenv = & $vswhere -latest -prerelease -property productPath 2>$null
+		if ($devenv -and -not (Test-Path $devenv))
+		{
+			$devenv = $null
+		}
+	}
+
+	# Fallback: probe common install locations across editions
+	if (-not $devenv)
+	{
+		$roots = @(
+			"${env:ProgramFiles}\Microsoft Visual Studio",
+			"${env:ProgramFiles(x86)}\Microsoft Visual Studio"
+		) | Where-Object { $_ -and (Test-Path $_) }
+
+		$editions = @('Enterprise','Professional','Community','BuildTools','Preview')
+
+		:outer foreach ($root in $roots)
+		{
+			$years = Get-ChildItem -Path $root -Directory -ErrorAction SilentlyContinue |
+				Sort-Object Name -Descending
+			foreach ($year in $years)
+			{
+				foreach ($edition in $editions)
+				{
+					$candidate = Join-Path $year.FullName "$edition\Common7\IDE\devenv.exe"
+					if (Test-Path $candidate)
+					{
+						$devenv = $candidate
+						break outer
+					}
+				}
+			}
+		}
+	}
+
+	if ($devenv)
+	{
+		write-output "launching: $devenv"
+		. $devenv
+	}
+	else
+	{
+		write-output "Visual Studio devenv.exe was not found. Is Visual Studio installed?"
+	}
 }
 
 write-output "[vscode] launch Visual Studio Code (detached)"

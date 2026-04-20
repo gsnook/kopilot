@@ -17,646 +17,674 @@ partial class MainForm
         base.Dispose(disposing);
     }
 
-    #region Windows Form Designer generated code
+	#region Windows Form Designer generated code
 
-    /// <summary>
-    /// Required method for Designer support - do not modify
-    /// the contents of this method with the code editor.
-    /// </summary>
-    private void InitializeComponent()
-    {
-        components = new System.ComponentModel.Container();
-        System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
-        splitContainerMain = new SplitContainer();
-        richTextBoxPrompt = new PlainRichTextBox();
-        panelHistoryNav = new Panel();
-        buttonHistoryNext = new Button();
-        buttonHistoryPrev = new Button();
-        panelActions = new Panel();
-        checkBoxAutoApprove = new CheckBox();
-        labelModel = new Label();
-        comboBoxModel = new ComboBox();
-        labelMode = new Label();
-        comboBoxMode = new ComboBox();
-        buttonOpenFolder = new Button();
-        buttonStop = new Button();
-        buttonSend = new Button();
-        checkBoxFleet = new CheckBox();
-        richTextBoxOutput = new RichTextBox();
-        panelQuickCommands = new Panel();
-        buttonHelp = new Button();
-        buttonPowershell = new Button();
-        buttonSummarize = new Button();
-        buttonClearOutput = new Button();
-        buttonRefresh = new Button();
-        buttonBackup = new Button();
-        buttonOpenExplorer = new Button();
-        buttonOpenVSCode = new Button();
-        buttonSetOrgFolder = new Button();
-        panelAttachments = new Panel();
-        flowLayoutPanelChips = new FlowLayoutPanel();
-        buttonAddFolder = new Button();
-        buttonAddFile = new Button();
-        labelAttach = new Label();
-        statusStrip = new StatusStrip();
-        toolStripStatusLabelConnection = new ToolStripStatusLabel();
-        toolStripStatusLabelVersion = new ToolStripStatusLabel();
-        toolStripStatusLabelSep = new ToolStripSeparator();
-        toolStripStatusLabelAgentStatus = new ToolStripStatusLabel();
-        toolStripProgressBarContext = new ToolStripProgressBar();
-        toolStripStatusLabelContext = new ToolStripStatusLabel();
-        toolStripStatusLabelSession = new ToolStripStatusLabel();
-        toolTipMain = new ToolTip(components);
-        ((System.ComponentModel.ISupportInitialize)splitContainerMain).BeginInit();
-        splitContainerMain.Panel1.SuspendLayout();
-        splitContainerMain.Panel2.SuspendLayout();
-        splitContainerMain.SuspendLayout();
-        panelHistoryNav.SuspendLayout();
-        panelActions.SuspendLayout();
-        panelQuickCommands.SuspendLayout();
-        panelAttachments.SuspendLayout();
-        statusStrip.SuspendLayout();
-        SuspendLayout();
-        // 
-        // splitContainerMain
-        // 
-        splitContainerMain.BackColor = Color.FromArgb(64, 64, 64);
-        splitContainerMain.Dock = DockStyle.Fill;
-        splitContainerMain.Location = new Point(0, 0);
-        splitContainerMain.Name = "splitContainerMain";
-        splitContainerMain.Orientation = Orientation.Horizontal;
-        // 
-        // splitContainerMain.Panel1
-        // 
-        splitContainerMain.Panel1.Controls.Add(richTextBoxPrompt);
-        splitContainerMain.Panel1.Controls.Add(panelHistoryNav);
-        splitContainerMain.Panel1.Controls.Add(panelActions);
-        splitContainerMain.Panel1MinSize = 100;
-        // 
-        // splitContainerMain.Panel2
-        // 
-        splitContainerMain.Panel2.Controls.Add(richTextBoxOutput);
-        splitContainerMain.Panel2.Controls.Add(panelQuickCommands);
-        splitContainerMain.Panel2.Controls.Add(panelAttachments);
-        splitContainerMain.Panel2MinSize = 180;
-        splitContainerMain.Size = new Size(1034, 1095);
-        splitContainerMain.SplitterDistance = 260;
-        splitContainerMain.TabIndex = 0;
-        // 
-        // richTextBoxPrompt
-        // 
-        richTextBoxPrompt.AcceptsTab = true;
-        richTextBoxPrompt.AllowDrop = true;
-        richTextBoxPrompt.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-        richTextBoxPrompt.BackColor = Color.FromArgb(52, 52, 52);
-        richTextBoxPrompt.Font = new Font("Segoe UI", 11F);
-        richTextBoxPrompt.ForeColor = Color.FromArgb(218, 218, 218);
-        richTextBoxPrompt.Location = new Point(26, 38);
-        richTextBoxPrompt.Name = "richTextBoxPrompt";
-        richTextBoxPrompt.ScrollBars = RichTextBoxScrollBars.Vertical;
-        richTextBoxPrompt.Size = new Size(996, 222);
-        richTextBoxPrompt.TabIndex = 1;
-        richTextBoxPrompt.Text = "";
-        toolTipMain.SetToolTip(richTextBoxPrompt, "Ctrl+Enter to send");
-        // 
-        // panelHistoryNav
-        // 
-        panelHistoryNav.BackColor = Color.FromArgb(52, 52, 52);
-        panelHistoryNav.Controls.Add(buttonHistoryNext);
-        panelHistoryNav.Controls.Add(buttonHistoryPrev);
-        panelHistoryNav.Dock = DockStyle.Left;
-        panelHistoryNav.Location = new Point(0, 38);
-        panelHistoryNav.Name = "panelHistoryNav";
-        panelHistoryNav.Size = new Size(20, 222);
-        panelHistoryNav.TabIndex = 3;
-        // 
-        // buttonHistoryNext
-        // 
-        buttonHistoryNext.BackColor = Color.FromArgb(52, 52, 52);
-        buttonHistoryNext.Dock = DockStyle.Bottom;
-        buttonHistoryNext.Enabled = false;
-        buttonHistoryNext.FlatAppearance.BorderSize = 0;
-        buttonHistoryNext.FlatAppearance.MouseOverBackColor = Color.FromArgb(72, 72, 72);
-        buttonHistoryNext.FlatStyle = FlatStyle.Flat;
-        buttonHistoryNext.Font = new Font("Segoe UI", 7F);
-        buttonHistoryNext.ForeColor = Color.FromArgb(148, 148, 148);
-        buttonHistoryNext.Location = new Point(0, 202);
-        buttonHistoryNext.Name = "buttonHistoryNext";
-        buttonHistoryNext.Size = new Size(20, 20);
-        buttonHistoryNext.TabIndex = 0;
-        buttonHistoryNext.TabStop = false;
-        buttonHistoryNext.Text = "▼";
-        toolTipMain.SetToolTip(buttonHistoryNext, "Next prompt (newer)");
-        buttonHistoryNext.UseVisualStyleBackColor = false;
-        // 
-        // buttonHistoryPrev
-        // 
-        buttonHistoryPrev.BackColor = Color.FromArgb(52, 52, 52);
-        buttonHistoryPrev.Dock = DockStyle.Top;
-        buttonHistoryPrev.Enabled = false;
-        buttonHistoryPrev.FlatAppearance.BorderSize = 0;
-        buttonHistoryPrev.FlatAppearance.MouseOverBackColor = Color.FromArgb(72, 72, 72);
-        buttonHistoryPrev.FlatStyle = FlatStyle.Flat;
-        buttonHistoryPrev.Font = new Font("Segoe UI", 7F);
-        buttonHistoryPrev.ForeColor = Color.FromArgb(148, 148, 148);
-        buttonHistoryPrev.Location = new Point(0, 0);
-        buttonHistoryPrev.Name = "buttonHistoryPrev";
-        buttonHistoryPrev.Size = new Size(20, 20);
-        buttonHistoryPrev.TabIndex = 1;
-        buttonHistoryPrev.TabStop = false;
-        buttonHistoryPrev.Text = "▲";
-        toolTipMain.SetToolTip(buttonHistoryPrev, "Previous prompt (older)");
-        buttonHistoryPrev.UseVisualStyleBackColor = false;
-        // 
-        // panelActions
-        // 
-        panelActions.BackColor = Color.FromArgb(64, 64, 64);
-        panelActions.Controls.Add(checkBoxAutoApprove);
-        panelActions.Controls.Add(labelModel);
-        panelActions.Controls.Add(comboBoxModel);
-        panelActions.Controls.Add(labelMode);
-        panelActions.Controls.Add(comboBoxMode);
-        panelActions.Controls.Add(buttonOpenFolder);
-        panelActions.Controls.Add(buttonStop);
-        panelActions.Controls.Add(buttonSend);
-        panelActions.Controls.Add(checkBoxFleet);
-        panelActions.Dock = DockStyle.Top;
-        panelActions.Location = new Point(0, 0);
-        panelActions.Name = "panelActions";
-        panelActions.Padding = new Padding(4, 4, 8, 4);
-        panelActions.Size = new Size(1034, 38);
-        panelActions.TabIndex = 2;
-        // 
-        // checkBoxAutoApprove
-        // 
-        checkBoxAutoApprove.Anchor = AnchorStyles.Right;
-        checkBoxAutoApprove.AutoSize = true;
-        checkBoxAutoApprove.BackColor = Color.Transparent;
-        checkBoxAutoApprove.Checked = true;
-        checkBoxAutoApprove.CheckState = CheckState.Checked;
-        checkBoxAutoApprove.Font = new Font("Segoe UI", 9F);
-        checkBoxAutoApprove.ForeColor = Color.FromArgb(218, 218, 218);
-        checkBoxAutoApprove.Location = new Point(674, 9);
-        checkBoxAutoApprove.Name = "checkBoxAutoApprove";
-        checkBoxAutoApprove.Size = new Size(129, 19);
-        checkBoxAutoApprove.TabIndex = 0;
-        checkBoxAutoApprove.Text = "Auto-approve tools";
-        toolTipMain.SetToolTip(checkBoxAutoApprove, "Automatically approve all tool executions without prompting");
-        checkBoxAutoApprove.UseVisualStyleBackColor = true;
-        // 
-        // labelModel
-        // 
-        labelModel.AutoSize = true;
-        labelModel.Font = new Font("Segoe UI", 9F);
-        labelModel.ForeColor = Color.FromArgb(218, 218, 218);
-        labelModel.Location = new Point(146, 11);
-        labelModel.Name = "labelModel";
-        labelModel.Size = new Size(44, 15);
-        labelModel.TabIndex = 1;
-        labelModel.Text = "Model:";
-        // 
-        // comboBoxModel
-        // 
-        comboBoxModel.BackColor = Color.FromArgb(52, 52, 52);
-        comboBoxModel.DropDownStyle = ComboBoxStyle.DropDownList;
-        comboBoxModel.FlatStyle = FlatStyle.Flat;
-        comboBoxModel.Font = new Font("Segoe UI", 9F);
-        comboBoxModel.ForeColor = Color.FromArgb(218, 218, 218);
-        comboBoxModel.FormattingEnabled = true;
-        comboBoxModel.Location = new Point(199, 7);
-        comboBoxModel.Name = "comboBoxModel";
-        comboBoxModel.Size = new Size(184, 23);
-        comboBoxModel.TabIndex = 2;
-        // 
-        // labelMode
-        // 
-        labelMode.AutoSize = true;
-        labelMode.Font = new Font("Segoe UI", 9F);
-        labelMode.ForeColor = Color.FromArgb(218, 218, 218);
-        labelMode.Location = new Point(392, 11);
-        labelMode.Name = "labelMode";
-        labelMode.Size = new Size(41, 15);
-        labelMode.TabIndex = 7;
-        labelMode.Text = "Mode:";
-        // 
-        // comboBoxMode
-        // 
-        comboBoxMode.BackColor = Color.FromArgb(52, 52, 52);
-        comboBoxMode.DropDownStyle = ComboBoxStyle.DropDownList;
-        comboBoxMode.FlatStyle = FlatStyle.Flat;
-        comboBoxMode.Font = new Font("Segoe UI", 9F);
-        comboBoxMode.ForeColor = Color.FromArgb(218, 218, 218);
-        comboBoxMode.FormattingEnabled = true;
-        comboBoxMode.Location = new Point(442, 7);
-        comboBoxMode.Name = "comboBoxMode";
-        comboBoxMode.Size = new Size(184, 23);
-        comboBoxMode.TabIndex = 8;
-        toolTipMain.SetToolTip(comboBoxMode, "Standard: normal chat  |  Plan: plan before acting  |  Autopilot: fully autonomous");
-        // 
-        // buttonOpenFolder
-        // 
-        buttonOpenFolder.BackColor = Color.FromArgb(60, 112, 160);
-        buttonOpenFolder.FlatAppearance.BorderSize = 0;
-        buttonOpenFolder.FlatStyle = FlatStyle.Flat;
-        buttonOpenFolder.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-        buttonOpenFolder.ForeColor = Color.FromArgb(235, 235, 235);
-        buttonOpenFolder.Location = new Point(7, 4);
-        buttonOpenFolder.Name = "buttonOpenFolder";
-        buttonOpenFolder.Size = new Size(130, 28);
-        buttonOpenFolder.TabIndex = 6;
-        buttonOpenFolder.Text = "📂 Open Folder…";
-        toolTipMain.SetToolTip(buttonOpenFolder, "Select a project folder and connect to Copilot");
-        buttonOpenFolder.UseVisualStyleBackColor = false;
-        // 
-        // buttonStop
-        // 
-        buttonStop.Anchor = AnchorStyles.Right;
-        buttonStop.BackColor = Color.FromArgb(86, 86, 86);
-        buttonStop.Enabled = false;
-        buttonStop.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonStop.FlatStyle = FlatStyle.Flat;
-        buttonStop.Font = new Font("Segoe UI", 9F);
-        buttonStop.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonStop.Location = new Point(900, 5);
-        buttonStop.Name = "buttonStop";
-        buttonStop.Size = new Size(60, 28);
-        buttonStop.TabIndex = 4;
-        buttonStop.Text = "⬛ Stop";
-        toolTipMain.SetToolTip(buttonStop, "Stop the current Copilot response");
-        buttonStop.UseVisualStyleBackColor = false;
-        // 
-        // buttonSend
-        // 
-        buttonSend.Anchor = AnchorStyles.Right;
-        buttonSend.BackColor = Color.FromArgb(60, 112, 160);
-        buttonSend.Enabled = false;
-        buttonSend.FlatAppearance.BorderSize = 0;
-        buttonSend.FlatStyle = FlatStyle.Flat;
-        buttonSend.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
-        buttonSend.ForeColor = Color.FromArgb(235, 235, 235);
-        buttonSend.Location = new Point(966, 5);
-        buttonSend.Name = "buttonSend";
-        buttonSend.Size = new Size(60, 28);
-        buttonSend.TabIndex = 5;
-        buttonSend.Text = "▶ Send";
-        toolTipMain.SetToolTip(buttonSend, "Send prompt to Copilot (Ctrl+Enter)");
-        buttonSend.UseVisualStyleBackColor = false;
-        // 
-        // checkBoxFleet
-        // 
-        checkBoxFleet.Anchor = AnchorStyles.Right;
-        checkBoxFleet.AutoSize = true;
-        checkBoxFleet.BackColor = Color.Transparent;
-        checkBoxFleet.Font = new Font("Segoe UI", 9F);
-        checkBoxFleet.ForeColor = Color.FromArgb(218, 218, 218);
-        checkBoxFleet.Location = new Point(803, 9);
-        checkBoxFleet.Name = "checkBoxFleet";
-        checkBoxFleet.Size = new Size(85, 19);
-        checkBoxFleet.TabIndex = 1;
-        checkBoxFleet.Text = "Fleet mode";
-        toolTipMain.SetToolTip(checkBoxFleet, "Activate Fleet mode — Copilot spawns and coordinates multiple sub-agents to work in parallel on complex tasks");
-        checkBoxFleet.UseVisualStyleBackColor = true;
-        // 
-        // richTextBoxOutput
-        // 
-        richTextBoxOutput.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
-        richTextBoxOutput.BackColor = Color.FromArgb(0, 0, 0);
-        richTextBoxOutput.BorderStyle = BorderStyle.None;
-        richTextBoxOutput.DetectUrls = false;
-        richTextBoxOutput.Font = new Font("Consolas", 10F);
-        richTextBoxOutput.ForeColor = Color.FromArgb(218, 218, 218);
-        richTextBoxOutput.Location = new Point(6, 32);
-        richTextBoxOutput.Name = "richTextBoxOutput";
-        richTextBoxOutput.ReadOnly = true;
-        richTextBoxOutput.ScrollBars = RichTextBoxScrollBars.Vertical;
-        richTextBoxOutput.Size = new Size(1016, 758);
-        richTextBoxOutput.TabIndex = 0;
-        richTextBoxOutput.Text = "";
-        // 
-        // panelQuickCommands
-        // 
-        panelQuickCommands.BackColor = Color.FromArgb(74, 74, 74);
-        panelQuickCommands.Controls.Add(buttonHelp);
-        panelQuickCommands.Controls.Add(buttonPowershell);
-        panelQuickCommands.Controls.Add(buttonSetOrgFolder);
-        panelQuickCommands.Controls.Add(buttonSummarize);
-        panelQuickCommands.Controls.Add(buttonClearOutput);
-        panelQuickCommands.Controls.Add(buttonRefresh);
-        panelQuickCommands.Controls.Add(buttonBackup);
-        panelQuickCommands.Controls.Add(buttonOpenExplorer);
-        panelQuickCommands.Controls.Add(buttonOpenVSCode);
-        panelQuickCommands.Dock = DockStyle.Bottom;
-        panelQuickCommands.Location = new Point(0, 790);
-        panelQuickCommands.Name = "panelQuickCommands";
-        panelQuickCommands.Padding = new Padding(4);
-        panelQuickCommands.Size = new Size(1034, 41);
-        panelQuickCommands.TabIndex = 1;
-        // 
-        // buttonHelp
-        // 
-        buttonHelp.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        buttonHelp.BackColor = Color.FromArgb(86, 86, 86);
-        buttonHelp.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonHelp.FlatStyle = FlatStyle.Flat;
-        buttonHelp.Font = new Font("Segoe UI", 8.5F);
-        buttonHelp.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonHelp.Location = new Point(7, 7);
-        buttonHelp.Name = "buttonHelp";
-        buttonHelp.Size = new Size(72, 26);
-        buttonHelp.TabIndex = 0;
-        buttonHelp.Text = "❓ Help";
-        toolTipMain.SetToolTip(buttonHelp, "Ask Copilot for a capabilities and tools overview");
-        buttonHelp.UseVisualStyleBackColor = false;
-        // 
-        // buttonPowershell
-        // 
-        buttonPowershell.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        buttonPowershell.BackColor = Color.FromArgb(86, 86, 86);
-        buttonPowershell.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonPowershell.FlatStyle = FlatStyle.Flat;
-        buttonPowershell.Font = new Font("Segoe UI", 8.5F);
-        buttonPowershell.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonPowershell.Location = new Point(85, 7);
-        buttonPowershell.Name = "buttonPowershell";
-        buttonPowershell.Size = new Size(96, 26);
-        buttonPowershell.TabIndex = 1;
-        buttonPowershell.Text = "⚡ PowerShell";
-        toolTipMain.SetToolTip(buttonPowershell, "Open PowerShell in the current project folder");
-        buttonPowershell.UseVisualStyleBackColor = false;
-        // 
-        // buttonSetOrgFolder
-        // 
-        buttonSetOrgFolder.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        buttonSetOrgFolder.BackColor = Color.FromArgb(86, 86, 86);
-        buttonSetOrgFolder.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonSetOrgFolder.FlatStyle = FlatStyle.Flat;
-        buttonSetOrgFolder.Font = new Font("Segoe UI", 8.5F);
-        buttonSetOrgFolder.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonSetOrgFolder.Location = new Point(187, 7);
-        buttonSetOrgFolder.Name = "buttonSetOrgFolder";
-        buttonSetOrgFolder.Size = new Size(100, 26);
-        buttonSetOrgFolder.TabIndex = 7;
-        buttonSetOrgFolder.Text = "🏢 Org Folder...";
-        toolTipMain.SetToolTip(buttonSetOrgFolder, "Set the organization-level instructions folder (kopilot.ini)");
-        buttonSetOrgFolder.UseVisualStyleBackColor = false;
-        // 
-        // buttonOpenExplorer
-        // 
-        buttonOpenExplorer.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        buttonOpenExplorer.BackColor = Color.FromArgb(86, 86, 86);
-        buttonOpenExplorer.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonOpenExplorer.FlatStyle = FlatStyle.Flat;
-        buttonOpenExplorer.Font = new Font("Segoe UI", 8.5F);
-        buttonOpenExplorer.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonOpenExplorer.Location = new Point(293, 8);
-        buttonOpenExplorer.Name = "buttonOpenExplorer";
-        buttonOpenExplorer.Size = new Size(88, 26);
-        buttonOpenExplorer.TabIndex = 5;
-        buttonOpenExplorer.Text = "📂 Explorer";
-        toolTipMain.SetToolTip(buttonOpenExplorer, "Open File Explorer in the current session folder");
-        buttonOpenExplorer.UseVisualStyleBackColor = false;
-        // 
-        // buttonOpenVSCode
-        // 
-        buttonOpenVSCode.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        buttonOpenVSCode.BackColor = Color.FromArgb(86, 86, 86);
-        buttonOpenVSCode.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonOpenVSCode.FlatStyle = FlatStyle.Flat;
-        buttonOpenVSCode.Font = new Font("Segoe UI", 8.5F);
-        buttonOpenVSCode.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonOpenVSCode.Location = new Point(387, 8);
-        buttonOpenVSCode.Name = "buttonOpenVSCode";
-        buttonOpenVSCode.Size = new Size(90, 26);
-        buttonOpenVSCode.TabIndex = 6;
-        buttonOpenVSCode.Text = "💻 VS Code";
-        toolTipMain.SetToolTip(buttonOpenVSCode, "Open VS Code in the session folder and connect with /ide");
-        buttonOpenVSCode.UseVisualStyleBackColor = false;
-        // 
-        // buttonSummarize
-        // 
-        buttonSummarize.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        buttonSummarize.BackColor = Color.FromArgb(86, 86, 86);
-        buttonSummarize.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonSummarize.FlatStyle = FlatStyle.Flat;
-        buttonSummarize.Font = new Font("Segoe UI", 8.5F);
-        buttonSummarize.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonSummarize.Location = new Point(483, 7);
-        buttonSummarize.Name = "buttonSummarize";
-        buttonSummarize.Size = new Size(100, 26);
-        buttonSummarize.TabIndex = 2;
-        buttonSummarize.Text = "📝 Summarize";
-        toolTipMain.SetToolTip(buttonSummarize, "Ask Copilot to summarize the session so far");
-        buttonSummarize.UseVisualStyleBackColor = false;
-        // 
-        // buttonClearOutput
-        // 
-        buttonClearOutput.Anchor = AnchorStyles.Bottom;
-        buttonClearOutput.BackColor = Color.FromArgb(86, 86, 86);
-        buttonClearOutput.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonClearOutput.FlatStyle = FlatStyle.Flat;
-        buttonClearOutput.Font = new Font("Segoe UI", 8.5F);
-        buttonClearOutput.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonClearOutput.Location = new Point(589, 7);
-        buttonClearOutput.Name = "buttonClearOutput";
-        buttonClearOutput.Size = new Size(68, 26);
-        buttonClearOutput.TabIndex = 3;
-        buttonClearOutput.Text = "🗑 Clear";
-        toolTipMain.SetToolTip(buttonClearOutput, "Clear the current output window");
-        buttonClearOutput.UseVisualStyleBackColor = false;
-        // 
-        // buttonRefresh
-        // 
-        buttonRefresh.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        buttonRefresh.BackColor = Color.FromArgb(86, 86, 86);
-        buttonRefresh.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonRefresh.FlatStyle = FlatStyle.Flat;
-        buttonRefresh.Font = new Font("Segoe UI", 8.5F);
-        buttonRefresh.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonRefresh.Location = new Point(663, 7);
-        buttonRefresh.Name = "buttonRefresh";
-        buttonRefresh.Size = new Size(94, 26);
-        buttonRefresh.TabIndex = 8;
-        buttonRefresh.Text = "💤 Refresh ▾";
-        toolTipMain.SetToolTip(buttonRefresh, "Free up context window — Compact (in place) or Restart with summary");
-        buttonRefresh.UseVisualStyleBackColor = false;
-        // 
-        // buttonBackup
-        // 
-        buttonBackup.Anchor = AnchorStyles.Right;
-        buttonBackup.BackColor = Color.FromArgb(86, 86, 86);
-        buttonBackup.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonBackup.FlatStyle = FlatStyle.Flat;
-        buttonBackup.Font = new Font("Segoe UI", 8.5F);
-        buttonBackup.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonBackup.Location = new Point(938, 7);
-        buttonBackup.Name = "buttonBackup";
-        buttonBackup.Size = new Size(88, 26);
-        buttonBackup.TabIndex = 4;
-        buttonBackup.Text = "💾 Backup";
-        toolTipMain.SetToolTip(buttonBackup, "Ask Copilot to write a session-resume document to a Markdown file");
-        buttonBackup.UseVisualStyleBackColor = false;
-        // 
-        // panelAttachments
-        // 
-        panelAttachments.BackColor = Color.FromArgb(64, 64, 64);
-        panelAttachments.Controls.Add(flowLayoutPanelChips);
-        panelAttachments.Controls.Add(buttonAddFolder);
-        panelAttachments.Controls.Add(buttonAddFile);
-        panelAttachments.Controls.Add(labelAttach);
-        panelAttachments.Dock = DockStyle.Top;
-        panelAttachments.Location = new Point(0, 0);
-        panelAttachments.Name = "panelAttachments";
-        panelAttachments.Size = new Size(1034, 32);
-        panelAttachments.TabIndex = 0;
-        // 
-        // flowLayoutPanelChips
-        // 
-        flowLayoutPanelChips.AutoSize = true;
-        flowLayoutPanelChips.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        flowLayoutPanelChips.BackColor = Color.FromArgb(64, 64, 64);
-        flowLayoutPanelChips.Location = new Point(290, 6);
-        flowLayoutPanelChips.Name = "flowLayoutPanelChips";
-        flowLayoutPanelChips.Size = new Size(0, 0);
-        flowLayoutPanelChips.TabIndex = 3;
-        flowLayoutPanelChips.WrapContents = false;
-        // 
-        // buttonAddFolder
-        // 
-        buttonAddFolder.BackColor = Color.FromArgb(86, 86, 86);
-        buttonAddFolder.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonAddFolder.FlatStyle = FlatStyle.Flat;
-        buttonAddFolder.Font = new Font("Segoe UI", 9F);
-        buttonAddFolder.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonAddFolder.Location = new Point(184, 0);
-        buttonAddFolder.Name = "buttonAddFolder";
-        buttonAddFolder.Size = new Size(100, 26);
-        buttonAddFolder.TabIndex = 2;
-        buttonAddFolder.Text = "📁 Add Folder";
-        toolTipMain.SetToolTip(buttonAddFolder, "Attach a folder to the prompt");
-        buttonAddFolder.UseVisualStyleBackColor = false;
-        // 
-        // buttonAddFile
-        // 
-        buttonAddFile.BackColor = Color.FromArgb(86, 86, 86);
-        buttonAddFile.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonAddFile.FlatStyle = FlatStyle.Flat;
-        buttonAddFile.Font = new Font("Segoe UI", 9F);
-        buttonAddFile.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonAddFile.Location = new Point(91, 0);
-        buttonAddFile.Name = "buttonAddFile";
-        buttonAddFile.Size = new Size(88, 26);
-        buttonAddFile.TabIndex = 1;
-        buttonAddFile.Text = "📄 Add File";
-        toolTipMain.SetToolTip(buttonAddFile, "Attach a file to the prompt");
-        buttonAddFile.UseVisualStyleBackColor = false;
-        // 
-        // labelAttach
-        // 
-        labelAttach.AutoSize = true;
-        labelAttach.Font = new Font("Segoe UI", 9F);
-        labelAttach.ForeColor = Color.FromArgb(148, 148, 148);
-        labelAttach.Location = new Point(7, 4);
-        labelAttach.Name = "labelAttach";
-        labelAttach.Size = new Size(78, 15);
-        labelAttach.TabIndex = 0;
-        labelAttach.Text = "Attachments:";
-        // 
-        // statusStrip
-        // 
-        statusStrip.BackColor = Color.FromArgb(56, 56, 56);
-        statusStrip.Items.AddRange(new ToolStripItem[] { toolStripStatusLabelConnection, toolStripStatusLabelVersion, toolStripStatusLabelSep, toolStripStatusLabelAgentStatus, toolStripProgressBarContext, toolStripStatusLabelContext, toolStripStatusLabelSession });
-        statusStrip.Location = new Point(0, 1095);
-        statusStrip.Name = "statusStrip";
-        statusStrip.Size = new Size(1034, 23);
-        statusStrip.TabIndex = 1;
-        // 
-        // toolStripStatusLabelConnection
-        // 
-        toolStripStatusLabelConnection.ForeColor = Color.FromArgb(218, 218, 218);
-        toolStripStatusLabelConnection.Name = "toolStripStatusLabelConnection";
-        toolStripStatusLabelConnection.Size = new Size(86, 18);
-        toolStripStatusLabelConnection.Text = "Not connected";
-        // 
-        // toolStripStatusLabelVersion
-        // 
-        toolStripStatusLabelVersion.ForeColor = Color.FromArgb(148, 148, 148);
-        toolStripStatusLabelVersion.Name = "toolStripStatusLabelVersion";
-        toolStripStatusLabelVersion.Padding = new Padding(6, 0, 0, 0);
-        toolStripStatusLabelVersion.Size = new Size(6, 18);
-        // 
-        // toolStripStatusLabelSep
-        // 
-        toolStripStatusLabelSep.ForeColor = Color.FromArgb(148, 148, 148);
-        toolStripStatusLabelSep.Name = "toolStripStatusLabelSep";
-        toolStripStatusLabelSep.Size = new Size(6, 23);
-        // 
-        // toolStripStatusLabelAgentStatus
-        // 
-        toolStripStatusLabelAgentStatus.ForeColor = Color.FromArgb(200, 200, 200);
-        toolStripStatusLabelAgentStatus.Name = "toolStripStatusLabelAgentStatus";
-        toolStripStatusLabelAgentStatus.Size = new Size(921, 18);
-        toolStripStatusLabelAgentStatus.Spring = true;
-        toolStripStatusLabelAgentStatus.Text = "Ready for next command";
-        // 
-        // toolStripProgressBarContext
-        // 
-        toolStripProgressBarContext.Name = "toolStripProgressBarContext";
-        toolStripProgressBarContext.Size = new Size(80, 16);
-        toolStripProgressBarContext.Minimum = 0;
-        toolStripProgressBarContext.Maximum = 100;
-        toolStripProgressBarContext.Value = 0;
-        toolStripProgressBarContext.Style = ProgressBarStyle.Continuous;
-        toolStripProgressBarContext.BackColor = Color.FromArgb(46, 46, 46);
-        toolStripProgressBarContext.ForeColor = Color.FromArgb(148, 220, 148);
-        toolStripProgressBarContext.Margin = new Padding(4, 3, 0, 3);
-        // 
-        // toolStripStatusLabelContext
-        // 
-        toolStripStatusLabelContext.ForeColor = Color.FromArgb(148, 148, 148);
-        toolStripStatusLabelContext.Name = "toolStripStatusLabelContext";
-        toolStripStatusLabelContext.Padding = new Padding(8, 0, 8, 0);
-        toolStripStatusLabelContext.Size = new Size(16, 18);
-        toolStripStatusLabelContext.Text = "";
-        // 
-        // toolStripStatusLabelSession
-        // 
-        toolStripStatusLabelSession.ForeColor = Color.FromArgb(148, 148, 148);
-        toolStripStatusLabelSession.Name = "toolStripStatusLabelSession";
-        toolStripStatusLabelSession.Size = new Size(0, 18);
-        toolStripStatusLabelSession.TextAlign = ContentAlignment.MiddleRight;
-        // 
-        // MainForm
-        // 
-        AutoScaleDimensions = new SizeF(7F, 15F);
-        AutoScaleMode = AutoScaleMode.Font;
-        BackColor = Color.FromArgb(64, 64, 64);
-        ClientSize = new Size(1034, 1118);
-        Controls.Add(splitContainerMain);
-        Controls.Add(statusStrip);
-        Font = new Font("Segoe UI", 9F);
-        Icon = (Icon)resources.GetObject("$this.Icon");
-        MinimumSize = new Size(1050, 600);
-        Name = "MainForm";
-        Text = "Kopilot";
-        splitContainerMain.Panel1.ResumeLayout(false);
-        splitContainerMain.Panel2.ResumeLayout(false);
-        ((System.ComponentModel.ISupportInitialize)splitContainerMain).EndInit();
-        splitContainerMain.ResumeLayout(false);
-        panelHistoryNav.ResumeLayout(false);
-        panelActions.ResumeLayout(false);
-        panelActions.PerformLayout();
-        panelQuickCommands.ResumeLayout(false);
-        panelAttachments.ResumeLayout(false);
-        panelAttachments.PerformLayout();
-        statusStrip.ResumeLayout(false);
-        statusStrip.PerformLayout();
-        ResumeLayout(false);
-        PerformLayout();
-    }
+	/// <summary>
+	/// Required method for Designer support - do not modify
+	/// the contents of this method with the code editor.
+	/// </summary>
+	private void InitializeComponent()
+	{
+		components = new System.ComponentModel.Container();
+		System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
+		splitContainerMain = new SplitContainer();
+		richTextBoxPrompt = new PlainRichTextBox();
+		panelHistoryNav = new Panel();
+		buttonHistoryNext = new Button();
+		buttonHistoryPrev = new Button();
+		panelActions = new Panel();
+		checkBoxAutoApprove = new CheckBox();
+		labelModel = new Label();
+		comboBoxModel = new ComboBox();
+		labelMode = new Label();
+		comboBoxMode = new ComboBox();
+		buttonOpenFolder = new Button();
+		buttonStop = new Button();
+		buttonSend = new Button();
+		checkBoxFleet = new CheckBox();
+		richTextBoxOutput = new RichTextBox();
+		panelQuickCommands = new Panel();
+		buttonHelp = new Button();
+		buttonPowershell = new Button();
+		buttonSetOrgFolder = new Button();
+		buttonSummarize = new Button();
+		buttonClearOutput = new Button();
+		buttonRefresh = new Button();
+		buttonBackup = new Button();
+		buttonOpenExplorer = new Button();
+		buttonOpenVSCode = new Button();
+		panelAttachments = new Panel();
+		flowLayoutPanelChips = new FlowLayoutPanel();
+		buttonAddFolder = new Button();
+		buttonAddFile = new Button();
+		labelAttach = new Label();
+		statusStrip = new StatusStrip();
+		toolStripStatusLabelConnection = new ToolStripStatusLabel();
+		toolStripStatusLabelVersion = new ToolStripStatusLabel();
+		toolStripStatusLabelSep = new ToolStripSeparator();
+		toolStripStatusLabelAgentStatus = new ToolStripStatusLabel();
+		toolStripProgressBarContext = new ToolStripProgressBar();
+		toolStripStatusLabelContext = new ToolStripStatusLabel();
+		toolStripStatusLabelSession = new ToolStripStatusLabel();
+		toolTipMain = new ToolTip(components);
+		((System.ComponentModel.ISupportInitialize)splitContainerMain).BeginInit();
+		splitContainerMain.Panel1.SuspendLayout();
+		splitContainerMain.Panel2.SuspendLayout();
+		splitContainerMain.SuspendLayout();
+		panelHistoryNav.SuspendLayout();
+		panelActions.SuspendLayout();
+		panelQuickCommands.SuspendLayout();
+		panelAttachments.SuspendLayout();
+		statusStrip.SuspendLayout();
+		SuspendLayout();
+		// 
+		// splitContainerMain
+		// 
+		splitContainerMain.BackColor = Color.FromArgb(64, 64, 64);
+		splitContainerMain.Dock = DockStyle.Fill;
+		splitContainerMain.Location = new Point(0, 0);
+		splitContainerMain.Margin = new Padding(3, 4, 3, 4);
+		splitContainerMain.Name = "splitContainerMain";
+		splitContainerMain.Orientation = Orientation.Horizontal;
+		// 
+		// splitContainerMain.Panel1
+		// 
+		splitContainerMain.Panel1.Controls.Add(richTextBoxPrompt);
+		splitContainerMain.Panel1.Controls.Add(panelHistoryNav);
+		splitContainerMain.Panel1.Controls.Add(panelActions);
+		splitContainerMain.Panel1MinSize = 100;
+		// 
+		// splitContainerMain.Panel2
+		// 
+		splitContainerMain.Panel2.Controls.Add(richTextBoxOutput);
+		splitContainerMain.Panel2.Controls.Add(panelQuickCommands);
+		splitContainerMain.Panel2.Controls.Add(panelAttachments);
+		splitContainerMain.Panel2MinSize = 180;
+		splitContainerMain.Size = new Size(1179, 1462);
+		splitContainerMain.SplitterDistance = 347;
+		splitContainerMain.SplitterWidth = 5;
+		splitContainerMain.TabIndex = 0;
+		// 
+		// richTextBoxPrompt
+		// 
+		richTextBoxPrompt.AcceptsTab = true;
+		richTextBoxPrompt.AllowDrop = true;
+		richTextBoxPrompt.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+		richTextBoxPrompt.BackColor = Color.FromArgb(52, 52, 52);
+		richTextBoxPrompt.Font = new Font("Segoe UI", 11F);
+		richTextBoxPrompt.ForeColor = Color.FromArgb(218, 218, 218);
+		richTextBoxPrompt.Location = new Point(30, 51);
+		richTextBoxPrompt.Margin = new Padding(3, 4, 3, 4);
+		richTextBoxPrompt.Name = "richTextBoxPrompt";
+		richTextBoxPrompt.ScrollBars = RichTextBoxScrollBars.Vertical;
+		richTextBoxPrompt.Size = new Size(1135, 295);
+		richTextBoxPrompt.TabIndex = 1;
+		richTextBoxPrompt.Text = "";
+		toolTipMain.SetToolTip(richTextBoxPrompt, "Ctrl+Enter to send");
+		// 
+		// panelHistoryNav
+		// 
+		panelHistoryNav.BackColor = Color.FromArgb(52, 52, 52);
+		panelHistoryNav.Controls.Add(buttonHistoryNext);
+		panelHistoryNav.Controls.Add(buttonHistoryPrev);
+		panelHistoryNav.Dock = DockStyle.Left;
+		panelHistoryNav.Location = new Point(0, 51);
+		panelHistoryNav.Margin = new Padding(3, 4, 3, 4);
+		panelHistoryNav.Name = "panelHistoryNav";
+		panelHistoryNav.Size = new Size(23, 296);
+		panelHistoryNav.TabIndex = 3;
+		// 
+		// buttonHistoryNext
+		// 
+		buttonHistoryNext.BackColor = Color.FromArgb(52, 52, 52);
+		buttonHistoryNext.Dock = DockStyle.Bottom;
+		buttonHistoryNext.Enabled = false;
+		buttonHistoryNext.FlatAppearance.BorderSize = 0;
+		buttonHistoryNext.FlatAppearance.MouseOverBackColor = Color.FromArgb(72, 72, 72);
+		buttonHistoryNext.FlatStyle = FlatStyle.Flat;
+		buttonHistoryNext.Font = new Font("Segoe UI", 7F);
+		buttonHistoryNext.ForeColor = Color.FromArgb(148, 148, 148);
+		buttonHistoryNext.Location = new Point(0, 269);
+		buttonHistoryNext.Margin = new Padding(3, 4, 3, 4);
+		buttonHistoryNext.Name = "buttonHistoryNext";
+		buttonHistoryNext.Size = new Size(23, 27);
+		buttonHistoryNext.TabIndex = 0;
+		buttonHistoryNext.TabStop = false;
+		buttonHistoryNext.Text = "▼";
+		toolTipMain.SetToolTip(buttonHistoryNext, "Next prompt (newer)");
+		buttonHistoryNext.UseVisualStyleBackColor = false;
+		// 
+		// buttonHistoryPrev
+		// 
+		buttonHistoryPrev.BackColor = Color.FromArgb(52, 52, 52);
+		buttonHistoryPrev.Dock = DockStyle.Top;
+		buttonHistoryPrev.Enabled = false;
+		buttonHistoryPrev.FlatAppearance.BorderSize = 0;
+		buttonHistoryPrev.FlatAppearance.MouseOverBackColor = Color.FromArgb(72, 72, 72);
+		buttonHistoryPrev.FlatStyle = FlatStyle.Flat;
+		buttonHistoryPrev.Font = new Font("Segoe UI", 7F);
+		buttonHistoryPrev.ForeColor = Color.FromArgb(148, 148, 148);
+		buttonHistoryPrev.Location = new Point(0, 0);
+		buttonHistoryPrev.Margin = new Padding(3, 4, 3, 4);
+		buttonHistoryPrev.Name = "buttonHistoryPrev";
+		buttonHistoryPrev.Size = new Size(23, 27);
+		buttonHistoryPrev.TabIndex = 1;
+		buttonHistoryPrev.TabStop = false;
+		buttonHistoryPrev.Text = "▲";
+		toolTipMain.SetToolTip(buttonHistoryPrev, "Previous prompt (older)");
+		buttonHistoryPrev.UseVisualStyleBackColor = false;
+		// 
+		// panelActions
+		// 
+		panelActions.BackColor = Color.FromArgb(64, 64, 64);
+		panelActions.Controls.Add(checkBoxAutoApprove);
+		panelActions.Controls.Add(labelModel);
+		panelActions.Controls.Add(comboBoxModel);
+		panelActions.Controls.Add(labelMode);
+		panelActions.Controls.Add(comboBoxMode);
+		panelActions.Controls.Add(buttonOpenFolder);
+		panelActions.Controls.Add(buttonStop);
+		panelActions.Controls.Add(buttonSend);
+		panelActions.Controls.Add(checkBoxFleet);
+		panelActions.Dock = DockStyle.Top;
+		panelActions.Location = new Point(0, 0);
+		panelActions.Margin = new Padding(3, 4, 3, 4);
+		panelActions.Name = "panelActions";
+		panelActions.Padding = new Padding(5, 5, 9, 5);
+		panelActions.Size = new Size(1179, 51);
+		panelActions.TabIndex = 2;
+		// 
+		// checkBoxAutoApprove
+		// 
+		checkBoxAutoApprove.Anchor = AnchorStyles.Right;
+		checkBoxAutoApprove.AutoSize = true;
+		checkBoxAutoApprove.BackColor = Color.Transparent;
+		checkBoxAutoApprove.Checked = true;
+		checkBoxAutoApprove.CheckState = CheckState.Checked;
+		checkBoxAutoApprove.Font = new Font("Segoe UI", 9F);
+		checkBoxAutoApprove.ForeColor = Color.FromArgb(218, 218, 218);
+		checkBoxAutoApprove.Location = new Point(739, 11);
+		checkBoxAutoApprove.Margin = new Padding(3, 4, 3, 4);
+		checkBoxAutoApprove.Name = "checkBoxAutoApprove";
+		checkBoxAutoApprove.Size = new Size(161, 24);
+		checkBoxAutoApprove.TabIndex = 0;
+		checkBoxAutoApprove.Text = "Auto-approve tools";
+		toolTipMain.SetToolTip(checkBoxAutoApprove, "Automatically approve all tool executions without prompting");
+		checkBoxAutoApprove.UseVisualStyleBackColor = true;
+		// 
+		// labelModel
+		// 
+		labelModel.AutoSize = true;
+		labelModel.Font = new Font("Segoe UI", 9F);
+		labelModel.ForeColor = Color.FromArgb(218, 218, 218);
+		labelModel.Location = new Point(167, 15);
+		labelModel.Name = "labelModel";
+		labelModel.Size = new Size(55, 20);
+		labelModel.TabIndex = 1;
+		labelModel.Text = "Model:";
+		// 
+		// comboBoxModel
+		// 
+		comboBoxModel.BackColor = Color.FromArgb(52, 52, 52);
+		comboBoxModel.DropDownStyle = ComboBoxStyle.DropDownList;
+		comboBoxModel.FlatStyle = FlatStyle.Flat;
+		comboBoxModel.Font = new Font("Segoe UI", 9F);
+		comboBoxModel.ForeColor = Color.FromArgb(218, 218, 218);
+		comboBoxModel.FormattingEnabled = true;
+		comboBoxModel.Location = new Point(227, 9);
+		comboBoxModel.Margin = new Padding(3, 4, 3, 4);
+		comboBoxModel.Name = "comboBoxModel";
+		comboBoxModel.Size = new Size(210, 28);
+		comboBoxModel.TabIndex = 2;
+		// 
+		// labelMode
+		// 
+		labelMode.AutoSize = true;
+		labelMode.Font = new Font("Segoe UI", 9F);
+		labelMode.ForeColor = Color.FromArgb(218, 218, 218);
+		labelMode.Location = new Point(448, 15);
+		labelMode.Name = "labelMode";
+		labelMode.Size = new Size(51, 20);
+		labelMode.TabIndex = 7;
+		labelMode.Text = "Mode:";
+		// 
+		// comboBoxMode
+		// 
+		comboBoxMode.BackColor = Color.FromArgb(52, 52, 52);
+		comboBoxMode.DropDownStyle = ComboBoxStyle.DropDownList;
+		comboBoxMode.FlatStyle = FlatStyle.Flat;
+		comboBoxMode.Font = new Font("Segoe UI", 9F);
+		comboBoxMode.ForeColor = Color.FromArgb(218, 218, 218);
+		comboBoxMode.FormattingEnabled = true;
+		comboBoxMode.Location = new Point(505, 9);
+		comboBoxMode.Margin = new Padding(3, 4, 3, 4);
+		comboBoxMode.Name = "comboBoxMode";
+		comboBoxMode.Size = new Size(210, 28);
+		comboBoxMode.TabIndex = 8;
+		toolTipMain.SetToolTip(comboBoxMode, "Standard: normal chat  |  Plan: plan before acting  |  Autopilot: fully autonomous");
+		// 
+		// buttonOpenFolder
+		// 
+		buttonOpenFolder.BackColor = Color.FromArgb(60, 112, 160);
+		buttonOpenFolder.FlatAppearance.BorderSize = 0;
+		buttonOpenFolder.FlatStyle = FlatStyle.Flat;
+		buttonOpenFolder.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+		buttonOpenFolder.ForeColor = Color.FromArgb(235, 235, 235);
+		buttonOpenFolder.Location = new Point(8, 5);
+		buttonOpenFolder.Margin = new Padding(3, 4, 3, 4);
+		buttonOpenFolder.Name = "buttonOpenFolder";
+		buttonOpenFolder.Size = new Size(149, 37);
+		buttonOpenFolder.TabIndex = 6;
+		buttonOpenFolder.Text = "📂 Open Folder…";
+		toolTipMain.SetToolTip(buttonOpenFolder, "Select a project folder and connect to Copilot");
+		buttonOpenFolder.UseVisualStyleBackColor = false;
+		// 
+		// buttonStop
+		// 
+		buttonStop.Anchor = AnchorStyles.Right;
+		buttonStop.BackColor = Color.FromArgb(86, 86, 86);
+		buttonStop.Enabled = false;
+		buttonStop.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+		buttonStop.FlatStyle = FlatStyle.Flat;
+		buttonStop.Font = new Font("Segoe UI", 9F);
+		buttonStop.ForeColor = Color.FromArgb(218, 218, 218);
+		buttonStop.Location = new Point(1026, 7);
+		buttonStop.Margin = new Padding(3, 4, 3, 4);
+		buttonStop.Name = "buttonStop";
+		buttonStop.Size = new Size(69, 37);
+		buttonStop.TabIndex = 4;
+		buttonStop.Text = "⬛ Stop";
+		toolTipMain.SetToolTip(buttonStop, "Stop the current Copilot response");
+		buttonStop.UseVisualStyleBackColor = false;
+		// 
+		// buttonSend
+		// 
+		buttonSend.Anchor = AnchorStyles.Right;
+		buttonSend.BackColor = Color.FromArgb(60, 112, 160);
+		buttonSend.Enabled = false;
+		buttonSend.FlatAppearance.BorderSize = 0;
+		buttonSend.FlatStyle = FlatStyle.Flat;
+		buttonSend.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
+		buttonSend.ForeColor = Color.FromArgb(235, 235, 235);
+		buttonSend.Location = new Point(1101, 7);
+		buttonSend.Margin = new Padding(3, 4, 3, 4);
+		buttonSend.Name = "buttonSend";
+		buttonSend.Size = new Size(69, 37);
+		buttonSend.TabIndex = 5;
+		buttonSend.Text = "▶ Send";
+		toolTipMain.SetToolTip(buttonSend, "Send prompt to Copilot (Ctrl+Enter)");
+		buttonSend.UseVisualStyleBackColor = false;
+		// 
+		// checkBoxFleet
+		// 
+		checkBoxFleet.Anchor = AnchorStyles.Right;
+		checkBoxFleet.AutoSize = true;
+		checkBoxFleet.BackColor = Color.Transparent;
+		checkBoxFleet.Font = new Font("Segoe UI", 9F);
+		checkBoxFleet.ForeColor = Color.FromArgb(218, 218, 218);
+		checkBoxFleet.Location = new Point(906, 12);
+		checkBoxFleet.Margin = new Padding(3, 4, 3, 4);
+		checkBoxFleet.Name = "checkBoxFleet";
+		checkBoxFleet.Size = new Size(106, 24);
+		checkBoxFleet.TabIndex = 1;
+		checkBoxFleet.Text = "Fleet mode";
+		toolTipMain.SetToolTip(checkBoxFleet, "Activate Fleet mode — Copilot spawns and coordinates multiple sub-agents to work in parallel on complex tasks");
+		checkBoxFleet.UseVisualStyleBackColor = true;
+		// 
+		// richTextBoxOutput
+		// 
+		richTextBoxOutput.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
+		richTextBoxOutput.BackColor = Color.FromArgb(0, 0, 0);
+		richTextBoxOutput.BorderStyle = BorderStyle.None;
+		richTextBoxOutput.DetectUrls = false;
+		richTextBoxOutput.Font = new Font("Consolas", 10F);
+		richTextBoxOutput.ForeColor = Color.FromArgb(218, 218, 218);
+		richTextBoxOutput.Location = new Point(7, 43);
+		richTextBoxOutput.Margin = new Padding(3, 4, 3, 4);
+		richTextBoxOutput.Name = "richTextBoxOutput";
+		richTextBoxOutput.ReadOnly = true;
+		richTextBoxOutput.ScrollBars = RichTextBoxScrollBars.Vertical;
+		richTextBoxOutput.Size = new Size(1158, 1012);
+		richTextBoxOutput.TabIndex = 0;
+		richTextBoxOutput.Text = "";
+		// 
+		// panelQuickCommands
+		// 
+		panelQuickCommands.BackColor = Color.FromArgb(74, 74, 74);
+		panelQuickCommands.Controls.Add(buttonHelp);
+		panelQuickCommands.Controls.Add(buttonPowershell);
+		panelQuickCommands.Controls.Add(buttonSetOrgFolder);
+		panelQuickCommands.Controls.Add(buttonSummarize);
+		panelQuickCommands.Controls.Add(buttonClearOutput);
+		panelQuickCommands.Controls.Add(buttonRefresh);
+		panelQuickCommands.Controls.Add(buttonBackup);
+		panelQuickCommands.Controls.Add(buttonOpenExplorer);
+		panelQuickCommands.Controls.Add(buttonOpenVSCode);
+		panelQuickCommands.Dock = DockStyle.Bottom;
+		panelQuickCommands.Location = new Point(0, 1055);
+		panelQuickCommands.Margin = new Padding(3, 4, 3, 4);
+		panelQuickCommands.Name = "panelQuickCommands";
+		panelQuickCommands.Padding = new Padding(5);
+		panelQuickCommands.Size = new Size(1179, 55);
+		panelQuickCommands.TabIndex = 1;
+		// 
+		// buttonHelp
+		// 
+		buttonHelp.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+		buttonHelp.BackColor = Color.FromArgb(86, 86, 86);
+		buttonHelp.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+		buttonHelp.FlatStyle = FlatStyle.Flat;
+		buttonHelp.Font = new Font("Segoe UI", 8.5F);
+		buttonHelp.ForeColor = Color.FromArgb(218, 218, 218);
+		buttonHelp.Location = new Point(8, 9);
+		buttonHelp.Margin = new Padding(3, 4, 3, 4);
+		buttonHelp.Name = "buttonHelp";
+		buttonHelp.Size = new Size(82, 35);
+		buttonHelp.TabIndex = 0;
+		buttonHelp.Text = "❓ Help";
+		toolTipMain.SetToolTip(buttonHelp, "Ask Copilot for a capabilities and tools overview");
+		buttonHelp.UseVisualStyleBackColor = false;
+		// 
+		// buttonPowershell
+		// 
+		buttonPowershell.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+		buttonPowershell.BackColor = Color.FromArgb(86, 86, 86);
+		buttonPowershell.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+		buttonPowershell.FlatStyle = FlatStyle.Flat;
+		buttonPowershell.Font = new Font("Segoe UI", 8.5F);
+		buttonPowershell.ForeColor = Color.FromArgb(218, 218, 218);
+		buttonPowershell.Location = new Point(97, 9);
+		buttonPowershell.Margin = new Padding(3, 4, 3, 4);
+		buttonPowershell.Name = "buttonPowershell";
+		buttonPowershell.Size = new Size(124, 35);
+		buttonPowershell.TabIndex = 1;
+		buttonPowershell.Text = "⚡ PowerShell";
+		toolTipMain.SetToolTip(buttonPowershell, "Open PowerShell in the current project folder");
+		buttonPowershell.UseVisualStyleBackColor = false;
+		// 
+		// buttonSetOrgFolder
+		// 
+		buttonSetOrgFolder.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+		buttonSetOrgFolder.BackColor = Color.FromArgb(86, 86, 86);
+		buttonSetOrgFolder.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+		buttonSetOrgFolder.FlatStyle = FlatStyle.Flat;
+		buttonSetOrgFolder.Font = new Font("Segoe UI", 8.5F);
+		buttonSetOrgFolder.ForeColor = Color.FromArgb(218, 218, 218);
+		buttonSetOrgFolder.Location = new Point(227, 9);
+		buttonSetOrgFolder.Margin = new Padding(3, 4, 3, 4);
+		buttonSetOrgFolder.Name = "buttonSetOrgFolder";
+		buttonSetOrgFolder.Size = new Size(101, 35);
+		buttonSetOrgFolder.TabIndex = 7;
+		buttonSetOrgFolder.Text = "🏢 Org Folder...";
+		toolTipMain.SetToolTip(buttonSetOrgFolder, "Set the organization-level instructions folder (kopilot.ini)");
+		buttonSetOrgFolder.UseVisualStyleBackColor = false;
+		// 
+		// buttonSummarize
+		// 
+		buttonSummarize.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+		buttonSummarize.BackColor = Color.FromArgb(86, 86, 86);
+		buttonSummarize.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+		buttonSummarize.FlatStyle = FlatStyle.Flat;
+		buttonSummarize.Font = new Font("Segoe UI", 8.5F);
+		buttonSummarize.ForeColor = Color.FromArgb(218, 218, 218);
+		buttonSummarize.Location = new Point(551, 9);
+		buttonSummarize.Margin = new Padding(3, 4, 3, 4);
+		buttonSummarize.Name = "buttonSummarize";
+		buttonSummarize.Size = new Size(126, 35);
+		buttonSummarize.TabIndex = 2;
+		buttonSummarize.Text = "📝 Summarize";
+		toolTipMain.SetToolTip(buttonSummarize, "Ask Copilot to summarize the session so far");
+		buttonSummarize.UseVisualStyleBackColor = false;
+		// 
+		// buttonClearOutput
+		// 
+		buttonClearOutput.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+		buttonClearOutput.BackColor = Color.FromArgb(86, 86, 86);
+		buttonClearOutput.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+		buttonClearOutput.FlatStyle = FlatStyle.Flat;
+		buttonClearOutput.Font = new Font("Segoe UI", 8.5F);
+		buttonClearOutput.ForeColor = Color.FromArgb(218, 218, 218);
+		buttonClearOutput.Location = new Point(683, 9);
+		buttonClearOutput.Margin = new Padding(3, 4, 3, 4);
+		buttonClearOutput.Name = "buttonClearOutput";
+		buttonClearOutput.Size = new Size(78, 35);
+		buttonClearOutput.TabIndex = 3;
+		buttonClearOutput.Text = "🗑 Clear";
+		toolTipMain.SetToolTip(buttonClearOutput, "Clear the current output window");
+		buttonClearOutput.UseVisualStyleBackColor = false;
+		// 
+		// buttonRefresh
+		// 
+		buttonRefresh.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+		buttonRefresh.BackColor = Color.FromArgb(86, 86, 86);
+		buttonRefresh.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+		buttonRefresh.FlatStyle = FlatStyle.Flat;
+		buttonRefresh.Font = new Font("Segoe UI", 8.5F);
+		buttonRefresh.ForeColor = Color.FromArgb(218, 218, 218);
+		buttonRefresh.Location = new Point(767, 9);
+		buttonRefresh.Margin = new Padding(3, 4, 3, 4);
+		buttonRefresh.Name = "buttonRefresh";
+		buttonRefresh.Size = new Size(98, 35);
+		buttonRefresh.TabIndex = 8;
+		buttonRefresh.Text = "💤 Refresh ▾";
+		toolTipMain.SetToolTip(buttonRefresh, "Free up context window — Compact (in place) or Restart with summary");
+		buttonRefresh.UseVisualStyleBackColor = false;
+		// 
+		// buttonBackup
+		// 
+		buttonBackup.Anchor = AnchorStyles.Right;
+		buttonBackup.BackColor = Color.FromArgb(86, 86, 86);
+		buttonBackup.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+		buttonBackup.FlatStyle = FlatStyle.Flat;
+		buttonBackup.Font = new Font("Segoe UI", 8.5F);
+		buttonBackup.ForeColor = Color.FromArgb(218, 218, 218);
+		buttonBackup.Location = new Point(1069, 9);
+		buttonBackup.Margin = new Padding(3, 4, 3, 4);
+		buttonBackup.Name = "buttonBackup";
+		buttonBackup.Size = new Size(101, 35);
+		buttonBackup.TabIndex = 4;
+		buttonBackup.Text = "💾 Backup";
+		toolTipMain.SetToolTip(buttonBackup, "Ask Copilot to write a session-resume document to a Markdown file");
+		buttonBackup.UseVisualStyleBackColor = false;
+		// 
+		// buttonOpenExplorer
+		// 
+		buttonOpenExplorer.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+		buttonOpenExplorer.BackColor = Color.FromArgb(86, 86, 86);
+		buttonOpenExplorer.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+		buttonOpenExplorer.FlatStyle = FlatStyle.Flat;
+		buttonOpenExplorer.Font = new Font("Segoe UI", 8.5F);
+		buttonOpenExplorer.ForeColor = Color.FromArgb(218, 218, 218);
+		buttonOpenExplorer.Location = new Point(335, 9);
+		buttonOpenExplorer.Margin = new Padding(3, 4, 3, 4);
+		buttonOpenExplorer.Name = "buttonOpenExplorer";
+		buttonOpenExplorer.Size = new Size(101, 35);
+		buttonOpenExplorer.TabIndex = 5;
+		buttonOpenExplorer.Text = "📂 Explorer";
+		toolTipMain.SetToolTip(buttonOpenExplorer, "Open File Explorer in the current session folder");
+		buttonOpenExplorer.UseVisualStyleBackColor = false;
+		// 
+		// buttonOpenVSCode
+		// 
+		buttonOpenVSCode.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+		buttonOpenVSCode.BackColor = Color.FromArgb(86, 86, 86);
+		buttonOpenVSCode.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+		buttonOpenVSCode.FlatStyle = FlatStyle.Flat;
+		buttonOpenVSCode.Font = new Font("Segoe UI", 8.5F);
+		buttonOpenVSCode.ForeColor = Color.FromArgb(218, 218, 218);
+		buttonOpenVSCode.Location = new Point(442, 9);
+		buttonOpenVSCode.Margin = new Padding(3, 4, 3, 4);
+		buttonOpenVSCode.Name = "buttonOpenVSCode";
+		buttonOpenVSCode.Size = new Size(103, 35);
+		buttonOpenVSCode.TabIndex = 6;
+		buttonOpenVSCode.Text = "💻 VS Code";
+		toolTipMain.SetToolTip(buttonOpenVSCode, "Open VS Code in the session folder and connect with /ide");
+		buttonOpenVSCode.UseVisualStyleBackColor = false;
+		// 
+		// panelAttachments
+		// 
+		panelAttachments.BackColor = Color.FromArgb(64, 64, 64);
+		panelAttachments.Controls.Add(flowLayoutPanelChips);
+		panelAttachments.Controls.Add(buttonAddFolder);
+		panelAttachments.Controls.Add(buttonAddFile);
+		panelAttachments.Controls.Add(labelAttach);
+		panelAttachments.Dock = DockStyle.Top;
+		panelAttachments.Location = new Point(0, 0);
+		panelAttachments.Margin = new Padding(3, 4, 3, 4);
+		panelAttachments.Name = "panelAttachments";
+		panelAttachments.Size = new Size(1179, 43);
+		panelAttachments.TabIndex = 0;
+		// 
+		// flowLayoutPanelChips
+		// 
+		flowLayoutPanelChips.AutoSize = true;
+		flowLayoutPanelChips.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+		flowLayoutPanelChips.BackColor = Color.FromArgb(64, 64, 64);
+		flowLayoutPanelChips.Location = new Point(331, 8);
+		flowLayoutPanelChips.Margin = new Padding(3, 4, 3, 4);
+		flowLayoutPanelChips.Name = "flowLayoutPanelChips";
+		flowLayoutPanelChips.Size = new Size(0, 0);
+		flowLayoutPanelChips.TabIndex = 3;
+		flowLayoutPanelChips.WrapContents = false;
+		// 
+		// buttonAddFolder
+		// 
+		buttonAddFolder.BackColor = Color.FromArgb(86, 86, 86);
+		buttonAddFolder.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+		buttonAddFolder.FlatStyle = FlatStyle.Flat;
+		buttonAddFolder.Font = new Font("Segoe UI", 9F);
+		buttonAddFolder.ForeColor = Color.FromArgb(218, 218, 218);
+		buttonAddFolder.Location = new Point(210, 0);
+		buttonAddFolder.Margin = new Padding(3, 4, 3, 4);
+		buttonAddFolder.Name = "buttonAddFolder";
+		buttonAddFolder.Size = new Size(114, 35);
+		buttonAddFolder.TabIndex = 2;
+		buttonAddFolder.Text = "📁 Add Folder";
+		toolTipMain.SetToolTip(buttonAddFolder, "Attach a folder to the prompt");
+		buttonAddFolder.UseVisualStyleBackColor = false;
+		// 
+		// buttonAddFile
+		// 
+		buttonAddFile.BackColor = Color.FromArgb(86, 86, 86);
+		buttonAddFile.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+		buttonAddFile.FlatStyle = FlatStyle.Flat;
+		buttonAddFile.Font = new Font("Segoe UI", 9F);
+		buttonAddFile.ForeColor = Color.FromArgb(218, 218, 218);
+		buttonAddFile.Location = new Point(104, 0);
+		buttonAddFile.Margin = new Padding(3, 4, 3, 4);
+		buttonAddFile.Name = "buttonAddFile";
+		buttonAddFile.Size = new Size(101, 35);
+		buttonAddFile.TabIndex = 1;
+		buttonAddFile.Text = "📄 Add File";
+		toolTipMain.SetToolTip(buttonAddFile, "Attach a file to the prompt");
+		buttonAddFile.UseVisualStyleBackColor = false;
+		// 
+		// labelAttach
+		// 
+		labelAttach.AutoSize = true;
+		labelAttach.Font = new Font("Segoe UI", 9F);
+		labelAttach.ForeColor = Color.FromArgb(148, 148, 148);
+		labelAttach.Location = new Point(8, 5);
+		labelAttach.Name = "labelAttach";
+		labelAttach.Size = new Size(95, 20);
+		labelAttach.TabIndex = 0;
+		labelAttach.Text = "Attachments:";
+		// 
+		// statusStrip
+		// 
+		statusStrip.BackColor = Color.FromArgb(56, 56, 56);
+		statusStrip.ImageScalingSize = new Size(20, 20);
+		statusStrip.Items.AddRange(new ToolStripItem[] { toolStripStatusLabelConnection, toolStripStatusLabelVersion, toolStripStatusLabelSep, toolStripStatusLabelAgentStatus, toolStripProgressBarContext, toolStripStatusLabelContext, toolStripStatusLabelSession });
+		statusStrip.Location = new Point(0, 1462);
+		statusStrip.Name = "statusStrip";
+		statusStrip.Padding = new Padding(1, 0, 16, 0);
+		statusStrip.Size = new Size(1179, 29);
+		statusStrip.TabIndex = 1;
+		// 
+		// toolStripStatusLabelConnection
+		// 
+		toolStripStatusLabelConnection.ForeColor = Color.FromArgb(218, 218, 218);
+		toolStripStatusLabelConnection.Name = "toolStripStatusLabelConnection";
+		toolStripStatusLabelConnection.Size = new Size(107, 23);
+		toolStripStatusLabelConnection.Text = "Not connected";
+		// 
+		// toolStripStatusLabelVersion
+		// 
+		toolStripStatusLabelVersion.ForeColor = Color.FromArgb(148, 148, 148);
+		toolStripStatusLabelVersion.Name = "toolStripStatusLabelVersion";
+		toolStripStatusLabelVersion.Padding = new Padding(6, 0, 0, 0);
+		toolStripStatusLabelVersion.Size = new Size(6, 23);
+		// 
+		// toolStripStatusLabelSep
+		// 
+		toolStripStatusLabelSep.ForeColor = Color.FromArgb(148, 148, 148);
+		toolStripStatusLabelSep.Name = "toolStripStatusLabelSep";
+		toolStripStatusLabelSep.Size = new Size(6, 29);
+		// 
+		// toolStripStatusLabelAgentStatus
+		// 
+		toolStripStatusLabelAgentStatus.ForeColor = Color.FromArgb(200, 200, 200);
+		toolStripStatusLabelAgentStatus.Name = "toolStripStatusLabelAgentStatus";
+		toolStripStatusLabelAgentStatus.Size = new Size(932, 23);
+		toolStripStatusLabelAgentStatus.Spring = true;
+		toolStripStatusLabelAgentStatus.Text = "Ready for next command";
+		// 
+		// toolStripProgressBarContext
+		// 
+		toolStripProgressBarContext.BackColor = Color.FromArgb(46, 46, 46);
+		toolStripProgressBarContext.ForeColor = Color.FromArgb(148, 220, 148);
+		toolStripProgressBarContext.Margin = new Padding(4, 3, 0, 3);
+		toolStripProgressBarContext.Name = "toolStripProgressBarContext";
+		toolStripProgressBarContext.Size = new Size(91, 23);
+		toolStripProgressBarContext.Style = ProgressBarStyle.Continuous;
+		// 
+		// toolStripStatusLabelContext
+		// 
+		toolStripStatusLabelContext.ForeColor = Color.FromArgb(148, 148, 148);
+		toolStripStatusLabelContext.Name = "toolStripStatusLabelContext";
+		toolStripStatusLabelContext.Padding = new Padding(8, 0, 8, 0);
+		toolStripStatusLabelContext.Size = new Size(16, 23);
+		// 
+		// toolStripStatusLabelSession
+		// 
+		toolStripStatusLabelSession.ForeColor = Color.FromArgb(148, 148, 148);
+		toolStripStatusLabelSession.Name = "toolStripStatusLabelSession";
+		toolStripStatusLabelSession.Size = new Size(0, 23);
+		toolStripStatusLabelSession.TextAlign = ContentAlignment.MiddleRight;
+		// 
+		// MainForm
+		// 
+		AutoScaleDimensions = new SizeF(8F, 20F);
+		AutoScaleMode = AutoScaleMode.Font;
+		BackColor = Color.FromArgb(64, 64, 64);
+		ClientSize = new Size(1179, 1491);
+		Controls.Add(splitContainerMain);
+		Controls.Add(statusStrip);
+		Font = new Font("Segoe UI", 9F);
+		Icon = (Icon)resources.GetObject("$this.Icon");
+		Margin = new Padding(3, 4, 3, 4);
+		MinimumSize = new Size(1197, 784);
+		Name = "MainForm";
+		Text = "Kopilot";
+		splitContainerMain.Panel1.ResumeLayout(false);
+		splitContainerMain.Panel2.ResumeLayout(false);
+		((System.ComponentModel.ISupportInitialize)splitContainerMain).EndInit();
+		splitContainerMain.ResumeLayout(false);
+		panelHistoryNav.ResumeLayout(false);
+		panelActions.ResumeLayout(false);
+		panelActions.PerformLayout();
+		panelQuickCommands.ResumeLayout(false);
+		panelAttachments.ResumeLayout(false);
+		panelAttachments.PerformLayout();
+		statusStrip.ResumeLayout(false);
+		statusStrip.PerformLayout();
+		ResumeLayout(false);
+		PerformLayout();
+	}
 
-    #endregion
+	#endregion
 
-    private System.Windows.Forms.SplitContainer splitContainerMain;
+	private System.Windows.Forms.SplitContainer splitContainerMain;
     private System.Windows.Forms.RichTextBox richTextBoxOutput;
     private System.Windows.Forms.Panel panelQuickCommands;
     private System.Windows.Forms.Button buttonHelp;

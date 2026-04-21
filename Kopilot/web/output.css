@@ -12,7 +12,7 @@ html, body {
 	background: #000000;
 	color: #d2d2d2;
 	font-family: "Segoe UI", -apple-system, sans-serif;
-	font-size: 10px;
+	font-size: 12px;
 	line-height: 1.5;
 	overflow-x: hidden;
 }
@@ -62,7 +62,7 @@ html, body {
 .block-tool {
 	color: #cdb45a;
 	font-family: "Consolas", "Cascadia Mono", monospace;
-	font-size: 11px;
+	font-size: 13px;
 }
 .block-tool .tool-success {
 	color: #64be64;
@@ -78,7 +78,7 @@ html, body {
 .block-subagent {
 	color: #82b4d2;
 	font-family: "Consolas", "Cascadia Mono", monospace;
-	font-size: 11px;
+	font-size: 13px;
 }
 .block-subagent .subagent-complete {
 	color: #64be64;
@@ -165,7 +165,7 @@ html, body {
 	color: inherit;
 	padding: 0;
 	border-radius: 0;
-	font-size: 11px;
+	font-size: 13px;
 	line-height: 1.45;
 }
 
@@ -295,7 +295,7 @@ html, body {
 	border-radius: 2px;
 	padding: 2px 6px;
 	font-family: "Segoe UI", sans-serif;
-	font-size: 10px;
+	font-size: 12px;
 	line-height: 1.2;
 	cursor: pointer;
 	min-width: 22px;
@@ -332,5 +332,5 @@ body.kp-zoom-body-locked {
 	margin: 12px 0;
 	color: #8c8c8c;
 	text-align: center;
-	font-size: 10px;
+	font-size: 12px;
 }

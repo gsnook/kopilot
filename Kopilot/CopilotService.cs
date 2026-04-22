@@ -1,8 +1,6 @@
 using GitHub.Copilot.SDK;
-using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
-using System.Text.RegularExpressions;
 
 namespace Kopilot;
 
@@ -95,8 +93,6 @@ public sealed class CopilotService : IAsyncDisposable
     private readonly HashSet<string> _approvedKinds = new();
     // Latest SDK-registered slash commands from CommandsChangedEvent (main session only)
     private CommandsChangedDataCommandsItem[] _cachedSdkCommands = [];
-    // Sessions created internally (dialog generation) — suppressed from sub-agent UI events
-    private readonly ConcurrentDictionary<string, byte> _internalSessionIds = new();
     // Status message produced by BuildSystemMessage(); emitted once the session ID is known
     private string? _pendingStatusMessage;
 
@@ -333,9 +329,6 @@ public sealed class CopilotService : IAsyncDisposable
 
         _lifecycleSubscription = _client.On(SessionLifecycleEventTypes.Created, evt =>
         {
-            // Suppress sessions created internally for dialog generation
-            if (_internalSessionIds.ContainsKey(evt.SessionId)) return;
-
             if (evt.SessionId != _mainSession?.SessionId)
             {
                 SessionCreated?.Invoke(this, new SessionEventArgs
@@ -348,9 +341,6 @@ public sealed class CopilotService : IAsyncDisposable
 
         _lifecycleDeletedSubscription = _client.On(SessionLifecycleEventTypes.Deleted, evt =>
         {
-            // Internal/dialog sessions are not surfaced as sub-agents, so ignore here too.
-            if (_internalSessionIds.ContainsKey(evt.SessionId)) return;
-
             // The main session being deleted is handled elsewhere (reconnect/reset paths).
             if (evt.SessionId == _mainSession?.SessionId) return;
 
@@ -420,7 +410,6 @@ public sealed class CopilotService : IAsyncDisposable
         _cachedSdkCommands = [];
         _pendingToolNames.Clear();
         _approvedKinds.Clear();
-        _internalSessionIds.Clear();
 
         if (_client != null)
         {
@@ -893,107 +882,6 @@ public sealed class CopilotService : IAsyncDisposable
     }
 
 
-    /// cue type, guided by <paramref name="personality"/>.  Uses a throwaway session
-    /// that is suppressed from the sub-agent UI.  Returns an empty list on failure.
-    /// </summary>
-    public async Task<List<string>> GenerateDialogBatchAsync(
-        DialogCue cue, string personality, int count = 100)
-    {
-        if (_client == null || !IsConnected) return [];
-
-        var cueDesc = cue switch
-        {
-            DialogCue.SessionStart =>
-                $"{count} brief greeting lines played when a new work session starts (up to 15 words each)",
-            DialogCue.PromptSent =>
-                $"{count} acknowledgement phrases played when the user submits a prompt " +
-                "(5 words or fewer — very short and snappy)",
-            DialogCue.PromptComplete =>
-                $"{count} task-completion celebration lines played when the assistant finishes working (up to 12 words each)",
-            _ => $"{count} spoken lines",
-        };
-
-        CopilotSession? session = null;
-        try
-        {
-            var sb  = new System.Text.StringBuilder();
-            var tcs = new TaskCompletionSource<string>(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-
-            session = await _client.CreateSessionAsync(new SessionConfig
-            {
-                Model     = ActiveModel,
-                Streaming = true,
-                OnPermissionRequest = PermissionHandler.ApproveAll,
-                SystemMessage = new SystemMessageConfig
-                {
-                    Content = "You are a dialog writer. Generate spoken lines exactly as instructed. " +
-                              "Return ONLY the numbered list — no preamble, no explanation, no extra text.",
-                    Mode = SystemMessageMode.Replace,
-                },
-            });
-
-            // Register as internal so lifecycle events don't surface it in the UI
-            _internalSessionIds.TryAdd(session.SessionId, 0);
-
-            session.On(evt =>
-            {
-                switch (evt)
-                {
-                    case AssistantMessageDeltaEvent delta:
-                        sb.Append(delta.Data.DeltaContent ?? "");
-                        break;
-                    case AssistantMessageEvent msg:
-                        sb.Append(msg.Data.Content ?? "");
-                        break;
-                    case SessionIdleEvent:
-                        tcs.TrySetResult(sb.ToString());
-                        break;
-                    case SessionErrorEvent:
-                        tcs.TrySetResult("");
-                        break;
-                }
-            });
-
-            var prompt =
-                $"Generate {cueDesc} for a voice assistant with this personality:\n{personality}\n\n" +
-                "Format — a plain numbered list, one line per entry:\n" +
-                "1. line here\n2. line here\n...\n\n" +
-                "Just the spoken words — no quotes, no asterisks, no stage directions.";
-
-            await session.SendAsync(new MessageOptions { Prompt = prompt });
-
-            var winner = await Task.WhenAny(tcs.Task, Task.Delay(TimeSpan.FromSeconds(90)));
-            var raw = winner == tcs.Task ? await tcs.Task : "";
-            return ParseNumberedList(raw);
-        }
-        catch { return []; }
-        finally
-        {
-            if (session != null)
-            {
-                _internalSessionIds.TryRemove(session.SessionId, out _);
-                try { await session.DisposeAsync(); } catch { }
-            }
-        }
-    }
-
-    private static List<string> ParseNumberedList(string text)
-    {
-        var result = new List<string>();
-        foreach (var raw in text.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-        {
-            var line = raw.Trim();
-            var m = Regex.Match(line, @"^\d+[.)\-:\s]+(.+)$");
-            if (!m.Success) continue;
-            var value = m.Groups[1].Value.Trim(' ', '"', '\'', '*');
-            if (!string.IsNullOrEmpty(value))
-                result.Add(value);
-        }
-        return result;
-    }
-
-
     public async Task AbortAsync()
     {
         if (_mainSession != null)
@@ -1079,7 +967,6 @@ public sealed class CopilotService : IAsyncDisposable
         _mainSession = null;
         _pendingToolNames.Clear();
         _approvedKinds.Clear();
-        _internalSessionIds.Clear();
         _client = null;
         ConnectionStateChanged?.Invoke(this, "Not connected");
     }

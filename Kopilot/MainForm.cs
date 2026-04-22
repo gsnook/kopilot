@@ -24,7 +24,6 @@ public partial class MainForm : Form
         }
     }
     private readonly CopilotService _copilot = new();
-    private readonly AudioService   _audio   = new();
     private readonly PromptHistory  _promptHistory = new();
     private readonly List<string> _attachments = new();
     private readonly HashSet<string> _streamingSessions = new();
@@ -537,7 +536,6 @@ public partial class MainForm : Form
         {
             var attachmentsCopy = _attachments.ToList();
             await _copilot.SendMessageAsync(prompt, attachmentsCopy);
-            _audio.PlayPromptSent();
 
             // Echo user message
             if (_mainSessionId != null)
@@ -1722,7 +1720,6 @@ public partial class MainForm : Form
         if (!isSubAgent)
         {
             _mainSessionId = sessionId;
-            _audio.PlaySessionStart();
         }
         else
         {
@@ -2097,7 +2094,6 @@ public partial class MainForm : Form
         _subAgentStartPositions.Clear();
         _completedAgentCount = 0;
         UpdateWorkingState();
-        _audio.PlayPromptComplete();
     }
 
     private static string? FormatSubAgentStats(SessionMessageEventArgs args)
@@ -2665,7 +2661,6 @@ public partial class MainForm : Form
         base.OnFormClosed(e);
         _subAgentWatchdog.Stop();
         _subAgentWatchdog.Dispose();
-        _audio.Dispose();
         _ = _copilot.DisposeAsync().AsTask();
     }
 }

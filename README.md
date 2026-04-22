@@ -242,7 +242,6 @@ kopilot/
 ├── Kopilot/                 # Main WinForms application
 │   ├── MainForm.cs          # Primary window and interaction logic
 │   ├── CopilotService.cs    # Copilot SDK integration
-│   ├── AudioService.cs      # Sound cues
 │   ├── PromptHistory.cs     # Prompt navigation history
 │   ├── KopilotSettings.cs   # Persisted user settings
 │   ├── UpdateChecker.cs     # Self-update check
@@ -254,7 +253,6 @@ kopilot/
 │   ├── UserInputDialog.cs
 │   ├── ReadmePromptDialog.cs
 │   ├── UpdateNotificationDialog.cs
-│   ├── audio/               # Audio assets
 │   └── web/                 # WebView2 renderer assets
 │       ├── output.html      # Host page loaded by the Rendered tab
 │       ├── output.js        # Streaming renderer + pan/zoom logic

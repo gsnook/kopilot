@@ -126,7 +126,7 @@ public partial class MainForm : Form
         buttonBackup.Click += async (_, _) => await BackupSessionAsync();
         buttonRefresh.Click += (_, _) => ShowRefreshMenu();
         buttonOpenExplorer.Click += (_, _) => OpenExplorer();
-        buttonOpenVSCode.Click += async (_, _) => await OpenVSCodeAsync();
+        buttonOpenVSCode.Click += (_, _) => OpenVSCode();
         buttonSetOrgFolder.Click += (_, _) => SetOrgFolder();
 
         checkBoxAutoApprove.CheckedChanged += (_, _) =>
@@ -379,7 +379,7 @@ public partial class MainForm : Form
             "  ❓ Help       – Show this guide (works without a folder open)\r\n" +
             "  ⚡ PowerShell – Open terminal in the project folder\r\n" +
             "  📂 Explorer   – Open File Explorer at the project folder\r\n" +
-            "  💻 VS Code    – Launch VS Code and connect the IDE\r\n" +
+            "  💻 VS Code    – Launch VS Code in the project folder\r\n" +
             "  📝 Summarize  – Ask Copilot for a session summary\r\n" +
             "  💤 Refresh    – Free context: Compact in place, or Restart with summary\r\n" +
             "  💾 Backup     – Save a Markdown resume of the session\r\n" +
@@ -456,7 +456,6 @@ public partial class MainForm : Form
 
         AppendOutput("  Tools & Integrations\r\n", AppTheme.ColorMeta);
         AppendOutput(
-            "  /ide                           Connect to an IDE workspace (e.g. VS Code)\r\n" +
             "  /lsp [show|test|reload|help]   Manage language server configuration\r\n" +
             "  /mcp [show|add|edit|delete|…]  Manage MCP server configuration\r\n" +
             "  /plugin [install|list|…]       Manage plugins and plugin marketplaces\r\n" +
@@ -655,8 +654,14 @@ public partial class MainForm : Form
         return "powershell.exe";
     }
 
-    private async Task OpenVSCodeAsync()
+    private void OpenVSCode()
     {
+        // Note: the Copilot CLI's /ide command (which pairs the running session with
+        // VS Code's Copilot extension so it can surface diffs and open files) is
+        // documented as TUI-only in the Copilot SDK. There is no SDK RPC equivalent,
+        // and slash commands are not dispatched through the prompt channel. This
+        // button therefore only launches VS Code; live IDE pairing is not available
+        // through Kopilot today.
         var dir = _copilot.WorkingDirectory;
         if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
         {
@@ -681,12 +686,7 @@ public partial class MainForm : Form
                 "Make sure the 'code' command is on your PATH " +
                 "(VS Code → Command Palette → 'Install code command in PATH').",
                 "VS Code Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
         }
-
-        // Give VS Code a moment to register with Copilot before sending /ide
-        await Task.Delay(2000);
-        await SendQuickCommandAsync("/ide");
     }
 
     private async Task ApplyModeChangeAsync()
@@ -1479,42 +1479,6 @@ public partial class MainForm : Form
         _copilot.WorkingDirectory = dialog.SelectedPath;
         buttonOpenFolder.Enabled = false;
         toolStripStatusLabelSession.Text = dialog.SelectedPath;
-
-        // Offer to open VS Code so the IDE connection is ready before the session starts
-        var openVSCode = MessageBox.Show(
-            "Would you like to open VS Code in this folder first?\n\n" +
-            "The IDE connection will be established before the Copilot session starts.",
-            "Open VS Code?", MessageBoxButtons.YesNo, MessageBoxIcon.Question,
-            MessageBoxDefaultButton.Button1);
-
-        if (openVSCode == DialogResult.Yes)
-        {
-            try
-            {
-                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
-                {
-                    FileName = "code",
-                    Arguments = $"\"{dialog.SelectedPath}\"",
-                    UseShellExecute = true,
-                });
-
-                for (int i = 10; i > 0; i--)
-                {
-                    toolStripStatusLabelSession.Text = $"Waiting for VS Code… {i}s";
-                    await Task.Delay(1000);
-                }
-
-                toolStripStatusLabelSession.Text = dialog.SelectedPath;
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show(
-                    $"Could not launch VS Code:\n\n{ex.Message}\n\n" +
-                    "Make sure the 'code' command is on your PATH " +
-                    "(VS Code → Command Palette → 'Install code command in PATH').",
-                    "VS Code Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
-        }
 
         try
         {

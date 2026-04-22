@@ -552,7 +552,7 @@ partial class MainForm
         buttonOpenVSCode.Size = new Size(90, 26);
         buttonOpenVSCode.TabIndex = 6;
         buttonOpenVSCode.Text = "💻 VS Code";
-        toolTipMain.SetToolTip(buttonOpenVSCode, "Open VS Code in the session folder and connect with /ide");
+		toolTipMain.SetToolTip(buttonOpenVSCode, "Open VS Code in the session folder. (Live IDE pairing is not available through the Copilot SDK.)");
         buttonOpenVSCode.UseVisualStyleBackColor = false;
         // 
         // panelAttachments

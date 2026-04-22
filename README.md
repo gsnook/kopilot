@@ -145,7 +145,7 @@ One-click shortcuts for common actions:
 | **❓ Help** | Ask Copilot to describe its own capabilities and available tools. |
 | **⚡ PowerShell** | Open a PowerShell terminal in the current project folder (loads `scripts.ps1` if present). |
 | **📂 Explorer** | Open File Explorer at the current project folder. |
-| **💻 VS Code** | Launch VS Code in the project folder and send the `/ide` command to connect Copilot to it. |
+| **💻 VS Code** | Launch VS Code in the project folder. (Live IDE pairing — the Copilot CLI's `/ide` command — is not available through the Copilot SDK, so this button only opens the editor.) |
 | **📝 Summarize** | Request a summary of the current session from Copilot. |
 | **💤 Refresh** | Free up context: compact the session in place, or restart with a summary. See [Refreshing the Session](#refreshing-the-session). |
 | **🗑 Clear** | Clear the output panel (asks for confirmation). |

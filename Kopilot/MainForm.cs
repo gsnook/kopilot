@@ -531,6 +531,7 @@ public partial class MainForm : Form
 
         _pendingCount++;
         UpdateWorkingState();
+        SoundService.PlayPromptSent();
 
         try
         {
@@ -2079,6 +2080,10 @@ public partial class MainForm : Form
     private void CompleteMainSession()
     {
         _subAgentWatchdog.Stop();
+        // Only chime when real work was in flight — back-to-back idle events
+        // (e.g. coalesced Dispatch calls) can re-enter this method with a
+        // pending count of zero and would otherwise produce a phantom chime.
+        bool hadPendingWork = _pendingCount > 0;
         _mainSessionIdle = false;
         // session.idle from the SDK means the main session has nothing left to
         // process. Multiple back-to-back Dispatch calls (e.g. README + backup
@@ -2094,6 +2099,7 @@ public partial class MainForm : Form
         _subAgentStartPositions.Clear();
         _completedAgentCount = 0;
         UpdateWorkingState();
+        if (hadPendingWork) SoundService.PlayWorkComplete();
     }
 
     private static string? FormatSubAgentStats(SessionMessageEventArgs args)
@@ -2556,6 +2562,7 @@ public partial class MainForm : Form
         if (!IsHandleCreated) { args.Decision.TrySetResult(false); return; }
         Invoke(() =>
         {
+            SoundService.PlayDialog();
             using var dialog = new PermissionDialog(args);
             dialog.ShowDialog(this);
         });
@@ -2566,6 +2573,7 @@ public partial class MainForm : Form
         if (!IsHandleCreated) { args.Answer.TrySetResult(""); return; }
         Invoke(() =>
         {
+            SoundService.PlayDialog();
             using var dialog = new UserInputDialog(args);
             dialog.ShowDialog(this);
         });

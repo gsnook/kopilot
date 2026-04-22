@@ -37,13 +37,27 @@ public partial class MainForm : Form
     private readonly Dictionary<string, int> _subAgentStartPositions = new();
     // Maps sub-agent toolCallId → display name for currently active (in-flight) sub-agents
     private readonly Dictionary<string, string> _activeSubAgents = new();
+    // Live sub-agent SESSION ids reported via session.created/session.deleted
+    // lifecycle events. Used as a backstop signal that a sub-agent has truly
+    // ended even when its paired subagent.completed/failed event is missed.
+    private readonly HashSet<string> _activeSubAgentSessions = new();
+    // Watchdog that fires if the main session has been idle awaiting sub-agents
+    // for an extended period without any sub-agent completion/lifecycle activity.
+    // Guards against the UI getting stuck on "Working..." when a subagent.completed
+    // event is dropped or never delivered.
+    private readonly System.Windows.Forms.Timer _subAgentWatchdog = new() { Interval = 60_000 };
     private int _completedAgentCount = 0;
     // True when the main session went idle but sub-agents are still running (Fleet mode);
     // completion is deferred until the last sub-agent finishes.
     private bool _mainSessionIdle = false;
     private double _totalBytesReceived = 0;
     private string? _mainSessionId;
-    private int _pendingCount = 0; // number of prompts awaiting a response
+    // Tracks whether the main session is currently working. The SDK's
+    // session.idle event is the authoritative "done" signal: when it fires for
+    // the main session (and no live sub-agents remain), this is reset to 0.
+    // Increments on each Dispatch are best-effort bookkeeping for display only;
+    // never rely on the count being exact across queued sends.
+    private int _pendingCount = 0;
     private bool _reconnecting = false; // true while an automatic reconnect is in progress
     private bool _skipCloseBackupPrompt = false; // set after backup-on-close completes
     private bool _autoRefreshPromptShown = false; // suppresses the 85% nag once per session
@@ -148,6 +162,16 @@ public partial class MainForm : Form
 
         _copilot.SessionIdleForSession += (_, sessionId) =>
             InvokeOnUI(() => OnSessionIdle(sessionId));
+
+        _copilot.SubAgentSessionEnded += (_, sessionId) =>
+            InvokeOnUI(() => OnSubAgentSessionEnded(sessionId));
+
+        _subAgentWatchdog.Tick += (_, _) =>
+        {
+            _subAgentWatchdog.Stop();
+            if (_mainSessionIdle)
+                ForceCompleteStaleSubAgents("watchdog timeout");
+        };
 
         _copilot.PermissionRequested += Copilot_PermissionRequested;
         _copilot.UserInputRequested += Copilot_UserInputRequested;
@@ -550,6 +574,9 @@ public partial class MainForm : Form
             _toolStartPositions.Clear();
             _subAgentStartPositions.Clear();
             _activeSubAgents.Clear();
+            _activeSubAgentSessions.Clear();
+            _streamingSessions.Clear();
+            _subAgentWatchdog.Stop();
             _completedAgentCount = 0;
             _mainSessionIdle = false;
             // Clear the Rendered tab
@@ -896,8 +923,7 @@ public partial class MainForm : Form
                 await _copilot.ResetSessionAsync();
 
             _mainSessionId   = null;
-            _pendingCount    = 0;
-            _mainSessionIdle = false;
+            ResetSessionTrackingState();
 
             // Sync UI state to service before session creation so the system message is correct
             _copilot.ActiveMode  = comboBoxMode.SelectedItem?.ToString() ?? "Standard";
@@ -1097,8 +1123,7 @@ public partial class MainForm : Form
             {
                 await _copilot.ResetSessionAsync();
                 _mainSessionId   = null;
-                _pendingCount    = 0;
-                _mainSessionIdle = false;
+                ResetSessionTrackingState();
             }
             catch { /* best-effort */ }
             return false;
@@ -1449,8 +1474,7 @@ public partial class MainForm : Form
             _copilot.Reset();
         }
 
-        _pendingCount = 0;
-        _mainSessionIdle = false;
+        ResetSessionTrackingState();
 
         _copilot.WorkingDirectory = dialog.SelectedPath;
         buttonOpenFolder.Enabled = false;
@@ -1736,6 +1760,12 @@ public partial class MainForm : Form
             _mainSessionId = sessionId;
             _audio.PlaySessionStart();
         }
+        else
+        {
+            // Track the sub-agent's session id so we can recognise its termination
+            // via session.deleted even if the subagent.completed event is missing.
+            _activeSubAgentSessions.Add(sessionId);
+        }
 
         var label = isSubAgent ? "Sub-agent" : "Session";
         AppendOutput($"[{label} {sessionId[..Math.Min(8, sessionId.Length)]}… started]\r\n\r\n",
@@ -1832,7 +1862,10 @@ public partial class MainForm : Form
                 if (_mainSessionIdle && _activeSubAgents.Count == 0)
                     CompleteMainSession();
                 else
+                {
+                    if (_mainSessionIdle) RestartSubAgentWatchdog();
                     UpdateAgentStatus();
+                }
                 break;
             }
 
@@ -1868,7 +1901,10 @@ public partial class MainForm : Form
                 if (_mainSessionIdle && _activeSubAgents.Count == 0)
                     CompleteMainSession();
                 else
+                {
+                    if (_mainSessionIdle) RestartSubAgentWatchdog();
                     UpdateAgentStatus();
+                }
                 break;
             }
 
@@ -1980,9 +2016,21 @@ public partial class MainForm : Form
         {
             if (_activeSubAgents.Count > 0)
             {
+                // If the SDK reports no live sub-agent sessions, the orchestrator
+                // really is finished — any lingering _activeSubAgents entries are
+                // stale (a subagent.completed event was lost). Don't keep the user
+                // staring at "Working..." forever; force completion.
+                if (_activeSubAgentSessions.Count == 0)
+                {
+                    ForceCompleteStaleSubAgents("main session idle with no live sub-agent sessions");
+                    return;
+                }
+
                 // Orchestrator finished dispatching but Fleet sub-agents are still running.
-                // Defer completion until the last sub-agent fires complete/failed.
+                // Defer completion until the last sub-agent fires complete/failed,
+                // and arm the watchdog so we recover if that event never arrives.
                 _mainSessionIdle = true;
+                RestartSubAgentWatchdog();
                 UpdateAgentStatus();
             }
             else
@@ -1992,16 +2040,98 @@ public partial class MainForm : Form
         }
     }
 
+    /// <summary>
+    /// Called when the SDK reports a non-main session was deleted. This is the
+    /// most reliable signal that a sub-agent has truly ended, even if its paired
+    /// subagent.completed/failed event was dropped.
+    /// </summary>
+    private void OnSubAgentSessionEnded(string sessionId)
+    {
+        if (!_activeSubAgentSessions.Remove(sessionId))
+            return;
+
+        _streamingSessions.Remove(sessionId);
+
+        // If the main session has already gone idle and no live sub-agent sessions
+        // remain, the SDK is truly done. Sweep any stale _activeSubAgents entries
+        // and complete; rearm the watchdog only if work is still genuinely pending.
+        if (_mainSessionIdle && _activeSubAgentSessions.Count == 0)
+        {
+            ForceCompleteStaleSubAgents("all sub-agent sessions ended");
+        }
+        else if (_mainSessionIdle)
+        {
+            RestartSubAgentWatchdog();
+            UpdateAgentStatus();
+        }
+        else
+        {
+            UpdateAgentStatus();
+        }
+    }
+
+    /// <summary>
+    /// Recover from a stuck "Working..." state by clearing any leaked sub-agent
+    /// tracking entries and completing the main session. Logs a meta line to the
+    /// transcript so the discrepancy is visible.
+    /// </summary>
+    private void ForceCompleteStaleSubAgents(string reason)
+    {
+        if (_activeSubAgents.Count > 0)
+        {
+            var names = string.Join(", ", _activeSubAgents.Values);
+            AppendOutput(
+                $"[Cleared {_activeSubAgents.Count} stale sub-agent entr"
+                    + (_activeSubAgents.Count == 1 ? "y" : "ies")
+                    + $" ({names}) — {reason}]\r\n",
+                AppTheme.ColorMeta);
+            _activeSubAgents.Clear();
+        }
+        CompleteMainSession();
+    }
+
+    private void RestartSubAgentWatchdog()
+    {
+        _subAgentWatchdog.Stop();
+        _subAgentWatchdog.Start();
+    }
+
+    /// <summary>
+    /// Force-reset all per-prompt tracking state. Used by reset/reconnect paths
+    /// that bypass the normal CompleteMainSession flow so no stale "Working..."
+    /// or sub-agent indicators leak across session boundaries.
+    /// </summary>
+    private void ResetSessionTrackingState()
+    {
+        _subAgentWatchdog.Stop();
+        _pendingCount        = 0;
+        _mainSessionIdle     = false;
+        _totalBytesReceived  = 0;
+        _completedAgentCount = 0;
+        _activeSubAgents.Clear();
+        _activeSubAgentSessions.Clear();
+        _streamingSessions.Clear();
+        _toolStartPositions.Clear();
+        _subAgentStartPositions.Clear();
+    }
+
     private void CompleteMainSession()
     {
+        _subAgentWatchdog.Stop();
         _mainSessionIdle = false;
-        _pendingCount = Math.Max(0, _pendingCount - 1);
-        if (_pendingCount == 0)
-        {
-            _totalBytesReceived = 0;
-            _activeSubAgents.Clear();
-            _completedAgentCount = 0;
-        }
+        // session.idle from the SDK means the main session has nothing left to
+        // process. Multiple back-to-back Dispatch calls (e.g. README + backup
+        // load on Open Folder) can be coalesced into a single SDK turn, so we
+        // must reset to 0 here rather than decrement — otherwise the UI stays
+        // stuck on "Working..." with leftover phantom pending counts.
+        _pendingCount = 0;
+        _totalBytesReceived = 0;
+        _activeSubAgents.Clear();
+        _activeSubAgentSessions.Clear();
+        _streamingSessions.Clear();
+        _toolStartPositions.Clear();
+        _subAgentStartPositions.Clear();
+        _completedAgentCount = 0;
         UpdateWorkingState();
         _audio.PlayPromptComplete();
     }
@@ -2373,9 +2503,7 @@ public partial class MainForm : Form
         if (working)
         {
             var kb = _totalBytesReceived > 0 ? $" · {_totalBytesReceived / 1024:F1} KiB" : "";
-            status = _pendingCount > 1
-                ? $"Working… ({_pendingCount} pending{kb})"
-                : $"Working…{kb}";
+            status = $"Working…{kb}";
         }
         else
         {
@@ -2441,9 +2569,8 @@ public partial class MainForm : Form
                     AppendOutput("\r\n⚠️ Session lost — reconnecting…\r\n\r\n", AppTheme.ColorError);
 
                 _reconnecting    = true;
-                _pendingCount    = 0;
+                ResetSessionTrackingState();
                 _mainSessionId   = null;
-                _mainSessionIdle = false;
             }
             else if (status == "Not connected" && _reconnecting)
             {
@@ -2451,9 +2578,8 @@ public partial class MainForm : Form
                 AppendOutput("\r\n❌ Session lost and reconnect failed. Open a folder to reconnect.\r\n\r\n",
                     AppTheme.ColorError);
                 _reconnecting    = false;
-                _pendingCount    = 0;
+                ResetSessionTrackingState();
                 _mainSessionId   = null;
-                _mainSessionIdle = false;
             }
 
             toolStripStatusLabelConnection.Text = status;
@@ -2573,6 +2699,8 @@ public partial class MainForm : Form
     protected override void OnFormClosed(FormClosedEventArgs e)
     {
         base.OnFormClosed(e);
+        _subAgentWatchdog.Stop();
+        _subAgentWatchdog.Dispose();
         _audio.Dispose();
         _ = _copilot.DisposeAsync().AsTask();
     }

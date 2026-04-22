@@ -87,6 +87,7 @@ public sealed class CopilotService : IAsyncDisposable
     private CopilotClient? _client;
     private CopilotSession? _mainSession;
     private IDisposable? _lifecycleSubscription;
+    private IDisposable? _lifecycleDeletedSubscription;
     private readonly Dictionary<string, CopilotSession> _sessions = new();
     private readonly Dictionary<string, string> _pendingToolNames = new();
     private readonly Dictionary<string, string> _toolCallToName = new();
@@ -108,6 +109,12 @@ public sealed class CopilotService : IAsyncDisposable
     public event EventHandler<UserInputEventArgs>? UserInputRequested;
     public event EventHandler<string>? ConnectionStateChanged;
     public event EventHandler<string>? SessionIdleForSession;
+    /// <summary>
+    /// Fires when a non-main, non-internal session is destroyed by the CLI.
+    /// The UI uses this as a reliable "sub-agent session truly ended" signal so it
+    /// can recover from missing or out-of-order subagent.completed/failed events.
+    /// </summary>
+    public event EventHandler<string>? SubAgentSessionEnded;
     public event EventHandler<ContextUsageEventArgs>? ContextUsageChanged;
 
     // Most recent input-token reading from the main session (size of the prompt
@@ -339,6 +346,17 @@ public sealed class CopilotService : IAsyncDisposable
             }
         });
 
+        _lifecycleDeletedSubscription = _client.On(SessionLifecycleEventTypes.Deleted, evt =>
+        {
+            // Internal/dialog sessions are not surfaced as sub-agents, so ignore here too.
+            if (_internalSessionIds.ContainsKey(evt.SessionId)) return;
+
+            // The main session being deleted is handled elsewhere (reconnect/reset paths).
+            if (evt.SessionId == _mainSession?.SessionId) return;
+
+            SubAgentSessionEnded?.Invoke(this, evt.SessionId);
+        });
+
         await _client.StartAsync();
         ConnectionStateChanged?.Invoke(this, "Connected");
     }
@@ -392,6 +410,8 @@ public sealed class CopilotService : IAsyncDisposable
 
         _lifecycleSubscription?.Dispose();
         _lifecycleSubscription = null;
+        _lifecycleDeletedSubscription?.Dispose();
+        _lifecycleDeletedSubscription = null;
 
         foreach (var session in _sessions.Values)
             try { await session.DisposeAsync(); } catch { }
@@ -1053,6 +1073,8 @@ public sealed class CopilotService : IAsyncDisposable
         StopKeepAlive();
         _lifecycleSubscription?.Dispose();
         _lifecycleSubscription = null;
+        _lifecycleDeletedSubscription?.Dispose();
+        _lifecycleDeletedSubscription = null;
         _sessions.Clear();
         _mainSession = null;
         _pendingToolNames.Clear();
@@ -1398,6 +1420,7 @@ public sealed class CopilotService : IAsyncDisposable
     {
         StopKeepAlive();
         _lifecycleSubscription?.Dispose();
+        _lifecycleDeletedSubscription?.Dispose();
 
         foreach (var session in _sessions.Values)
             await session.DisposeAsync();

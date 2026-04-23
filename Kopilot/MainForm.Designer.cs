@@ -29,6 +29,9 @@ partial class MainForm
         System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainForm));
         splitContainerMain = new SplitContainer();
         richTextBoxPrompt = new PlainRichTextBox();
+        panelAttachments = new Panel();
+        flowLayoutPanelChips = new FlowLayoutPanel();
+        labelAttach = new Label();
         panelHistoryNav = new Panel();
         buttonHistoryNext = new Button();
         buttonHistoryPrev = new Button();
@@ -47,11 +50,6 @@ partial class MainForm
         webViewOutput = new Microsoft.Web.WebView2.WinForms.WebView2();
         tabPageRaw = new TabPage();
         richTextBoxOutput = new RichTextBox();
-        panelAttachments = new Panel();
-        flowLayoutPanelChips = new FlowLayoutPanel();
-        buttonAddFolder = new Button();
-        buttonAddFile = new Button();
-        labelAttach = new Label();
         menuStripMain = new MenuStrip();
         menuSession = new ToolStripMenuItem();
         menuSessionBackup = new ToolStripMenuItem();
@@ -65,6 +63,9 @@ partial class MainForm
         menuSkillsListAgents = new ToolStripMenuItem();
         menuSkillsListSkills = new ToolStripMenuItem();
         menuSkillsTree = new ToolStripMenuItem();
+        menuReferences = new ToolStripMenuItem();
+        menuReferencesAddFile = new ToolStripMenuItem();
+        menuReferencesAddFolder = new ToolStripMenuItem();
         menuTools = new ToolStripMenuItem();
         menuToolsPowershell = new ToolStripMenuItem();
         menuToolsExplorer = new ToolStripMenuItem();
@@ -85,13 +86,13 @@ partial class MainForm
         splitContainerMain.Panel1.SuspendLayout();
         splitContainerMain.Panel2.SuspendLayout();
         splitContainerMain.SuspendLayout();
+        panelAttachments.SuspendLayout();
         panelHistoryNav.SuspendLayout();
         panelActions.SuspendLayout();
         tabControlOutput.SuspendLayout();
         tabPageRendered.SuspendLayout();
         ((System.ComponentModel.ISupportInitialize)webViewOutput).BeginInit();
         tabPageRaw.SuspendLayout();
-        panelAttachments.SuspendLayout();
         menuStripMain.SuspendLayout();
         statusStrip.SuspendLayout();
         SuspendLayout();
@@ -107,6 +108,7 @@ partial class MainForm
         // splitContainerMain.Panel1
         // 
         splitContainerMain.Panel1.Controls.Add(richTextBoxPrompt);
+        splitContainerMain.Panel1.Controls.Add(panelAttachments);
         splitContainerMain.Panel1.Controls.Add(panelHistoryNav);
         splitContainerMain.Panel1.Controls.Add(panelActions);
         splitContainerMain.Panel1MinSize = 100;
@@ -114,7 +116,6 @@ partial class MainForm
         // splitContainerMain.Panel2
         // 
         splitContainerMain.Panel2.Controls.Add(tabControlOutput);
-        splitContainerMain.Panel2.Controls.Add(panelAttachments);
         splitContainerMain.Panel2MinSize = 180;
         splitContainerMain.Size = new Size(1033, 1071);
         splitContainerMain.SplitterDistance = 253;
@@ -124,21 +125,57 @@ partial class MainForm
         // 
         richTextBoxPrompt.AcceptsTab = true;
         richTextBoxPrompt.AllowDrop = true;
-        richTextBoxPrompt.Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right;
         richTextBoxPrompt.BackColor = Color.FromArgb(52, 52, 52);
+        richTextBoxPrompt.BorderStyle = BorderStyle.None;
+        richTextBoxPrompt.Dock = DockStyle.Fill;
         richTextBoxPrompt.Font = new Font("Segoe UI", 11F);
         richTextBoxPrompt.ForeColor = Color.FromArgb(218, 218, 218);
-        richTextBoxPrompt.Location = new Point(26, 38);
+        richTextBoxPrompt.Location = new Point(20, 38);
         richTextBoxPrompt.Name = "richTextBoxPrompt";
         richTextBoxPrompt.ScrollBars = RichTextBoxScrollBars.Vertical;
-        richTextBoxPrompt.Size = new Size(995, 215);
+        richTextBoxPrompt.Size = new Size(1013, 185);
         richTextBoxPrompt.TabIndex = 1;
         richTextBoxPrompt.Text = "";
         toolTipMain.SetToolTip(richTextBoxPrompt, "Ctrl+Enter to send");
         // 
+        // panelAttachments
+        // 
+        panelAttachments.BackColor = Color.FromArgb(64, 64, 64);
+        panelAttachments.Controls.Add(flowLayoutPanelChips);
+        panelAttachments.Controls.Add(labelAttach);
+        panelAttachments.Dock = DockStyle.Bottom;
+        panelAttachments.Location = new Point(20, 223);
+        panelAttachments.Name = "panelAttachments";
+        panelAttachments.Size = new Size(1013, 30);
+        panelAttachments.TabIndex = 0;
+        panelAttachments.Visible = false;
+        // 
+        // flowLayoutPanelChips
+        // 
+        flowLayoutPanelChips.AutoSize = true;
+        flowLayoutPanelChips.AutoSizeMode = AutoSizeMode.GrowAndShrink;
+        flowLayoutPanelChips.BackColor = Color.FromArgb(64, 64, 64);
+        flowLayoutPanelChips.Location = new Point(90, 3);
+        flowLayoutPanelChips.Name = "flowLayoutPanelChips";
+        flowLayoutPanelChips.Size = new Size(0, 0);
+        flowLayoutPanelChips.TabIndex = 1;
+        flowLayoutPanelChips.WrapContents = false;
+        // 
+        // labelAttach
+        // 
+        labelAttach.AutoSize = true;
+        labelAttach.Font = new Font("Segoe UI", 9F);
+        labelAttach.ForeColor = Color.FromArgb(148, 148, 148);
+        labelAttach.Location = new Point(6, 6);
+        labelAttach.Name = "labelAttach";
+        labelAttach.Size = new Size(78, 15);
+        labelAttach.TabIndex = 0;
+        labelAttach.Text = "Attachments:";
+        // 
         // panelHistoryNav
         // 
         panelHistoryNav.BackColor = Color.FromArgb(52, 52, 52);
+        panelHistoryNav.BorderStyle = BorderStyle.FixedSingle;
         panelHistoryNav.Controls.Add(buttonHistoryNext);
         panelHistoryNav.Controls.Add(buttonHistoryPrev);
         panelHistoryNav.Dock = DockStyle.Left;
@@ -157,9 +194,9 @@ partial class MainForm
         buttonHistoryNext.FlatStyle = FlatStyle.Flat;
         buttonHistoryNext.Font = new Font("Segoe UI", 7F);
         buttonHistoryNext.ForeColor = Color.FromArgb(148, 148, 148);
-        buttonHistoryNext.Location = new Point(0, 195);
+        buttonHistoryNext.Location = new Point(0, 193);
         buttonHistoryNext.Name = "buttonHistoryNext";
-        buttonHistoryNext.Size = new Size(20, 20);
+        buttonHistoryNext.Size = new Size(18, 20);
         buttonHistoryNext.TabIndex = 0;
         buttonHistoryNext.TabStop = false;
         buttonHistoryNext.Text = "▼";
@@ -178,7 +215,7 @@ partial class MainForm
         buttonHistoryPrev.ForeColor = Color.FromArgb(148, 148, 148);
         buttonHistoryPrev.Location = new Point(0, 0);
         buttonHistoryPrev.Name = "buttonHistoryPrev";
-        buttonHistoryPrev.Size = new Size(20, 20);
+        buttonHistoryPrev.Size = new Size(18, 20);
         buttonHistoryPrev.TabIndex = 1;
         buttonHistoryPrev.TabStop = false;
         buttonHistoryPrev.Text = "▲";
@@ -213,7 +250,7 @@ partial class MainForm
         checkBoxAutoApprove.CheckState = CheckState.Checked;
         checkBoxAutoApprove.Font = new Font("Segoe UI", 9F);
         checkBoxAutoApprove.ForeColor = Color.FromArgb(218, 218, 218);
-        checkBoxAutoApprove.Location = new Point(660, 8);
+        checkBoxAutoApprove.Location = new Point(649, 9);
         checkBoxAutoApprove.Name = "checkBoxAutoApprove";
         checkBoxAutoApprove.Size = new Size(129, 19);
         checkBoxAutoApprove.TabIndex = 0;
@@ -326,7 +363,7 @@ partial class MainForm
         checkBoxFleet.BackColor = Color.Transparent;
         checkBoxFleet.Font = new Font("Segoe UI", 9F);
         checkBoxFleet.ForeColor = Color.FromArgb(218, 218, 218);
-        checkBoxFleet.Location = new Point(801, 9);
+        checkBoxFleet.Location = new Point(784, 9);
         checkBoxFleet.Name = "checkBoxFleet";
         checkBoxFleet.Size = new Size(85, 19);
         checkBoxFleet.TabIndex = 1;
@@ -341,11 +378,11 @@ partial class MainForm
         tabControlOutput.Controls.Add(tabPageRaw);
         tabControlOutput.DrawMode = TabDrawMode.OwnerDrawFixed;
         tabControlOutput.ForeColor = Color.FromArgb(218, 218, 218);
-        tabControlOutput.Location = new Point(6, 32);
+        tabControlOutput.Location = new Point(6, 0);
         tabControlOutput.Margin = new Padding(0);
         tabControlOutput.Name = "tabControlOutput";
         tabControlOutput.SelectedIndex = 0;
-        tabControlOutput.Size = new Size(1014, 782);
+        tabControlOutput.Size = new Size(1014, 814);
         tabControlOutput.TabIndex = 0;
         tabControlOutput.DrawItem += TabControlOutput_DrawItem;
         // 
@@ -356,7 +393,7 @@ partial class MainForm
         tabPageRendered.Location = new Point(4, 24);
         tabPageRendered.Margin = new Padding(3, 2, 3, 2);
         tabPageRendered.Name = "tabPageRendered";
-        tabPageRendered.Size = new Size(1006, 754);
+        tabPageRendered.Size = new Size(1006, 786);
         tabPageRendered.TabIndex = 0;
         tabPageRendered.Text = "Rendered";
         // 
@@ -370,7 +407,7 @@ partial class MainForm
         webViewOutput.Location = new Point(0, 0);
         webViewOutput.Margin = new Padding(3, 2, 3, 2);
         webViewOutput.Name = "webViewOutput";
-        webViewOutput.Size = new Size(1006, 754);
+        webViewOutput.Size = new Size(1006, 786);
         webViewOutput.TabIndex = 0;
         webViewOutput.ZoomFactor = 1D;
         // 
@@ -381,7 +418,7 @@ partial class MainForm
         tabPageRaw.Location = new Point(4, 24);
         tabPageRaw.Margin = new Padding(3, 2, 3, 2);
         tabPageRaw.Name = "tabPageRaw";
-        tabPageRaw.Size = new Size(1006, 754);
+        tabPageRaw.Size = new Size(1006, 786);
         tabPageRaw.TabIndex = 1;
         tabPageRaw.Text = "Raw";
         // 
@@ -398,80 +435,15 @@ partial class MainForm
         richTextBoxOutput.Name = "richTextBoxOutput";
         richTextBoxOutput.ReadOnly = true;
         richTextBoxOutput.ScrollBars = RichTextBoxScrollBars.Vertical;
-        richTextBoxOutput.Size = new Size(1006, 754);
+        richTextBoxOutput.Size = new Size(1006, 786);
         richTextBoxOutput.TabIndex = 0;
         richTextBoxOutput.Text = "";
-        // 
-        // panelAttachments
-        // 
-        panelAttachments.BackColor = Color.FromArgb(64, 64, 64);
-        panelAttachments.Controls.Add(flowLayoutPanelChips);
-        panelAttachments.Controls.Add(buttonAddFolder);
-        panelAttachments.Controls.Add(buttonAddFile);
-        panelAttachments.Controls.Add(labelAttach);
-        panelAttachments.Dock = DockStyle.Top;
-        panelAttachments.Location = new Point(0, 0);
-        panelAttachments.Name = "panelAttachments";
-        panelAttachments.Size = new Size(1033, 32);
-        panelAttachments.TabIndex = 0;
-        // 
-        // flowLayoutPanelChips
-        // 
-        flowLayoutPanelChips.AutoSize = true;
-        flowLayoutPanelChips.AutoSizeMode = AutoSizeMode.GrowAndShrink;
-        flowLayoutPanelChips.BackColor = Color.FromArgb(64, 64, 64);
-        flowLayoutPanelChips.Location = new Point(290, 6);
-        flowLayoutPanelChips.Name = "flowLayoutPanelChips";
-        flowLayoutPanelChips.Size = new Size(0, 0);
-        flowLayoutPanelChips.TabIndex = 3;
-        flowLayoutPanelChips.WrapContents = false;
-        // 
-        // buttonAddFolder
-        // 
-        buttonAddFolder.BackColor = Color.FromArgb(86, 86, 86);
-        buttonAddFolder.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonAddFolder.FlatStyle = FlatStyle.Flat;
-        buttonAddFolder.Font = new Font("Segoe UI", 9F);
-        buttonAddFolder.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonAddFolder.Location = new Point(184, 0);
-        buttonAddFolder.Name = "buttonAddFolder";
-        buttonAddFolder.Size = new Size(106, 26);
-        buttonAddFolder.TabIndex = 2;
-        buttonAddFolder.Text = "📁 Add Folder";
-        toolTipMain.SetToolTip(buttonAddFolder, "Attach a folder to the prompt");
-        buttonAddFolder.UseVisualStyleBackColor = false;
-        // 
-        // buttonAddFile
-        // 
-        buttonAddFile.BackColor = Color.FromArgb(86, 86, 86);
-        buttonAddFile.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonAddFile.FlatStyle = FlatStyle.Flat;
-        buttonAddFile.Font = new Font("Segoe UI", 9F);
-        buttonAddFile.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonAddFile.Location = new Point(91, 0);
-        buttonAddFile.Name = "buttonAddFile";
-        buttonAddFile.Size = new Size(88, 26);
-        buttonAddFile.TabIndex = 1;
-        buttonAddFile.Text = "📄 Add File";
-        toolTipMain.SetToolTip(buttonAddFile, "Attach a file to the prompt");
-        buttonAddFile.UseVisualStyleBackColor = false;
-        // 
-        // labelAttach
-        // 
-        labelAttach.AutoSize = true;
-        labelAttach.Font = new Font("Segoe UI", 9F);
-        labelAttach.ForeColor = Color.FromArgb(148, 148, 148);
-        labelAttach.Location = new Point(7, 4);
-        labelAttach.Name = "labelAttach";
-        labelAttach.Size = new Size(78, 15);
-        labelAttach.TabIndex = 0;
-        labelAttach.Text = "Attachments:";
         // 
         // menuStripMain
         // 
         menuStripMain.BackColor = Color.FromArgb(74, 74, 74);
         menuStripMain.ForeColor = Color.FromArgb(218, 218, 218);
-        menuStripMain.Items.AddRange(new ToolStripItem[] { menuSession, menuSkills, menuTools, menuHelp });
+        menuStripMain.Items.AddRange(new ToolStripItem[] { menuSession, menuSkills, menuReferences, menuTools, menuHelp });
         menuStripMain.Location = new Point(0, 0);
         menuStripMain.Name = "menuStripMain";
         menuStripMain.Padding = new Padding(4, 2, 0, 2);
@@ -584,6 +556,32 @@ partial class MainForm
         menuSkillsTree.Size = new Size(144, 22);
         menuSkillsTree.Text = "🌳 Skill &Tree...";
         menuSkillsTree.ToolTipText = "Edit the Skill Tree (folders contributing skills/ and agents/ to the session)";
+        // 
+        // menuReferences
+        // 
+        menuReferences.DropDownItems.AddRange(new ToolStripItem[] { menuReferencesAddFile, menuReferencesAddFolder });
+        menuReferences.ForeColor = Color.FromArgb(218, 218, 218);
+        menuReferences.Name = "menuReferences";
+        menuReferences.Size = new Size(76, 20);
+        menuReferences.Text = "&References";
+        // 
+        // menuReferencesAddFile
+        // 
+        menuReferencesAddFile.BackColor = Color.FromArgb(56, 56, 56);
+        menuReferencesAddFile.ForeColor = Color.FromArgb(218, 218, 218);
+        menuReferencesAddFile.Name = "menuReferencesAddFile";
+        menuReferencesAddFile.Size = new Size(156, 22);
+        menuReferencesAddFile.Text = "📄 Add &File...";
+        menuReferencesAddFile.ToolTipText = "Attach a file to the prompt";
+        // 
+        // menuReferencesAddFolder
+        // 
+        menuReferencesAddFolder.BackColor = Color.FromArgb(56, 56, 56);
+        menuReferencesAddFolder.ForeColor = Color.FromArgb(218, 218, 218);
+        menuReferencesAddFolder.Name = "menuReferencesAddFolder";
+        menuReferencesAddFolder.Size = new Size(156, 22);
+        menuReferencesAddFolder.Text = "📁 Add F&older...";
+        menuReferencesAddFolder.ToolTipText = "Attach a folder to the prompt";
         // 
         // menuTools
         // 
@@ -726,6 +724,8 @@ partial class MainForm
         splitContainerMain.Panel2.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)splitContainerMain).EndInit();
         splitContainerMain.ResumeLayout(false);
+        panelAttachments.ResumeLayout(false);
+        panelAttachments.PerformLayout();
         panelHistoryNav.ResumeLayout(false);
         panelActions.ResumeLayout(false);
         panelActions.PerformLayout();
@@ -733,8 +733,6 @@ partial class MainForm
         tabPageRendered.ResumeLayout(false);
         ((System.ComponentModel.ISupportInitialize)webViewOutput).EndInit();
         tabPageRaw.ResumeLayout(false);
-        panelAttachments.ResumeLayout(false);
-        panelAttachments.PerformLayout();
         menuStripMain.ResumeLayout(false);
         menuStripMain.PerformLayout();
         statusStrip.ResumeLayout(false);
@@ -771,10 +769,11 @@ partial class MainForm
     private System.Windows.Forms.ToolStripMenuItem menuHelp;
     private System.Windows.Forms.ToolStripMenuItem menuHelpShow;
     private System.Windows.Forms.ToolStripMenuItem menuHelpAbout;
+    private System.Windows.Forms.ToolStripMenuItem menuReferences;
+    private System.Windows.Forms.ToolStripMenuItem menuReferencesAddFile;
+    private System.Windows.Forms.ToolStripMenuItem menuReferencesAddFolder;
     private System.Windows.Forms.Panel panelAttachments;
     private System.Windows.Forms.Label labelAttach;
-    private System.Windows.Forms.Button buttonAddFile;
-    private System.Windows.Forms.Button buttonAddFolder;
     private System.Windows.Forms.FlowLayoutPanel flowLayoutPanelChips;
     private PlainRichTextBox richTextBoxPrompt;
     private System.Windows.Forms.Panel panelActions;

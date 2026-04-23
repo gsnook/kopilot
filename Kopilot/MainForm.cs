@@ -105,8 +105,8 @@ public partial class MainForm : Form
     {
         buttonSend.Click += async (_, _) => await SendPromptAsync();
         buttonStop.Click += async (_, _) => await StopAsync();
-        buttonAddFile.Click += ButtonAddFile_Click;
-        buttonAddFolder.Click += ButtonAddFolder_Click;
+        menuReferencesAddFile.Click += ButtonAddFile_Click;
+        menuReferencesAddFolder.Click += ButtonAddFolder_Click;
         buttonOpenFolder.Click += async (_, _) => await OpenFolderAndConnectAsync();
         buttonHistoryPrev.Click += (_, _) => NavigateHistoryBack();
         buttonHistoryNext.Click += (_, _) => NavigateHistoryForward();
@@ -1743,6 +1743,7 @@ public partial class MainForm : Form
         chip.Click += (_, _) => RemoveAttachment(path, chip);
 
         flowLayoutPanelChips.Controls.Add(chip);
+        panelAttachments.Visible = true;
 
         InsertReferenceAtCursor(path);
     }
@@ -1787,6 +1788,8 @@ public partial class MainForm : Form
         _attachments.Remove(path);
         flowLayoutPanelChips.Controls.Remove(chip);
         chip.Dispose();
+        if (flowLayoutPanelChips.Controls.Count == 0)
+            panelAttachments.Visible = false;
     }
 
     // ── Session ───────────────────────────────────────────────────────────────

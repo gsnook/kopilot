@@ -91,10 +91,18 @@ html, body {
 .block-error {
 	color: #d74b4b;
 }
+.block-error .block-content {
+	white-space: pre-wrap;
+}
 
 /* Status / meta */
 .block-status {
 	color: #8c8c8c;
+}
+.block-status .block-content {
+	white-space: pre-wrap;
+	font-family: "Consolas", "Cascadia Mono", monospace;
+	font-size: 13px;
 }
 
 /* ── Markdown content styling ───────────────────────────────────── */

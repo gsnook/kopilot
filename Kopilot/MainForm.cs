@@ -30,6 +30,11 @@ public partial class MainForm : Form
     // Structured output blocks feeding the WebView2 Rendered tab
     private readonly List<OutputBlock> _outputBlocks = new();
     private bool _webViewReady = false;
+    // Rolling meta block used by AppendOutput so plain-text status/setup lines
+    // appear in the Rendered tab as well as the Raw tab. Reset (closed) whenever
+    // an explicit non-meta WebView block is appended or the output is cleared.
+    private OutputBlock? _currentMetaBlock;
+    private Color _currentMetaColor;
     // Maps toolCallId → char offset AFTER "  🔧 name  args" text (insertion point for ✓/✗)
     private readonly Dictionary<string, int> _toolStartPositions = new();
     // Maps toolCallId → char offset of the ○ character for retroactive ○→◉/✗ replacement
@@ -2389,6 +2394,15 @@ public partial class MainForm : Form
 
     private void WebViewAppendBlock(OutputBlock block)
     {
+        // A structured block is being appended (User, Assistant, Tool, etc.).
+        // Close any rolling meta block so subsequent AppendOutput calls start a new
+        // Status block below it instead of being merged into the previous one.
+        _currentMetaBlock = null;
+        WebViewAppendBlockInternal(block);
+    }
+
+    private void WebViewAppendBlockInternal(OutputBlock block)
+    {
         if (!_webViewReady) return;
         var js = $"appendBlock({JsString(block.Id)}, {JsString(block.CssKind)}, " +
                  $"{JsString(block.Label)}, {JsString(block.Content)}, {(block.IsMarkdown ? "true" : "false")})";
@@ -2420,6 +2434,7 @@ public partial class MainForm : Form
 
     private void WebViewClearAll()
     {
+        _currentMetaBlock = null;
         if (!_webViewReady) return;
         _ = webViewOutput.CoreWebView2.ExecuteScriptAsync("clearAll()");
     }
@@ -2469,6 +2484,40 @@ public partial class MainForm : Form
         {
             SendMessage(richTextBoxOutput.Handle, WM_SETREDRAW, true, 0);
             richTextBoxOutput.Invalidate();
+        }
+
+        // Mirror to the Rendered (WebView) tab so both tabs show the same content.
+        MirrorMetaToWebView(text, color);
+    }
+
+    /// <summary>
+    /// Appends plain-text output (setup banners, status lines, /help text, etc.) to
+    /// the Rendered tab as a rolling Status or Error block. Consecutive AppendOutput
+    /// calls of the same color coalesce into one block; the block is closed whenever
+    /// a structured WebView block is appended via <see cref="WebViewAppendBlock"/> or
+    /// the output is cleared via <see cref="WebViewClearAll"/>.
+    /// </summary>
+    private void MirrorMetaToWebView(string text, Color color)
+    {
+        if (!_webViewReady) return;
+        if (string.IsNullOrEmpty(text)) return;
+
+        BlockKind kind = (color == AppTheme.ColorError) ? BlockKind.Error : BlockKind.Status;
+
+        if (_currentMetaBlock == null
+            || _currentMetaBlock.Kind != kind
+            || _currentMetaColor != color)
+        {
+            _currentMetaBlock = new OutputBlock(kind);
+            _currentMetaColor = color;
+            _currentMetaBlock.Content = text;
+            _outputBlocks.Add(_currentMetaBlock);
+            WebViewAppendBlockInternal(_currentMetaBlock);
+        }
+        else
+        {
+            _currentMetaBlock.Content += text;
+            WebViewUpdateBlock(_currentMetaBlock);
         }
     }
 

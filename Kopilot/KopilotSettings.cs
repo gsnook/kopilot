@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 
 namespace Kopilot;
@@ -7,6 +9,11 @@ namespace Kopilot;
 /// Reads and writes kopilot.ini, stored adjacent to the Kopilot executable.
 ///
 /// Supported format:
+///   [SkillTree]
+///   Folder=C:\path\to\folder1
+///   Folder=C:\path\to\folder2
+///
+/// Legacy format (auto-migrated on first load, then rewritten as [SkillTree]):
 ///   [Org]
 ///   Folder=C:\path\to\org
 /// </summary>
@@ -15,8 +22,12 @@ internal sealed class KopilotSettings
 	private static readonly string IniPath =
 		Path.Combine(Application.StartupPath, "kopilot.ini");
 
-	/// <summary>Path to the organization-level tier folder, or null if not configured.</summary>
-	public string? OrgFolder { get; set; }
+	/// <summary>
+	/// Ordered list of Skill Tree folders.  Each folder is searched for a <c>skills/</c>
+	/// subdirectory and an <c>agents/</c> subdirectory when a Copilot session starts.
+	/// Later entries override earlier entries for agent-name collisions.
+	/// </summary>
+	public List<string> SkillTreeFolders { get; set; } = new();
 
 	/// <summary>Loads settings from kopilot.ini; returns defaults if the file does not exist.</summary>
 	public static KopilotSettings Load()
@@ -25,6 +36,9 @@ internal sealed class KopilotSettings
 		if (!File.Exists(IniPath)) return settings;
 
 		string? section = null;
+		string? legacyOrgFolder = null;
+		bool sawSkillTreeSection = false;
+		var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
 		try
 		{
@@ -37,6 +51,7 @@ internal sealed class KopilotSettings
 				if (line.StartsWith('[') && line.EndsWith(']'))
 				{
 					section = line[1..^1].Trim().ToLowerInvariant();
+					if (section == "skilltree") sawSkillTreeSection = true;
 					continue;
 				}
 
@@ -45,12 +60,26 @@ internal sealed class KopilotSettings
 
 				var key = line[..eq].Trim().ToLowerInvariant();
 				var val = line[(eq + 1)..].Trim();
+				if (string.IsNullOrEmpty(val)) continue;
 
-				if (section == "org" && key == "folder" && !string.IsNullOrEmpty(val))
-					settings.OrgFolder = val;
+				if (section == "skilltree" && key == "folder")
+				{
+					if (seen.Add(val))
+						settings.SkillTreeFolders.Add(val);
+				}
+				else if (section == "org" && key == "folder")
+				{
+					legacyOrgFolder = val;
+				}
 			}
 		}
 		catch { /* best-effort; return defaults on any read error */ }
+
+		// Migration: if no [SkillTree] section was present but a legacy [Org] Folder
+		// value exists, seed the new list with that single value.  The next Save()
+		// will rewrite the file in the new format and drop the [Org] section.
+		if (!sawSkillTreeSection && !string.IsNullOrEmpty(legacyOrgFolder))
+			settings.SkillTreeFolders.Add(legacyOrgFolder);
 
 		return settings;
 	}
@@ -59,8 +88,16 @@ internal sealed class KopilotSettings
 	public void Save()
 	{
 		var sb = new StringBuilder();
-		sb.Append("[Org]\r\n");
-		sb.Append($"Folder={OrgFolder ?? ""}\r\n");
+		sb.Append("[SkillTree]\r\n");
+
+		var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+		foreach (var folder in SkillTreeFolders)
+		{
+			if (string.IsNullOrWhiteSpace(folder)) continue;
+			var trimmed = folder.Trim();
+			if (!seen.Add(trimmed)) continue;
+			sb.Append($"Folder={trimmed}\r\n");
+		}
 
 		File.WriteAllText(IniPath, sb.ToString(), Encoding.ASCII);
 	}

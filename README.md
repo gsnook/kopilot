@@ -144,6 +144,7 @@ One-click shortcuts for common actions:
 |---|---|
 | **❓ Help** | Ask Copilot to describe its own capabilities and available tools. |
 | **⚡ PowerShell** | Open a PowerShell terminal in the current project folder (loads `scripts.ps1` if present). |
+| **🌳 Skill Tree...** | Edit the list of folders that contribute `skills/` and `agents/` to every Copilot session. See [Skill Tree](#skill-tree). |
 | **📂 Explorer** | Open File Explorer at the current project folder. |
 | **💻 VS Code** | Launch VS Code in the project folder. (Live IDE pairing — the Copilot CLI's `/ide` command — is not available through the Copilot SDK, so this button only opens the editor.) |
 | **📝 Summarize** | Request a summary of the current session from Copilot. |
@@ -198,6 +199,43 @@ Select the execution mode from the **Mode** dropdown:
 When the **Fleet** checkbox is enabled, Copilot can spawn multiple parallel sub-agents to work on different parts of a task simultaneously. The output panel will show each agent's progress. The session completes when the last sub-agent finishes.
 
 Best suited for large refactors, multi-file generation, or tasks that can be broken into independent workstreams.
+
+---
+
+## Skill Tree
+
+The **🌳 Skill Tree...** button opens a dialog where you can manage an ordered list of folders that contribute reusable assets to every Copilot session Kopilot starts.
+
+For each folder in the list, when a session is created Kopilot looks for two subfolders:
+
+| Subfolder | What Kopilot does with it |
+|---|---|
+| `skills/` | Added to the session's `skillDirectories`, exposing every skill it contains to Copilot. See [Custom skills](https://docs.github.com/en/copilot/how-tos/copilot-sdk/use-copilot-sdk/custom-skills). |
+| `agents/` | Each `*.md` file is parsed into a `customAgent` definition (front-matter metadata plus the prompt body) and registered with the session. |
+
+A `kopilot-instructions.md` file at the root of a Skill Tree folder is also concatenated into the system message.
+
+The list is persisted to `kopilot.ini` under a `[SkillTree]` section, e.g.:
+
+```
+[SkillTree]
+Folder=C:\copilot\team-shared
+Folder=C:\copilot\my-personal
+```
+
+**Dialog controls:**
+
+| Button | Action |
+|---|---|
+| **Add...** | Pick a folder with the standard browse dialog and append it to the list. |
+| **Remove** | Remove the selected folder from the list. |
+| **Move Up / Move Down** | Reorder entries. Order matters: later entries override earlier ones for agent-name collisions, and the project folder always wins overall. |
+| **OK** | Persist the change and trigger a session refresh. |
+| **Cancel** | Discard the edits. |
+
+Skill Tree folders do **not** need to end in `.github` — point at any folder you like. The `skills/` and `agents/` subfolders are detected case-insensitively (Windows file system).
+
+> **Session refresh on edit.** Skills and custom agents are baked into a Copilot session at creation time, so editing the Skill Tree triggers the same automatic summary-and-restart handoff used when you change **Mode** or toggle **Fleet** — your context is summarised and carried into a fresh session on your next send.
 
 ---
 

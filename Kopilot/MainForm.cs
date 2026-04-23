@@ -76,10 +76,8 @@ public partial class MainForm : Form
 
         // Load persisted settings and sync with service
         _settings = KopilotSettings.Load();
-        _copilot.OrgFolder = _settings.OrgFolder;
-        if (!string.IsNullOrEmpty(_settings.OrgFolder))
-            toolTipMain.SetToolTip(buttonSetOrgFolder,
-                $"Org folder: {_settings.OrgFolder}\n(click to change)");
+        _copilot.SkillTreeFolders = _settings.SkillTreeFolders;
+        UpdateSkillTreeTooltip();
 
         // Populate mode combo from the SDK enum and select the first entry
         PopulateModeCombo();
@@ -126,7 +124,7 @@ public partial class MainForm : Form
         buttonRefresh.Click += (_, _) => ShowRefreshMenu();
         buttonOpenExplorer.Click += (_, _) => OpenExplorer();
         buttonOpenVSCode.Click += (_, _) => OpenVSCode();
-        buttonSetOrgFolder.Click += (_, _) => SetOrgFolder();
+        buttonSkillTree.Click += (_, _) => EditSkillTree();
 
         checkBoxAutoApprove.CheckedChanged += (_, _) =>
             _copilot.AutoApprove = checkBoxAutoApprove.Checked;
@@ -1478,6 +1476,7 @@ public partial class MainForm : Form
         _copilot.WorkingDirectory = dialog.SelectedPath;
         buttonOpenFolder.Enabled = false;
         toolStripStatusLabelSession.Text = dialog.SelectedPath;
+        UpdateTitleBar(dialog.SelectedPath);
 
         try
         {
@@ -1544,25 +1543,18 @@ public partial class MainForm : Form
         }
     }
 
-    // ── Org folder configuration ──────────────────────────────────────────────
+    // ── Skill Tree configuration ──────────────────────────────────────────────
 
-    private void SetOrgFolder()
+    private void EditSkillTree()
     {
-        using var dialog = new FolderBrowserDialog
-        {
-            Description = "Select the organization-level instructions folder\n" +
-                          "(should contain kopilot-instructions.md and/or agents/ and skills/ subfolders)",
-            UseDescriptionForTitle = true,
-            SelectedPath = _settings.OrgFolder ?? "",
-        };
-
+        using var dialog = new SkillTreeDialog(_settings.SkillTreeFolders);
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
 
-        _settings.OrgFolder = dialog.SelectedPath;
-        _copilot.OrgFolder  = dialog.SelectedPath;
+        // Replace the persisted list and the live service list with the edited one.
+        _settings.SkillTreeFolders = new List<string>(dialog.Folders);
+        _copilot.SkillTreeFolders  = _settings.SkillTreeFolders;
 
-        toolTipMain.SetToolTip(buttonSetOrgFolder,
-            $"Org folder: {dialog.SelectedPath}\n(click to change)");
+        UpdateSkillTreeTooltip();
 
         try
         {
@@ -1574,6 +1566,32 @@ public partial class MainForm : Form
                 $"Could not save settings to kopilot.ini:\n\n{ex.Message}",
                 "Settings Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
+
+        // Skill Tree contents are baked into the session at creation time
+        // (via SkillDirectories / CustomAgents).  Match the mode/fleet pattern:
+        // schedule a deferred summary-and-restart so context survives the change.
+        if (_copilot.IsConnected && _mainSessionId != null)
+            ScheduleHandoff("Skill Tree changed");
+    }
+
+    private void UpdateSkillTreeTooltip()
+    {
+        var folders = _settings.SkillTreeFolders;
+        string tip;
+        if (folders.Count == 0)
+        {
+            tip = "Skill Tree: empty\n(click to edit)";
+        }
+        else
+        {
+            var lines = new System.Text.StringBuilder();
+            lines.Append($"Skill Tree ({folders.Count} folder{(folders.Count == 1 ? "" : "s")}):");
+            foreach (var f in folders)
+                lines.Append("\n  • ").Append(f);
+            lines.Append("\n(click to edit)");
+            tip = lines.ToString();
+        }
+        toolTipMain.SetToolTip(buttonSkillTree, tip);
     }
 
     // ── Prompt history navigation ─────────────────────────────────────────────
@@ -2063,6 +2081,18 @@ public partial class MainForm : Form
     /// that bypass the normal CompleteMainSession flow so no stale "Working..."
     /// or sub-agent indicators leak across session boundaries.
     /// </summary>
+    private void UpdateTitleBar(string? folder)
+    {
+        if (string.IsNullOrWhiteSpace(folder))
+        {
+            this.Text = "Kopilot";
+        }
+        else
+        {
+            this.Text = $"Kopilot : {folder}";
+        }
+    }
+
     private void ResetSessionTrackingState()
     {
         _subAgentWatchdog.Stop();

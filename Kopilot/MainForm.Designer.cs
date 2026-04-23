@@ -50,7 +50,7 @@ partial class MainForm
         panelQuickCommands = new Panel();
         buttonHelp = new Button();
         buttonPowershell = new Button();
-        buttonSetOrgFolder = new Button();
+        buttonSkillTree = new Button();
         buttonSummarize = new Button();
         buttonClearOutput = new Button();
         buttonRefresh = new Button();
@@ -397,7 +397,7 @@ partial class MainForm
         panelQuickCommands.BackColor = Color.FromArgb(74, 74, 74);
         panelQuickCommands.Controls.Add(buttonHelp);
         panelQuickCommands.Controls.Add(buttonPowershell);
-        panelQuickCommands.Controls.Add(buttonSetOrgFolder);
+        panelQuickCommands.Controls.Add(buttonSkillTree);
         panelQuickCommands.Controls.Add(buttonSummarize);
         panelQuickCommands.Controls.Add(buttonClearOutput);
         panelQuickCommands.Controls.Add(buttonRefresh);
@@ -443,21 +443,21 @@ partial class MainForm
         toolTipMain.SetToolTip(buttonPowershell, "Open PowerShell in the current project folder");
         buttonPowershell.UseVisualStyleBackColor = false;
         // 
-        // buttonSetOrgFolder
+        // buttonSkillTree
         // 
-        buttonSetOrgFolder.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
-        buttonSetOrgFolder.BackColor = Color.FromArgb(86, 86, 86);
-        buttonSetOrgFolder.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
-        buttonSetOrgFolder.FlatStyle = FlatStyle.Flat;
-        buttonSetOrgFolder.Font = new Font("Segoe UI", 8.5F);
-        buttonSetOrgFolder.ForeColor = Color.FromArgb(218, 218, 218);
-        buttonSetOrgFolder.Location = new Point(199, 7);
-        buttonSetOrgFolder.Name = "buttonSetOrgFolder";
-        buttonSetOrgFolder.Size = new Size(88, 26);
-        buttonSetOrgFolder.TabIndex = 7;
-        buttonSetOrgFolder.Text = "🏢 Org Folder...";
-        toolTipMain.SetToolTip(buttonSetOrgFolder, "Set the organization-level instructions folder (kopilot.ini)");
-        buttonSetOrgFolder.UseVisualStyleBackColor = false;
+        buttonSkillTree.Anchor = AnchorStyles.Bottom | AnchorStyles.Left;
+        buttonSkillTree.BackColor = Color.FromArgb(86, 86, 86);
+        buttonSkillTree.FlatAppearance.BorderColor = Color.FromArgb(108, 108, 108);
+        buttonSkillTree.FlatStyle = FlatStyle.Flat;
+        buttonSkillTree.Font = new Font("Segoe UI", 8.5F);
+        buttonSkillTree.ForeColor = Color.FromArgb(218, 218, 218);
+        buttonSkillTree.Location = new Point(199, 7);
+        buttonSkillTree.Name = "buttonSkillTree";
+        buttonSkillTree.Size = new Size(88, 26);
+        buttonSkillTree.TabIndex = 7;
+        buttonSkillTree.Text = "🌳 Skill Tree...";
+        toolTipMain.SetToolTip(buttonSkillTree, "Edit the Skill Tree (folders contributing skills/ and agents/ to the session)");
+        buttonSkillTree.UseVisualStyleBackColor = false;
         // 
         // buttonSummarize
         // 
@@ -750,7 +750,7 @@ partial class MainForm
     private System.Windows.Forms.Button buttonOpenFolder;
     private System.Windows.Forms.Button buttonStop;
     private System.Windows.Forms.Button buttonSend;
-    private System.Windows.Forms.Button buttonSetOrgFolder;
+    private System.Windows.Forms.Button buttonSkillTree;
     private System.Windows.Forms.StatusStrip statusStrip;
     private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabelConnection;
     private System.Windows.Forms.ToolStripStatusLabel toolStripStatusLabelVersion;

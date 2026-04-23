@@ -129,8 +129,11 @@ public sealed class CopilotService : IAsyncDisposable
     public string? WorkingDirectory { get; set; }
     public string? KopilotPath => WorkingDirectory == null ? null
         : Path.Combine(WorkingDirectory, ".kopilot");
-    /// <summary>Optional organization-level tier folder (set from kopilot.ini).</summary>
-    public string? OrgFolder { get; set; }
+    /// <summary>
+    /// Ordered list of Skill Tree folders contributing skills/, agents/, and
+    /// kopilot-instructions.md tiers (set from kopilot.ini).
+    /// </summary>
+    public IList<string> SkillTreeFolders { get; set; } = new List<string>();
     public bool AutoApprove { get; set; } = false;
     public bool FleetMode   { get; set; } = false;
     public bool IsConnected => _client?.State == ConnectionState.Connected;
@@ -596,7 +599,7 @@ public sealed class CopilotService : IAsyncDisposable
                 "Never create temporary files in the project root or elsewhere.");
         }
 
-        // Tiered instructions: Personal -> Org -> Project
+        // Tiered instructions: Personal -> SkillTree[*] -> Project
         var loadedTiers = new List<string>();
         foreach (var (label, folder) in GetTierFolders())
         {
@@ -662,7 +665,7 @@ public sealed class CopilotService : IAsyncDisposable
     /// Inherits the current process environment and sets
     /// <c>COPILOT_CUSTOM_INSTRUCTIONS_DIRS</c> so the CLI can discover
     /// <c>AGENTS.md</c> and <c>.github/instructions/**/*.instructions.md</c>
-    /// files in the personal and org tier folders.
+    /// files in the personal and Skill Tree tier folders.
     ///
     /// The project tier is already covered by the <c>Cwd</c> option; the CLI
     /// natively loads instructions from its working directory.  Personal
@@ -685,7 +688,7 @@ public sealed class CopilotService : IAsyncDisposable
                 env[k] = v;
         }
 
-        // Build COPILOT_CUSTOM_INSTRUCTIONS_DIRS in Personal -> Org order.
+        // Build COPILOT_CUSTOM_INSTRUCTIONS_DIRS in Personal -> SkillTree[*] order.
         // Deduplication is case-insensitive (Windows paths).
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var dirs = new List<string>();
@@ -696,8 +699,13 @@ public sealed class CopilotService : IAsyncDisposable
         if (Directory.Exists(personal) && seen.Add(personal))
             dirs.Add(personal);
 
-        if (!string.IsNullOrEmpty(OrgFolder) && Directory.Exists(OrgFolder) && seen.Add(OrgFolder))
-            dirs.Add(OrgFolder);
+        foreach (var folder in SkillTreeFolders)
+        {
+            if (string.IsNullOrEmpty(folder)) continue;
+            if (!Directory.Exists(folder)) continue;
+            if (seen.Add(folder))
+                dirs.Add(folder);
+        }
 
         // Preserve any extra directories the user has configured in the env var.
         if (env.TryGetValue("COPILOT_CUSTOM_INSTRUCTIONS_DIRS", out var existing))
@@ -737,8 +745,10 @@ public sealed class CopilotService : IAsyncDisposable
     }
 
     /// <summary>
-    /// Returns the active tier folders in Personal -> Org -> Project order.
-    /// Only tiers whose root directory actually exists are included.
+    /// Returns the active tier folders in Personal -> SkillTree[*] -> Project order.
+    /// Only tiers whose root directory actually exists are included.  Each Skill Tree
+    /// folder is yielded as a separate tier labelled <c>SKILL[i]</c> so that later
+    /// entries override earlier ones for agent-name collisions.
     /// </summary>
     internal IEnumerable<(string Label, string Path)> GetTierFolders()
     {
@@ -746,8 +756,16 @@ public sealed class CopilotService : IAsyncDisposable
         if (!string.IsNullOrEmpty(personal) && Directory.Exists(personal))
             yield return ("PERSONAL", personal);
 
-        if (!string.IsNullOrEmpty(OrgFolder) && Directory.Exists(OrgFolder))
-            yield return ("ORG", OrgFolder);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { personal };
+        int index = 1;
+        foreach (var folder in SkillTreeFolders)
+        {
+            if (string.IsNullOrEmpty(folder)) continue;
+            if (!Directory.Exists(folder)) continue;
+            if (!seen.Add(folder)) continue;
+            yield return ($"SKILL[{index}]", folder);
+            index++;
+        }
 
         if (!string.IsNullOrEmpty(WorkingDirectory) && Directory.Exists(WorkingDirectory))
             yield return ("PROJECT", WorkingDirectory);
@@ -756,7 +774,7 @@ public sealed class CopilotService : IAsyncDisposable
     /// <summary>
     /// Discovers agent definition files (*.md) from the <c>agents/</c> subdirectory of each
     /// tier folder.  A later tier's definition silently overrides an earlier tier's agent with
-    /// the same name (project beats org beats personal).
+    /// the same name (project beats later Skill Tree entries, which beat earlier ones, which beat personal).
     /// </summary>
     private List<CustomAgentConfig> LoadTierAgents()
     {
@@ -780,7 +798,7 @@ public sealed class CopilotService : IAsyncDisposable
 
     /// <summary>
     /// Returns all existing <c>skills/</c> subdirectories across the tier folders, in
-    /// Personal -> Org -> Project order.
+    /// Personal -> SkillTree[*] -> Project order.
     /// </summary>
     private List<string> LoadTierSkillDirectories()
     {

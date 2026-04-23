@@ -74,8 +74,13 @@ public partial class MainForm : Form
     private KopilotSettings _settings = new();
 
 
-    public MainForm()
+    private readonly string? _startupFolder;
+
+    public MainForm() : this(null) { }
+
+    public MainForm(string? startupFolder)
     {
+        _startupFolder = startupFolder;
         InitializeComponent();
         WireUpEvents();
 
@@ -123,6 +128,9 @@ public partial class MainForm : Form
             await InitializeWebViewAsync();
             await CheckForUpdatesAsync();
             await PopulateModelsAsync();
+
+            if (!string.IsNullOrEmpty(_startupFolder))
+                await ConnectToFolderAsync(_startupFolder);
         };
 
         menuHelpShow.Click += (_, _) => ShowHelpAsync();
@@ -1428,6 +1436,11 @@ public partial class MainForm : Form
 
         if (dialog.ShowDialog(this) != DialogResult.OK) return;
 
+        await ConnectToFolderAsync(dialog.SelectedPath);
+    }
+
+    private async Task ConnectToFolderAsync(string folderPath)
+    {
         // If already connected, tear down first so the new CWD takes effect
         if (_copilot.IsConnected)
         {
@@ -1437,10 +1450,10 @@ public partial class MainForm : Form
 
         ResetSessionTrackingState();
 
-        _copilot.WorkingDirectory = dialog.SelectedPath;
+        _copilot.WorkingDirectory = folderPath;
         buttonOpenFolder.Enabled = false;
-        toolStripStatusLabelSession.Text = dialog.SelectedPath;
-        UpdateTitleBar(dialog.SelectedPath);
+        toolStripStatusLabelSession.Text = folderPath;
+        UpdateTitleBar(folderPath);
 
         try
         {
@@ -1489,9 +1502,9 @@ public partial class MainForm : Form
 
             AppendOutput("\r\n", AppTheme.ColorMeta);
 
-            await OfferLoadBackupAsync(dialog.SelectedPath);
+            await OfferLoadBackupAsync(folderPath);
 
-            await OfferReadReadmeAsync(dialog.SelectedPath);
+            await OfferReadReadmeAsync(folderPath);
         }
         catch (Exception ex)
         {

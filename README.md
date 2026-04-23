@@ -40,6 +40,13 @@ Mostly yes. This is a Copilot CLI generated tool to make the Copilot CLI easier 
    ```
    Or launch the compiled executable directly from `Kopilot/bin/`.
 
+   You can optionally pass a workspace folder path as the first argument to
+   open and connect to it automatically at launch (equivalent to clicking
+   **📂 Open Folder…** on that path):
+   ```
+   Kopilot.exe C:\path\to\my\project
+   ```
+
 3. **Connect to a project folder:**
    Click **📂 Open Folder…** in the top-left and select your working directory. This establishes a Copilot session rooted at that folder.
 

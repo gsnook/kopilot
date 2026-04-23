@@ -28,45 +28,59 @@ internal sealed class DarkTabControl : TabControl
 
 		var r = DisplayRectangle;
 
-		// Fill the tab strip background to the right of the last tab and
-		// to the left of the first tab so no bright pixels show through.
+		// ── Tab header area ──────────────────────────────────────────
+		// Paint over the entire tab strip region (from y=0 to the bottom
+		// of the tab headers) then re-draw each tab header from scratch.
+		// This completely replaces the native themed rendering so no bright
+		// borders can leak through — the DrawItem event's Graphics is
+		// system-clipped and cannot reach the outermost border pixels.
 		if (TabCount > 0)
 		{
-			var lastTab = GetTabRect(TabCount - 1);
-			if (lastTab.Right < Width)
-			{
-				g.FillRectangle(stripBrush,
-					lastTab.Right, 0,
-					Width - lastTab.Right, lastTab.Bottom + 2);
-			}
-
 			var firstTab = GetTabRect(0);
-			if (firstTab.Left > 0)
-			{
-				g.FillRectangle(stripBrush,
-					0, 0,
-					firstTab.Left, firstTab.Bottom + 2);
-			}
+			int stripBottom = firstTab.Bottom + 2;
 
-			// Cover the bright seam between the tab strip and the content
-			// area in the empty region beside the last tab. Drawing in the
-			// content-area colour blends it with the page below.
-			g.FillRectangle(borderBrush,
-				lastTab.Right, lastTab.Bottom,
-				Width - lastTab.Right, r.Y - lastTab.Bottom + 2);
+			// Wipe the entire strip region
+			g.FillRectangle(stripBrush, 0, 0, Width, stripBottom);
+
+			// Cover the seam between the strip and the content area
+			g.FillRectangle(borderBrush, 0, stripBottom, Width, r.Y - stripBottom);
+
+			// Re-draw individual tab headers
+			using var selectedBrush  = new SolidBrush(AppTheme.OutputBox);
+			using var normalBrush    = new SolidBrush(AppTheme.Surface);
+			using var activeFg       = new SolidBrush(AppTheme.TextPrimary);
+			using var inactiveFg     = new SolidBrush(AppTheme.TextMuted);
+			var sf = new StringFormat
+			{
+				Alignment     = StringAlignment.Center,
+				LineAlignment = StringAlignment.Center,
+			};
+
+			for (int i = 0; i < TabCount; i++)
+			{
+				var tab       = GetTabRect(i);
+				bool selected = SelectedIndex == i;
+				g.FillRectangle(selected ? selectedBrush : normalBrush, tab);
+				g.DrawString(TabPages[i].Text, Font,
+					selected ? activeFg : inactiveFg, tab, sf);
+			}
 		}
 
+		// ── Content-area border ──────────────────────────────────────
 		// Overpaint the bright 3D border around the tab content area.
-		// Draw four solid bands instead of a pen rectangle so the corners
-		// are fully covered without antialiased gaps.
-		const int t = 3;
+		// Derive the band thickness from the actual DisplayRectangle inset
+		// so we cover the full native border on any Windows version/DPI.
+		int bx = r.X;          // horizontal border thickness
+		int by = r.Y - (TabCount > 0 ? GetTabRect(0).Bottom : 0);  // vertical (below tab strip)
+		if (bx < 1) bx = 4;
+		if (by < 1) by = 4;
 		// top band (under the tab strip)
-		g.FillRectangle(borderBrush, r.X - t, r.Y - t, r.Width + 2 * t, t);
+		g.FillRectangle(borderBrush, 0, r.Y - by, Width, by);
 		// bottom band
-		g.FillRectangle(borderBrush, r.X - t, r.Bottom, r.Width + 2 * t, t);
+		g.FillRectangle(borderBrush, 0, r.Bottom, Width, Height - r.Bottom);
 		// left band
-		g.FillRectangle(borderBrush, r.X - t, r.Y - t, t, r.Height + 2 * t);
+		g.FillRectangle(borderBrush, 0, r.Y - by, bx, r.Height + by + (Height - r.Bottom));
 		// right band
-		g.FillRectangle(borderBrush, r.Right, r.Y - t, t, r.Height + 2 * t);
+		g.FillRectangle(borderBrush, r.Right, r.Y - by, Width - r.Right, r.Height + by + (Height - r.Bottom));
 	}
 }

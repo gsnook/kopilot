@@ -138,6 +138,25 @@ public sealed class CopilotService : IAsyncDisposable
     public bool FleetMode   { get; set; } = false;
     public bool IsConnected => _client?.State == ConnectionState.Connected;
 
+    // ── Reference cache (populated by LoadTier* during session creation) ────
+    private List<AgentInfo> _cachedAgents = new();
+    private List<SkillInfo> _cachedSkills = new();
+    /// <summary>Agents discovered across all tier folders, sorted by name.</summary>
+    public IReadOnlyList<AgentInfo> CachedAgents => _cachedAgents;
+    /// <summary>Skills discovered across all tier folders, sorted by name.</summary>
+    public IReadOnlyList<SkillInfo> CachedSkills => _cachedSkills;
+
+    /// <summary>
+    /// Re-scans tier folders and rebuilds the agent/skill caches without
+    /// touching any active session. Use when the Skill Tree changes and the
+    /// UI wants fresh lists before the next session is created.
+    /// </summary>
+    public void RebuildReferenceCache()
+    {
+        _ = LoadTierAgents();
+        _ = LoadTierSkillDirectories();
+    }
+
     public async Task<string> GetVersionAsync()
     {
         if (_client == null) return "";
@@ -778,9 +797,10 @@ public sealed class CopilotService : IAsyncDisposable
     /// </summary>
     private List<CustomAgentConfig> LoadTierAgents()
     {
-        var map = new Dictionary<string, CustomAgentConfig>(StringComparer.OrdinalIgnoreCase);
+        var map      = new Dictionary<string, CustomAgentConfig>(StringComparer.OrdinalIgnoreCase);
+        var infoMap  = new Dictionary<string, AgentInfo>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (_, folder) in GetTierFolders())
+        foreach (var (label, folder) in GetTierFolders())
         {
             var agentsDir = System.IO.Path.Combine(folder, "agents");
             if (!Directory.Exists(agentsDir)) continue;
@@ -789,9 +809,23 @@ public sealed class CopilotService : IAsyncDisposable
             {
                 var agent = ParseAgentFile(file);
                 if (agent != null)
+                {
                     map[agent.Name] = agent;
+                    infoMap[agent.Name] = new AgentInfo
+                    {
+                        Name        = agent.Name,
+                        DisplayName = agent.DisplayName,
+                        Description = agent.Description,
+                        FilePath    = file,
+                        Tier        = label,
+                    };
+                }
             }
         }
+
+        _cachedAgents = infoMap.Values
+            .OrderBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         return [.. map.Values];
     }
@@ -802,14 +836,30 @@ public sealed class CopilotService : IAsyncDisposable
     /// </summary>
     private List<string> LoadTierSkillDirectories()
     {
-        var dirs = new List<string>();
+        var dirs    = new List<string>();
+        var skills  = new Dictionary<string, SkillInfo>(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var (_, folder) in GetTierFolders())
+        foreach (var (label, folder) in GetTierFolders())
         {
             var skillsDir = System.IO.Path.Combine(folder, "skills");
-            if (Directory.Exists(skillsDir))
-                dirs.Add(skillsDir);
+            if (!Directory.Exists(skillsDir)) continue;
+
+            dirs.Add(skillsDir);
+
+            // Each direct subdirectory of skillsDir is a skill — look for SKILL.md.
+            foreach (var sub in Directory.GetDirectories(skillsDir))
+            {
+                var skillFile = System.IO.Path.Combine(sub, "SKILL.md");
+                if (!File.Exists(skillFile)) continue;
+                var info = ParseSkillFile(skillFile, label);
+                if (info != null)
+                    skills[info.Name] = info;   // later tier overrides earlier
+            }
         }
+
+        _cachedSkills = skills.Values
+            .OrderBy(s => s.Name, StringComparer.OrdinalIgnoreCase)
+            .ToList();
 
         return dirs;
     }
@@ -897,6 +947,115 @@ public sealed class CopilotService : IAsyncDisposable
             Tools       = tools,
             Prompt      = prompt,
         };
+    }
+
+    /// <summary>
+    /// Parses a <c>SKILL.md</c> file from a skills/{skill}/ subdirectory.  Reads
+    /// the YAML front matter for <c>name</c> and <c>description</c>, then scans
+    /// the body for the bullets under <c>## When to Use This Skill</c> to surface
+    /// as "trigger words" in the UI.
+    /// </summary>
+    private static SkillInfo? ParseSkillFile(string filePath, string tier)
+    {
+        string content;
+        try { content = File.ReadAllText(filePath); }
+        catch { return null; }
+
+        content = content.Replace("\r\n", "\n");
+
+        string? name        = null;
+        string? description = null;
+        string  body        = content;
+
+        if (content.StartsWith("---\n"))
+        {
+            var end = content.IndexOf("\n---\n", 4);
+            if (end >= 0)
+            {
+                var frontMatter = content[4..end];
+                body = content[(end + 5)..];
+
+                foreach (var rawLine in frontMatter.Split('\n'))
+                {
+                    var line = rawLine.Trim();
+                    if (string.IsNullOrEmpty(line)) continue;
+
+                    var col = line.IndexOf(':');
+                    if (col < 0) continue;
+
+                    var key = line[..col].Trim().ToLowerInvariant();
+                    var val = line[(col + 1)..].Trim().Trim('"', '\'');
+
+                    switch (key)
+                    {
+                        case "name":        name        = val; break;
+                        case "description": description = val; break;
+                    }
+                }
+            }
+        }
+
+        // Fall back to the parent folder name (the skill directory) when no
+        // explicit name was given.
+        name ??= new DirectoryInfo(System.IO.Path.GetDirectoryName(filePath)!).Name;
+
+        var triggers = ExtractTriggers(body);
+
+        return new SkillInfo
+        {
+            Name        = name,
+            Description = description,
+            Triggers    = triggers,
+            FolderPath  = System.IO.Path.GetDirectoryName(filePath)!,
+            Tier        = tier,
+        };
+    }
+
+    /// <summary>
+    /// Pulls the bullet lines that immediately follow a "## When to Use This Skill"
+    /// (or similar) heading.  Trims the leading "User asks to "/"User wants to "
+    /// boilerplate so the column reads as keyword-like phrases.
+    /// </summary>
+    private static List<string> ExtractTriggers(string body)
+    {
+        var lines = body.Split('\n');
+        var triggers = new List<string>();
+        var inSection = false;
+
+        for (int i = 0; i < lines.Length; i++)
+        {
+            var line = lines[i].TrimEnd();
+
+            if (line.StartsWith("## "))
+            {
+                var heading = line[3..].Trim().ToLowerInvariant();
+                inSection = heading.Contains("when to use") || heading.Contains("triggers");
+                continue;
+            }
+
+            if (!inSection) continue;
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            if (line.StartsWith("#")) { inSection = false; continue; }
+
+            var trimmed = line.TrimStart();
+            if (trimmed.StartsWith("- ") || trimmed.StartsWith("* "))
+            {
+                var item = trimmed[2..].Trim();
+                // Strip common boilerplate so the row reads as a keyword phrase.
+                foreach (var prefix in new[] { "User asks to ", "User wants to ", "User needs to ", "When ", "User " })
+                {
+                    if (item.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                    {
+                        item = item[prefix.Length..];
+                        break;
+                    }
+                }
+                if (item.Length > 0)
+                    triggers.Add(item);
+            }
+        }
+
+        return triggers;
     }
 
 

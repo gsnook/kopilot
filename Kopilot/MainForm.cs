@@ -93,6 +93,10 @@ public partial class MainForm : Form
         // A3: seed the meter with a visible "starting state" so the affordance
         // is discoverable before the first AssistantUsageEvent arrives.
         OnContextUsageChanged(new ContextUsageEventArgs());
+
+        // Apply the dark renderer to ALL ToolStrips (MenuStrip, DropDowns,
+        // StatusStrip) via the global manager so dropdowns inherit it too.
+        ToolStripManager.Renderer = new DarkMenuRenderer();
     }
 
     // ── Event wiring ─────────────────────────────────────────────────────────
@@ -120,16 +124,25 @@ public partial class MainForm : Form
             await PopulateModelsAsync();
         };
 
-        buttonHelp.Click += (_, _) => ShowHelpAsync();
-		buttonPowershell.Click += (_, _) => OpenPowershell();
-        buttonSummarize.Click += async (_, _) => await SendQuickCommandAsync(
+        menuHelpShow.Click += (_, _) => ShowHelpAsync();
+        menuHelpAbout.Click += (_, _) =>
+        {
+            using var dlg = new AboutDialog();
+            dlg.ShowDialog(this);
+        };
+        menuToolsPowershell.Click += (_, _) => OpenPowershell();
+        menuSessionSummarize.Click += async (_, _) => await SendQuickCommandAsync(
             "Please provide a concise summary of what we've discussed and accomplished so far in this session.");
-        buttonClearOutput.Click += (_, _) => ClearActiveOutput();
-        buttonBackup.Click += async (_, _) => await BackupSessionAsync();
-        buttonRefresh.Click += (_, _) => ShowRefreshMenu();
-        buttonOpenExplorer.Click += (_, _) => OpenExplorer();
-        buttonOpenVSCode.Click += (_, _) => OpenVSCode();
-        buttonSkillTree.Click += (_, _) => EditSkillTree();
+        menuSessionClear.Click += (_, _) => ClearActiveOutput();
+        menuSessionBackup.Click += async (_, _) => await BackupSessionAsync();
+        menuSessionRefreshCompact.Click += async (_, _) => await RunCompactAsync();
+        menuSessionRefreshRestart.Click += async (_, _) => await RunRestartWithSummaryAsync();
+        menuSessionRefreshFresh.Click += async (_, _) => await RunFreshStartAsync();
+        menuToolsExplorer.Click += (_, _) => OpenExplorer();
+        menuToolsVSCode.Click += (_, _) => OpenVSCode();
+        menuSkillsTree.Click += (_, _) => EditSkillTree();
+        menuSkillsListAgents.Click += (_, _) => ShowAgentList();
+        menuSkillsListSkills.Click += (_, _) => ShowSkillList();
 
         checkBoxAutoApprove.CheckedChanged += (_, _) =>
             _copilot.AutoApprove = checkBoxAutoApprove.Checked;
@@ -247,7 +260,8 @@ public partial class MainForm : Form
         // content area is also covered for both selected and unselected tabs.
         var fillRect = bounds;
         fillRect.Inflate(3, 3);
-        fillRect.Height += 4;
+        fillRect.Y      -= 2;   // extend upward to cover the top-edge border
+        fillRect.Height += 6;   // extend downward to cover the tab-to-content seam
         e.Graphics!.SetClip(fillRect);
         e.Graphics.FillRectangle(bgBrush, fillRect);
         e.Graphics.ResetClip();
@@ -815,10 +829,10 @@ public partial class MainForm : Form
             tip   = "Free up context window \u2014 Compact (in place) or Restart with summary";
         }
 
-        var newText = $"{glyph} Refresh \u25be";
-        if (!string.Equals(buttonRefresh.Text, newText, StringComparison.Ordinal))
-            buttonRefresh.Text = newText;
-        toolTipMain.SetToolTip(buttonRefresh, tip);
+        var newText = $"{glyph} Refresh";
+        if (!string.Equals(menuSessionRefresh.Text, newText, StringComparison.Ordinal))
+            menuSessionRefresh.Text = newText;
+        menuSessionRefresh.ToolTipText = tip;
     }
 
     private void PromptAutoRefresh()
@@ -852,35 +866,10 @@ public partial class MainForm : Form
 
     private void ShowRefreshMenu()
     {
-        var menu = new ContextMenuStrip
-        {
-            BackColor = Color.FromArgb(56, 56, 56),
-            ForeColor = Color.FromArgb(218, 218, 218),
-            ShowImageMargin = false,
-        };
-
-        var compact = new ToolStripMenuItem("⚡ Compact (fast, keeps session)")
-        {
-            ToolTipText = "Ask the CLI to summarise history in place. Session ID is preserved.",
-        };
-        compact.Click += async (_, _) => await RunCompactAsync();
-
-        var restart = new ToolStripMenuItem("🔄 Restart with summary (clean window)")
-        {
-            ToolTipText = "Save a Markdown dream file, open a fresh session in this folder, and seed it with the summary.",
-        };
-        restart.Click += async (_, _) => await RunRestartWithSummaryAsync();
-
-        var fresh = new ToolStripMenuItem("🆕 Fresh start (no carry-over)")
-        {
-            ToolTipText = "Discard all context and open a brand-new session in this folder, as if you had just used Open Folder.",
-        };
-        fresh.Click += async (_, _) => await RunFreshStartAsync();
-
-        menu.Items.Add(compact);
-        menu.Items.Add(restart);
-        menu.Items.Add(fresh);
-        menu.Show(buttonRefresh, new Point(0, buttonRefresh.Height));
+        // Programmatic equivalent of the menu drop-down (kept for any callers that
+        // want to surface the same options outside the menu bar). Drops the
+        // submenu open at the cursor.
+        menuSessionRefresh.ShowDropDown();
     }
 
     /// <summary>
@@ -910,9 +899,9 @@ public partial class MainForm : Form
         if (confirm != DialogResult.OK) return;
 
         _refreshInProgress = true;
-        var oldText = buttonRefresh.Text;
-        buttonRefresh.Enabled = false;
-        buttonRefresh.Text = "⏳ Fresh start…";
+        var oldText = menuSessionRefresh.Text;
+        menuSessionRefresh.Enabled = false;
+        menuSessionRefresh.Text = "⏳ Fresh start…";
         SetSendingState(true);
 
         var workingDir = _copilot.WorkingDirectory;
@@ -948,8 +937,8 @@ public partial class MainForm : Form
         }
         finally
         {
-            buttonRefresh.Text = oldText;
-            buttonRefresh.Enabled = true;
+            menuSessionRefresh.Text = oldText;
+            menuSessionRefresh.Enabled = true;
             SetSendingState(false);
             _refreshInProgress = false;
         }
@@ -966,9 +955,9 @@ public partial class MainForm : Form
         }
 
         _refreshInProgress = true;
-        var oldText = buttonRefresh.Text;
-        buttonRefresh.Enabled = false;
-        buttonRefresh.Text = "⏳ Compacting…";
+        var oldText = menuSessionRefresh.Text;
+        menuSessionRefresh.Enabled = false;
+        menuSessionRefresh.Text = "⏳ Compacting…";
         SetSendingState(true);
 
         try
@@ -987,8 +976,8 @@ public partial class MainForm : Form
                     "[Compact failed — falling back to Restart with summary]\r\n\r\n",
                     AppTheme.ColorMeta);
                 _refreshInProgress = false; // RunRestart will reacquire the gate
-                buttonRefresh.Text = oldText;
-                buttonRefresh.Enabled = true;
+                menuSessionRefresh.Text = oldText;
+                menuSessionRefresh.Enabled = true;
                 SetSendingState(false);
                 await RunRestartWithSummaryAsync();
                 return;
@@ -1001,8 +990,8 @@ public partial class MainForm : Form
         }
         finally
         {
-            buttonRefresh.Text = oldText;
-            buttonRefresh.Enabled = true;
+            menuSessionRefresh.Text = oldText;
+            menuSessionRefresh.Enabled = true;
             SetSendingState(false);
             _refreshInProgress = false;
         }
@@ -1069,9 +1058,9 @@ public partial class MainForm : Form
         }
 
         _refreshInProgress = true;
-        var oldText = buttonRefresh.Text;
-        buttonRefresh.Enabled = false;
-        buttonRefresh.Text = "⏳ Handoff…";
+        var oldText = menuSessionRefresh.Text;
+        menuSessionRefresh.Enabled = false;
+        menuSessionRefresh.Text = "⏳ Handoff…";
         SetSendingState(true);
 
         try
@@ -1132,8 +1121,8 @@ public partial class MainForm : Form
         }
         finally
         {
-            buttonRefresh.Text = oldText;
-            buttonRefresh.Enabled = true;
+            menuSessionRefresh.Text = oldText;
+            menuSessionRefresh.Enabled = true;
             SetSendingState(false);
             _refreshInProgress = false;
         }
@@ -1169,8 +1158,8 @@ public partial class MainForm : Form
 
         var filePath = saveDialog.FileName;
 
-        buttonBackup.Enabled = false;
-        buttonBackup.Text = "⏳ Backing up…";
+        menuSessionBackup.Enabled = false;
+        menuSessionBackup.Text = "⏳ Backing up…";
 
         const string backupPrompt =
             """
@@ -1227,8 +1216,8 @@ public partial class MainForm : Form
         }
         finally
         {
-            buttonBackup.Enabled = true;
-            buttonBackup.Text = "💾 Backup";
+            menuSessionBackup.Enabled = true;
+            menuSessionBackup.Text = "💾 Backup...";
             SetSendingState(false);
         }
     }
@@ -1596,7 +1585,70 @@ public partial class MainForm : Form
             lines.Append("\n(click to edit)");
             tip = lines.ToString();
         }
-        toolTipMain.SetToolTip(buttonSkillTree, tip);
+        menuSkillsTree.ToolTipText = tip;
+    }
+
+    private void ShowAgentList()
+    {
+        // Make sure the cache reflects the current Skill Tree even before any
+        // session has been created (or after an edit that has not yet
+        // reconnected).
+        _copilot.RebuildReferenceCache();
+
+        var agents = _copilot.CachedAgents;
+        if (agents.Count == 0)
+        {
+            MessageBox.Show(this,
+                "No custom agents were found in the current Skill Tree, project, or personal (~/.copilot) folders.\r\n\r\n" +
+                "Add an agents/*.md file under any tier folder to surface it here.",
+                "No Agents",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var dlg = ReferenceListDialog.ForAgents(agents);
+        if (dlg.ShowDialog(this) == DialogResult.OK && !string.IsNullOrEmpty(dlg.SelectedName))
+            InsertNamedReferenceAtCursor("agent", dlg.SelectedName!);
+    }
+
+    private void ShowSkillList()
+    {
+        _copilot.RebuildReferenceCache();
+
+        var skills = _copilot.CachedSkills;
+        if (skills.Count == 0)
+        {
+            MessageBox.Show(this,
+                "No skills (skills/*/SKILL.md) were found in the current Skill Tree, project, or personal (~/.copilot) folders.",
+                "No Skills",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var dlg = ReferenceListDialog.ForSkills(skills);
+        if (dlg.ShowDialog(this) == DialogResult.OK && !string.IsNullOrEmpty(dlg.SelectedName))
+            InsertNamedReferenceAtCursor("skill", dlg.SelectedName!);
+    }
+
+    /// <summary>
+    /// Inserts an "@kind:name" token (e.g. "@agent:doublecheck") at the prompt's
+    /// caret position, mirroring the spacing rules used by file/folder attachments
+    /// in <see cref="InsertReferenceAtCursor"/>.
+    /// </summary>
+    private void InsertNamedReferenceAtCursor(string kind, string name)
+    {
+        var reference = $"@{kind}:{name}";
+        var pos  = richTextBoxPrompt.SelectionStart;
+        var text = richTextBoxPrompt.Text;
+
+        if (pos > 0 && !char.IsWhiteSpace(text[pos - 1]))
+            reference = " " + reference;
+
+        reference += " ";
+
+        richTextBoxPrompt.SelectionLength = 0;
+        richTextBoxPrompt.SelectedText    = reference;
+        richTextBoxPrompt.Focus();
     }
 
     // ── Prompt history navigation ─────────────────────────────────────────────

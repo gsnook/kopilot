@@ -116,6 +116,7 @@ public partial class MainForm : Form
             foreach (var path in paths)
                 AddAttachment(path);
 		};
+        AttachPromptContextMenu();
 
         this.Shown += async (_, _) =>
         {
@@ -347,7 +348,9 @@ public partial class MainForm : Form
     private async Task SendPromptAsync(bool recordHistory = true)
     {
         var prompt = richTextBoxPrompt.Text.Trim();
-        if (string.IsNullOrEmpty(prompt)) return;
+        var pastedImages = ExtractEmbeddedImagesToTemp(richTextBoxPrompt.Rtf);
+
+        if (string.IsNullOrEmpty(prompt) && pastedImages.Count == 0) return;
 
         if (recordHistory)
         {
@@ -356,7 +359,7 @@ public partial class MainForm : Form
         }
         richTextBoxPrompt.Clear();
 
-        await DispatchPromptAsync(prompt);
+        await DispatchPromptAsync(prompt, pastedImages);
     }
 
     private async Task StopAsync()
@@ -528,7 +531,7 @@ public partial class MainForm : Form
         await DispatchPromptAsync(prompt);
     }
 
-    private async Task DispatchPromptAsync(string prompt)
+    private async Task DispatchPromptAsync(string prompt, IReadOnlyList<string>? extraAttachments = null)
     {
         _copilot.ActiveMode  = comboBoxMode.SelectedItem?.ToString()  ?? "Standard";
         _copilot.AutoApprove = checkBoxAutoApprove.Checked;
@@ -553,6 +556,8 @@ public partial class MainForm : Form
         try
         {
             var attachmentsCopy = _attachments.ToList();
+            if (extraAttachments is { Count: > 0 })
+                attachmentsCopy.AddRange(extraAttachments);
             await _copilot.SendMessageAsync(prompt, attachmentsCopy);
 
             // Echo user message
@@ -1783,6 +1788,41 @@ public partial class MainForm : Form
         richTextBoxPrompt.Focus();
     }
 
+    /// <summary>
+    /// Builds and attaches a right-click menu to the prompt editor that mirrors
+    /// the most-used reference and skill commands from the menu bar (Add File,
+    /// Add Folder, List Agents, List Skills) so they are reachable without
+    /// leaving the keyboard/cursor focus.
+    /// </summary>
+    private void AttachPromptContextMenu()
+    {
+        var menu = new ContextMenuStrip
+        {
+            BackColor = AppTheme.StatusBar,
+            ForeColor = AppTheme.TextPrimary,
+            Renderer  = new DarkMenuRenderer(),
+        };
+
+        ToolStripMenuItem Item(string text, EventHandler handler)
+        {
+            var item = new ToolStripMenuItem(text)
+            {
+                BackColor = AppTheme.StatusBar,
+                ForeColor = AppTheme.TextPrimary,
+            };
+            item.Click += handler;
+            return item;
+        }
+
+        menu.Items.Add(Item("📄 Add &File...",   ButtonAddFile_Click));
+        menu.Items.Add(Item("📁 Add F&older...", ButtonAddFolder_Click));
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(Item("List &Agents...",   (_, _) => ShowAgentList()));
+        menu.Items.Add(Item("List &Skills...",   (_, _) => ShowSkillList()));
+
+        richTextBoxPrompt.ContextMenuStrip = menu;
+    }
+
     private void RemoveAttachment(string path, Control chip)
     {
         _attachments.Remove(path);
@@ -1790,6 +1830,209 @@ public partial class MainForm : Form
         chip.Dispose();
         if (flowLayoutPanelChips.Controls.Count == 0)
             panelAttachments.Visible = false;
+    }
+
+    /// <summary>
+    /// Scans the prompt RichTextBox's RTF for embedded pictures (pasted or
+    /// dragged-in images), writes each one to "%TEMP%\Kopilot\clip-image-N.*",
+    /// and returns the resulting file paths so the caller can forward them as
+    /// attachments to Copilot. Raw PNG/JPEG payloads are written as-is;
+    /// metafile/DIB payloads are re-encoded to PNG through GDI+.
+    /// </summary>
+    private static IReadOnlyList<string> ExtractEmbeddedImagesToTemp(string rtf)
+    {
+        var results = new List<string>();
+        if (string.IsNullOrEmpty(rtf)) return results;
+
+        var outDir = Path.Combine(Path.GetTempPath(), "Kopilot");
+        Directory.CreateDirectory(outDir);
+
+        int cursor = 0;
+        while (true)
+        {
+            int start = rtf.IndexOf("{\\pict", cursor, StringComparison.Ordinal);
+            if (start < 0) break;
+
+            int end = FindRtfGroupEnd(rtf, start);
+            if (end < 0) break;
+
+            try
+            {
+                var (ext, bytes) = ParseRtfPictGroup(rtf, start, end);
+                if (bytes is { Length: > 0 })
+                {
+                    var path = SaveImageBytes(outDir, ext, bytes);
+                    if (path != null) results.Add(path);
+                }
+            }
+            catch
+            {
+                // Swallow any single-image failure so one broken picture
+                // doesn't block the rest of the send.
+            }
+
+            cursor = end + 1;
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Walks the RTF starting at an opening brace and returns the index of the
+    /// matching closing brace, honouring "\{" and "\}" escape sequences.
+    /// Returns -1 if the group is unterminated.
+    /// </summary>
+    private static int FindRtfGroupEnd(string rtf, int open)
+    {
+        int depth = 0;
+        for (int i = open; i < rtf.Length; i++)
+        {
+            char c = rtf[i];
+            if (c == '\\' && i + 1 < rtf.Length)
+            {
+                // Skip escaped brace; ordinary control words also consume the
+                // next char but they never look like a brace, so this suffices.
+                char next = rtf[i + 1];
+                if (next == '{' || next == '}' || next == '\\') { i++; continue; }
+            }
+            else if (c == '{') depth++;
+            else if (c == '}')
+            {
+                depth--;
+                if (depth == 0) return i;
+            }
+        }
+        return -1;
+    }
+
+    /// <summary>
+    /// Parses a "{\pict ...}" group and returns a preferred extension plus the
+    /// decoded binary payload. Nested option sub-groups (e.g. "{\*\blipuid ...}")
+    /// and control words are skipped so only the hex picture data is collected.
+    /// </summary>
+    private static (string ext, byte[]? bytes) ParseRtfPictGroup(string rtf, int start, int end)
+    {
+        string ext = ".bin";
+        var hex = new System.Text.StringBuilder((end - start) / 2);
+
+        int i = start + 1;
+        while (i < end)
+        {
+            char c = rtf[i];
+
+            if (c == '{')
+            {
+                int inner = FindRtfGroupEnd(rtf, i);
+                if (inner < 0 || inner >= end) break;
+                i = inner + 1;
+                continue;
+            }
+
+            if (c == '\\')
+            {
+                // Read control word: "\<letters>[-]<digits>?" optionally
+                // followed by a single delimiter space.
+                int j = i + 1;
+                if (j < end && (rtf[j] == '{' || rtf[j] == '}' || rtf[j] == '\\'))
+                {
+                    // Escaped literal; not a picture-type marker.
+                    i = j + 1;
+                    continue;
+                }
+                int wordStart = j;
+                while (j < end && char.IsLetter(rtf[j])) j++;
+                string word = rtf.Substring(wordStart, j - wordStart);
+
+                if (word.Length > 0) ext = MatchPictExtension(word) ?? ext;
+
+                if (j < end && (rtf[j] == '-' || char.IsDigit(rtf[j])))
+                {
+                    if (rtf[j] == '-') j++;
+                    while (j < end && char.IsDigit(rtf[j])) j++;
+                }
+                if (j < end && rtf[j] == ' ') j++;
+                i = j;
+                continue;
+            }
+
+            if (IsHexDigit(c)) hex.Append(c);
+            // Any other character (whitespace, newline, CR) is ignored.
+            i++;
+        }
+
+        if (hex.Length < 2 || (hex.Length & 1) != 0) return (ext, null);
+        var bytes = HexToBytes(hex.ToString());
+        return (ext, bytes);
+    }
+
+    private static string? MatchPictExtension(string controlWord) => controlWord switch
+    {
+        "pngblip"                                => ".png",
+        "jpegblip"                               => ".jpg",
+        "emfblip"                                => ".emf",
+        "wmetafile"  or "wmetafile8"             => ".wmf",
+        "dibitmap"   or "dibitmap0"              => ".dib",
+        "wbitmap"    or "wbitmap0"               => ".bmp",
+        _                                        => null,
+    };
+
+    private static bool IsHexDigit(char c) =>
+        (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
+
+    private static byte[] HexToBytes(string hex)
+    {
+        var bytes = new byte[hex.Length / 2];
+        for (int k = 0; k < bytes.Length; k++)
+            bytes[k] = (byte)((HexNibble(hex[k * 2]) << 4) | HexNibble(hex[k * 2 + 1]));
+        return bytes;
+    }
+
+    private static int HexNibble(char c) =>
+        c <= '9' ? c - '0' :
+        c <= 'F' ? c - 'A' + 10 :
+                   c - 'a' + 10;
+
+    /// <summary>
+    /// Writes the picture bytes to a unique "clip-image-N.*" file under the
+    /// provided directory. PNG/JPEG payloads are written verbatim; DIB, WMF,
+    /// EMF, and BMP payloads are re-encoded to PNG so the downstream model
+    /// always receives a format it can read.
+    /// </summary>
+    private static string? SaveImageBytes(string dir, string ext, byte[] bytes)
+    {
+        int next = 1;
+        foreach (var existing in Directory.EnumerateFiles(dir, "clip-image-*.*"))
+        {
+            var name = Path.GetFileNameWithoutExtension(existing);
+            var dash = name.LastIndexOf('-');
+            if (dash >= 0 && int.TryParse(name.AsSpan(dash + 1), out var n) && n >= next)
+                next = n + 1;
+        }
+
+        if (ext is ".png" or ".jpg")
+        {
+            var path = Path.Combine(dir, $"clip-image-{next}{ext}");
+            File.WriteAllBytes(path, bytes);
+            return path;
+        }
+
+        // DIB/WMF/EMF/BMP: transcode to PNG so the attachment is universally
+        // consumable. If the round-trip fails, write the raw bytes with the
+        // original extension as a best-effort fallback.
+        try
+        {
+            using var ms = new MemoryStream(bytes);
+            using var img = Image.FromStream(ms);
+            var pngPath = Path.Combine(dir, $"clip-image-{next}.png");
+            img.Save(pngPath, System.Drawing.Imaging.ImageFormat.Png);
+            return pngPath;
+        }
+        catch
+        {
+            var fallback = Path.Combine(dir, $"clip-image-{next}{ext}");
+            File.WriteAllBytes(fallback, bytes);
+            return fallback;
+        }
     }
 
     // ── Session ───────────────────────────────────────────────────────────────

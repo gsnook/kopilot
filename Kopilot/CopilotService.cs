@@ -471,11 +471,7 @@ public sealed class CopilotService : IAsyncDisposable
         if (attachmentPaths.Count > 0)
         {
             attachments = attachmentPaths
-                .Select(path => (UserMessageAttachment)new UserMessageAttachmentFile
-                {
-                    Path = path,
-                    DisplayName = Path.GetFileName(path),
-                })
+                .Select(BuildAttachment)
                 .ToList();
         }
 
@@ -494,6 +490,50 @@ public sealed class CopilotService : IAsyncDisposable
             await _mainSession!.SendAsync(options);
         }
     }
+
+    /// <summary>
+    /// Builds the SDK attachment for a given path. Images are sent as base64 blob
+    /// attachments with their MIME type (required so the model actually sees the
+    /// picture); everything else is sent as a path-based file attachment.
+    /// </summary>
+    private static UserMessageAttachment BuildAttachment(string path)
+    {
+        var mime = GetImageMimeType(path);
+        if (mime != null && File.Exists(path))
+        {
+            try
+            {
+                var bytes = File.ReadAllBytes(path);
+                return new UserMessageAttachmentBlob
+                {
+                    Data        = Convert.ToBase64String(bytes),
+                    DisplayName = Path.GetFileName(path),
+                    MimeType    = mime,
+                };
+            }
+            catch
+            {
+                // Fall through to a file attachment if we can't read the image.
+            }
+        }
+
+        return new UserMessageAttachmentFile
+        {
+            Path        = path,
+            DisplayName = Path.GetFileName(path),
+        };
+    }
+
+    private static string? GetImageMimeType(string path) =>
+        Path.GetExtension(path).ToLowerInvariant() switch
+        {
+            ".png"          => "image/png",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".gif"          => "image/gif",
+            ".webp"         => "image/webp",
+            ".bmp"          => "image/bmp",
+            _               => null,
+        };
 
     /// <summary>
     /// Recovers from a server-side session expiry without tearing down the CLI transport.

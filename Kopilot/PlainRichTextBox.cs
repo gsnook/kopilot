@@ -56,6 +56,16 @@ internal sealed class PlainRichTextBox : RichTextBox
     {
         if (m.Msg == WM_PASTE || m.Msg == EM_PASTESPECIAL)
         {
+            // Images on the clipboard are allowed through to the native RichEdit
+            // handler so they embed as a visible preview. MainForm extracts them
+            // from the RTF at send-time and forwards them as blob attachments.
+            // Text-only pastes still route through our plain-text path so
+            // formatting (fonts, colors, styles) is stripped as before.
+            if (ClipboardHasImage())
+            {
+                base.WndProc(ref m);
+                return;
+            }
             PastePlainText();
             return;
         }
@@ -64,7 +74,6 @@ internal sealed class PlainRichTextBox : RichTextBox
 
     private void PastePlainText()
     {
-        // Try to get text from the clipboard in order of preference
         string text =
             Clipboard.ContainsText(TextDataFormat.UnicodeText) ? Clipboard.GetText(TextDataFormat.UnicodeText) :
             Clipboard.ContainsText(TextDataFormat.Text)        ? Clipboard.GetText(TextDataFormat.Text) :
@@ -77,6 +86,28 @@ internal sealed class PlainRichTextBox : RichTextBox
         SelectionColor      = ForeColor;
         SelectionBackColor  = BackColor;
         SelectedText        = text;
+    }
+
+    /// <summary>
+    /// Returns true when the clipboard contains picture data in any of the
+    /// formats commonly produced by screen capture tools, browsers, and Office
+    /// apps (CF_BITMAP, CF_DIB, DIBv5, and the "PNG" synthetic format).
+    /// </summary>
+    private static bool ClipboardHasImage()
+    {
+        try
+        {
+            if (Clipboard.ContainsImage())              return true;
+            if (Clipboard.ContainsData("PNG"))          return true;
+            if (Clipboard.ContainsData(DataFormats.Dib))return true;
+            if (Clipboard.ContainsData(DataFormats.Bitmap)) return true;
+            if (Clipboard.ContainsData("DeviceIndependentBitmap")) return true;
+        }
+        catch
+        {
+            // Clipboard access can fail transiently; treat as "no image".
+        }
+        return false;
     }
 
     protected override void OnTextChanged(EventArgs e)

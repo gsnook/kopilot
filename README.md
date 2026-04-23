@@ -52,14 +52,73 @@ Mostly yes. This is a Copilot CLI generated tool to make the Copilot CLI easier 
 
 ### Main Window
 
-The window is split into two panels:
+The window has three horizontal bands:
 
+- **Menu bar** (top) — Session, Skills & Agents, References, Tools, Help
 - **Top panel** — prompt input and session controls
 - **Bottom panel** — streaming output from Copilot
+- **Status bar** — connection, version, agent activity, context meter
+
+---
+
+### Menu Bar
+
+All session-level actions live in the menu bar. Most items have tooltips describing their behaviour.
+
+#### **Session** menu
+
+| Item | Description |
+|---|---|
+| **💾 Backup…** | Ask Copilot to write a Markdown session-resume document to disk. |
+| **📝 Summarize** | Request a summary of the session so far. |
+| **🗑 Clear Output** | Clear the output panel (asks for confirmation). The session itself is not reset. |
+| **💤 Refresh ▸** | Submenu — free up context window. See [Refreshing the Session](#refreshing-the-session). |
+
+The **Refresh** submenu offers:
+
+| Item | What it does |
+|---|---|
+| **⚡ Compact (fast, keeps session)** | In-place history compaction; session ID preserved. |
+| **🔄 Restart with summary (clean window)** | Save a dream file, open a fresh session, seed it with the summary. |
+| **🆕 Fresh start (no carry-over)** | Discard all context; open a brand-new session in the same folder. |
+
+#### **Skills & Agents** menu
+
+| Item | Description |
+|---|---|
+| **List Agents…** | Open the **Agents in Session** picker — all custom agents from the current Skill Tree, project, and personal folders. Selecting one inserts an `@agent:name` reference at the prompt caret. |
+| **List Skills…** | Open the **Skills in Session** picker. Selecting a row inserts `@skill:name` at the prompt caret. |
+| **🌳 Skill Tree…** | Edit the ordered list of folders contributing `skills/` and `agents/` to every session. See [Skill Tree](#skill-tree). |
+
+#### **References** menu
+
+| Item | Description |
+|---|---|
+| **📄 Add File…** | Attach one or more files to the next prompt. |
+| **📁 Add Folder…** | Attach a folder to the next prompt. |
+
+Attached files and folders appear as chips above the output panel and are also inserted as `@relative/path` tokens at the prompt caret.
+
+#### **Tools** menu
+
+| Item | Description |
+|---|---|
+| **⚡ PowerShell** | Open a PowerShell terminal in the current project folder (loads `scripts.ps1` if present). |
+| **📂 File Explorer** | Open File Explorer at the current project folder. |
+| **💻 VS Code** | Launch VS Code in the project folder. (Live IDE pairing — the Copilot CLI's `/ide` command — is not available through the Copilot SDK, so this only opens the editor.) |
+
+#### **Help** menu
+
+| Item | Description |
+|---|---|
+| **❓ Show Help** | Ask Copilot to describe its own capabilities and available tools. |
+| **About Kopilot** | Version, build info, and credits. |
 
 ---
 
 ### Top Toolbar
+
+The controls immediately below the menu bar operate on the **current prompt** and session connection.
 
 | Control | Description |
 |---|---|
@@ -78,21 +137,48 @@ The window is split into two panels:
 The large text area below the toolbar. Type your request here.
 
 - Press **`Ctrl+Enter`** to send.
-- **Drag and drop** files directly onto the box to attach them.
+- **Drag and drop** files or folders directly onto the box to attach them.
 - Use the **▲ / ▼** history buttons on the left edge to navigate previously sent prompts.
+- **Paste images** from the clipboard; they are extracted on send and attached as PNG files under `%TEMP%\Kopilot\`.
+
+#### Right-click context menu
+
+Right-click anywhere inside the prompt box to get the most-used reference commands without leaving the keyboard:
+
+| Item | Action |
+|---|---|
+| **📄 Add File…** | Same as **References ▸ Add File…**. |
+| **📁 Add Folder…** | Same as **References ▸ Add Folder…**. |
+| **List Agents…** | Same as **Skills & Agents ▸ List Agents…**. |
+| **List Skills…** | Same as **Skills & Agents ▸ List Skills…**. |
 
 ---
 
-### Attachments
+### References in the prompt
 
-Located above the output panel:
+Kopilot uses the `@` prefix for all inline references. References are inserted automatically (with surrounding whitespace) at the current caret position when you pick them through a menu, dialog, or drag-and-drop.
 
-| Button | Description |
+| Reference | How to insert | Meaning |
+|---|---|---|
+| `@relative/path/to/file.ext` | References ▸ Add File… · right-click ▸ Add File… · drag-drop | Attach a file. A chip appears above the output. |
+| `@relative/path/to/folder` | References ▸ Add Folder… · right-click ▸ Add Folder… · drag-drop | Attach a folder. A chip appears above the output. |
+| `@agent:name` | Skills & Agents ▸ List Agents… · right-click ▸ List Agents… | Reference a custom agent registered in the current session. |
+| `@skill:name` | Skills & Agents ▸ List Skills… · right-click ▸ List Skills… | Reference a skill discovered in the Skill Tree. |
+
+**Attachment chips.** File and folder references also appear as labelled chips in the attachments strip above the output. Click a chip's **×** to remove both the chip and the corresponding `@path` token from the prompt. A silent attachment (`kopilot-instructions.md`) is sent without a chip or token.
+
+---
+
+### Agents / Skills Picker Dialog
+
+The **Agents in Session** and **Skills in Session** dialogs (opened from the Skills & Agents menu or the right-click menu) show every custom agent / skill visible in the current session:
+
+| Control | Action |
 |---|---|
-| **📄 Add File** | Attach a single file to the next prompt. |
-| **📁 Add Folder** | Attach a folder to the next prompt. |
-
-Attached items appear as labelled chips with a **×** button to remove them before sending.
+| **Double-click** a row | Insert `@agent:name` or `@skill:name` at the prompt caret and close. |
+| **Insert into Prompt** | Same as double-click on the selected row. |
+| **Cancel** | Close the dialog without inserting. |
+| **Right-click ▸ Show in Explorer** | Reveal the underlying agent `.md` file or `skills/<name>/SKILL.md` on disk. |
 
 ---
 
@@ -136,24 +222,6 @@ A block is treated as "oversized" when it overflows the viewport width or exceed
 
 ---
 
-### Quick Commands (bottom bar)
-
-One-click shortcuts for common actions:
-
-| Button | What it does |
-|---|---|
-| **❓ Help** | Ask Copilot to describe its own capabilities and available tools. |
-| **⚡ PowerShell** | Open a PowerShell terminal in the current project folder (loads `scripts.ps1` if present). |
-| **🌳 Skill Tree...** | Edit the list of folders that contribute `skills/` and `agents/` to every Copilot session. See [Skill Tree](#skill-tree). |
-| **📂 Explorer** | Open File Explorer at the current project folder. |
-| **💻 VS Code** | Launch VS Code in the project folder. (Live IDE pairing — the Copilot CLI's `/ide` command — is not available through the Copilot SDK, so this button only opens the editor.) |
-| **📝 Summarize** | Request a summary of the current session from Copilot. |
-| **💤 Refresh** | Free up context: compact the session in place, or restart with a summary. See [Refreshing the Session](#refreshing-the-session). |
-| **🗑 Clear** | Clear the output panel (asks for confirmation). |
-| **💾 Backup** | Ask Copilot to write a Markdown resume file for the current session. |
-
----
-
 ### Status Bar
 
 The bar at the bottom of the window shows:
@@ -168,7 +236,7 @@ The bar at the bottom of the window shows:
 
 ## Refreshing the Session
 
-Long sessions accumulate context until model accuracy degrades. The **💤 Refresh** button offers two ways to reclaim space without losing your place:
+Long sessions accumulate context until model accuracy degrades. The **Session ▸ 💤 Refresh** submenu offers three ways to reclaim space without losing your place:
 
 | Option | What it does | When to use |
 |---|---|---|
@@ -204,7 +272,7 @@ Best suited for large refactors, multi-file generation, or tasks that can be bro
 
 ## Skill Tree
 
-The **🌳 Skill Tree...** button opens a dialog where you can manage an ordered list of folders that contribute reusable assets to every Copilot session Kopilot starts.
+The **Skills & Agents ▸ 🌳 Skill Tree…** menu opens a dialog where you can manage an ordered list of folders that contribute reusable assets to every Copilot session Kopilot starts.
 
 For each folder in the list, when a session is created Kopilot looks for two subfolders:
 
@@ -270,6 +338,9 @@ If Copilot needs clarification mid-task, a dialog will appear with a question an
 |---|---|
 | `Ctrl+Enter` | Send prompt |
 | `Enter` (in input dialog) | Submit answer |
+| `Alt+S` / `Alt+K` / `Alt+R` / `Alt+T` / `Alt+H` | Open Session / Skills & Agents / References / Tools / Help menu |
+
+Menu items with an underlined letter (e.g. **S**ummarize, **B**ackup, List **A**gents) can be triggered with `Alt+<letter>` once their parent menu is open.
 
 ---
 
@@ -277,30 +348,36 @@ If Copilot needs clarification mid-task, a dialog will appear with a question an
 
 ```
 kopilot/
-├── Kopilot/                 # Main WinForms application
-│   ├── MainForm.cs          # Primary window and interaction logic
-│   ├── CopilotService.cs    # Copilot SDK integration
-│   ├── PromptHistory.cs     # Prompt navigation history
-│   ├── KopilotSettings.cs   # Persisted user settings
-│   ├── UpdateChecker.cs     # Self-update check
-│   ├── OutputBlock.cs       # Output-panel block model
-│   ├── AppTheme.cs          # Dark theme color definitions
-│   ├── DarkTabControl.cs    # Owner-drawn dark TabControl
-│   ├── PlainRichTextBox.cs  # Lightweight RichTextBox subclass
+├── Kopilot/                      # Main WinForms application
+│   ├── MainForm.cs               # Primary window and interaction logic
+│   ├── MainForm.Designer.cs      # Menu bar, toolbar, layout
+│   ├── CopilotService.cs         # Copilot SDK integration + reference cache
+│   ├── ReferenceCache.cs         # Agent/skill discovery across tier folders
+│   ├── ReferenceListDialog.cs    # Agents/Skills picker (List Agents/Skills)
+│   ├── SkillTreeDialog.cs        # Skill Tree editor
+│   ├── PromptHistory.cs          # Prompt navigation history
+│   ├── KopilotSettings.cs        # Persisted user settings
+│   ├── UpdateChecker.cs          # Self-update check
+│   ├── OutputBlock.cs            # Output-panel block model
+│   ├── AppTheme.cs               # Dark theme color definitions
+│   ├── DarkTabControl.cs         # Owner-drawn dark TabControl
+│   ├── DarkMenuRenderer.cs       # Dark theme renderer for menus
+│   ├── PlainRichTextBox.cs       # Lightweight RichTextBox subclass
 │   ├── PermissionDialog.cs
 │   ├── UserInputDialog.cs
 │   ├── ReadmePromptDialog.cs
 │   ├── UpdateNotificationDialog.cs
-│   └── web/                 # WebView2 renderer assets
-│       ├── output.html      # Host page loaded by the Rendered tab
-│       ├── output.js        # Streaming renderer + pan/zoom logic
-│       ├── output.css       # Dark theme styles
-│       ├── marked.min.js    # Markdown parser
-│       ├── mermaid.min.js   # Mermaid diagrams
-│       ├── highlight.min.js # Syntax highlighting
+│   ├── AboutDialog.cs
+│   └── web/                      # WebView2 renderer assets
+│       ├── output.html           # Host page loaded by the Rendered tab
+│       ├── output.js             # Streaming renderer + pan/zoom logic
+│       ├── output.css            # Dark theme styles
+│       ├── marked.min.js         # Markdown parser
+│       ├── mermaid.min.js        # Mermaid diagrams
+│       ├── highlight.min.js      # Syntax highlighting
 │       └── hljs-dark.css
 ├── libs/
-│   └── copilot-sdk/         # GitHub Copilot SDK (submodule)
+│   └── copilot-sdk/              # GitHub Copilot SDK (submodule)
 └── Kopilot.sln
 ```
 
@@ -310,9 +387,9 @@ kopilot/
 
 - **Start simple** — open a folder and ask *"What does this project do?"* to orient yourself.
 - **Use Plan mode** for big tasks so you can review the plan before Copilot acts.
-- **Summarize often** — click 📝 Summarize to capture progress before starting a new topic.
+- **Summarize often** — **Session ▸ 📝 Summarize** captures progress before starting a new topic.
 - **Watch the Context meter** — when it goes amber (60%) plan to refresh; at 85% Kopilot will offer to do it for you.
-- **Backup your session** — click 💾 Backup to save a Markdown resume file you can attach to a future session.
-- **Attach context** — drag in relevant files or folders before sending a prompt to give Copilot targeted context.
+- **Backup your session** — **Session ▸ 💾 Backup…** saves a Markdown resume file you can attach to a future session.
+- **Reference anything** — drag files/folders onto the prompt, or right-click the prompt for `List Agents…` / `List Skills…` to insert `@agent:…` / `@skill:…` tokens.
 - **Switch to the Raw tab** if you want to copy unformatted text, or if a rendered block isn't displaying as you expect.
 - **Zoom into diagrams** — for big Mermaid charts, hover and click **Full** (or use the wheel to zoom) so you can read every node.

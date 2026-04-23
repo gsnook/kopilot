@@ -380,36 +380,82 @@ public partial class MainForm : Form
         AppendOutput(
             "1. Click 📂 Open Folder… to connect Copilot to a project directory.\r\n" +
             "2. Type a prompt and press Send (or Ctrl+Enter).\r\n" +
-            "3. Attach files or folders with 📄 / 📁 before sending for extra context.\r\n" +
-            "4. Use ▲ / ▼ to navigate your prompt history.\r\n\r\n",
+            "3. Attach files or folders via the References menu (or right-click the prompt).\r\n" +
+            "4. Use ▲ / ▼ on the left edge of the prompt to navigate history.\r\n\r\n",
             AppTheme.ColorDefault);
 
         AppendOutput("── Toolbar controls ─────────────────────────────────\r\n", AppTheme.ColorMeta);
         AppendOutput(
+            "  Open Folder… – Connect Copilot to a project directory\r\n" +
             "  Model        – Choose the AI model (GPT-4.1, Claude Sonnet/Opus, …)\r\n" +
             "  Mode         – Standard | Plan (plan before acting) | Autopilot (fully autonomous)\r\n" +
             "  Fleet ☐      – Spawn parallel sub-agents for large tasks\r\n" +
             "  Auto-approve – Skip permission prompts; approve all tool operations automatically\r\n" +
+            "  Send         – Submit the current prompt (Ctrl+Enter)\r\n" +
             "  Stop         – Cancel an in-progress response\r\n\r\n",
             AppTheme.ColorDefault);
 
-        AppendOutput("── Quick command buttons ─────────────────────────────\r\n", AppTheme.ColorMeta);
+        AppendOutput("── Menu bar ──────────────────────────────────────────\r\n", AppTheme.ColorMeta);
+
+        AppendOutput("  Session\r\n", AppTheme.ColorMeta);
         AppendOutput(
-            "  ❓ Help       – Show this guide (works without a folder open)\r\n" +
-            "  ⚡ PowerShell – Open terminal in the project folder\r\n" +
-            "  📂 Explorer   – Open File Explorer at the project folder\r\n" +
-            "  💻 VS Code    – Launch VS Code in the project folder\r\n" +
-            "  📝 Summarize  – Ask Copilot for a session summary\r\n" +
-            "  💤 Refresh    – Free context: Compact in place, or Restart with summary\r\n" +
-            "  💾 Backup     – Save a Markdown resume of the session\r\n" +
-            "  🗑 Clear      – Clear the output panel\r\n\r\n",
+            "    💾 Backup…        Save a Markdown resume of the session\r\n" +
+            "    📝 Summarize      Ask Copilot for a session summary\r\n" +
+            "    🗑 Clear Output   Clear the output panel (session not reset)\r\n" +
+            "    💤 Refresh ▸      Free context window:\r\n" +
+            "       ⚡ Compact        In-place compaction; session ID preserved\r\n" +
+            "       🔄 Restart        Save dream file + start fresh session w/ summary\r\n" +
+            "       🆕 Fresh start    Discard all context; new session, same folder\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("  Skills & Agents\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "    List Agents…      Pick a custom agent; inserts @agent:name at caret\r\n" +
+            "    List Skills…      Pick a skill; inserts @skill:name at caret\r\n" +
+            "    🌳 Skill Tree…    Edit folders contributing skills/ and agents/\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("  References\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "    📄 Add File…      Attach one or more files to the next prompt\r\n" +
+            "    📁 Add Folder…    Attach a folder to the next prompt\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("  Tools\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "    ⚡ PowerShell     Open terminal in the project folder\r\n" +
+            "    📂 File Explorer  Open File Explorer at the project folder\r\n" +
+            "    💻 VS Code        Launch VS Code in the project folder\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("  Help\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "    ❓ Show Help      Show this guide (works without a folder open)\r\n" +
+            "    About Kopilot    Version, build info, and credits\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("── Prompt box ────────────────────────────────────────\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "  • Ctrl+Enter          Send the prompt\r\n" +
+            "  • Drag & drop         Drop files or folders onto the box to attach\r\n" +
+            "  • Paste images        Clipboard images are saved and attached on send\r\n" +
+            "  • ▲ / ▼               Navigate prompt history (left edge buttons)\r\n" +
+            "  • Right-click menu    Add File… · Add Folder… · List Agents… · List Skills…\r\n\r\n",
+            AppTheme.ColorDefault);
+
+        AppendOutput("── Reference tokens (inserted at the caret) ──────────\r\n", AppTheme.ColorMeta);
+        AppendOutput(
+            "  @relative/path/file   Attach a file (chip also appears above output)\r\n" +
+            "  @relative/path/folder Attach a folder\r\n" +
+            "  @agent:name           Reference a custom agent\r\n" +
+            "  @skill:name           Reference a skill\r\n\r\n",
             AppTheme.ColorDefault);
 
         AppendOutput("── When Copilot asks permission ──────────────────────\r\n", AppTheme.ColorMeta);
         AppendOutput(
-            "  ✓ Allow          – Approve this one operation\r\n" +
+            "  ✓ Allow           – Approve this one operation\r\n" +
             "  ✓ Approve Similar – Approve all operations of this type for the session\r\n" +
-            "  ✗ Deny           – Reject; Copilot will adjust\r\n\r\n",
+            "  ✗ Deny            – Reject; Copilot will adjust\r\n\r\n",
             AppTheme.ColorDefault);
 
         AppendOutput("── What Copilot can do for you ───────────────────────\r\n", AppTheme.ColorMeta);
@@ -428,90 +474,9 @@ public partial class MainForm : Form
         AppendOutput(
             "  • Use Plan mode for big tasks so you can review before Copilot acts.\r\n" +
             "  • Drag files onto the prompt box to attach them.\r\n" +
-            "  • Click 📝 Summarize often to capture progress.\r\n" +
-            "  • Click 💾 Backup to save a resume you can attach to a future session.\r\n" +
+            "  • Session ▸ 📝 Summarize often to capture progress.\r\n" +
+            "  • Session ▸ 💾 Backup… to save a resume you can attach to a future session.\r\n" +
             "  • Watch the Context meter in the status bar. At 85% Kopilot will offer to refresh.\r\n\r\n",
-            AppTheme.ColorDefault);
-
-        AppendOutput("── Copilot slash commands (/…) ───────────────────────\r\n", AppTheme.ColorMeta);
-
-        AppendOutput("  Conversation\r\n", AppTheme.ColorMeta);
-        AppendOutput(
-            "  /clear, /new [PROMPT]         Start a new conversation\r\n" +
-            "  /compact                       Summarize history to save context window\r\n" +
-            "  /copy                          Copy last response to clipboard\r\n" +
-            "  /diff                          Review changes made in the current directory\r\n" +
-            "  /plan [PROMPT]                 Create an implementation plan before coding\r\n" +
-            "  /undo, /rewind                 Revert last turn and undo file changes\r\n\r\n",
-            AppTheme.ColorDefault);
-
-        AppendOutput("  Session\r\n", AppTheme.ColorMeta);
-        AppendOutput(
-            "  /cwd, /cd [PATH]               Show or change the working directory\r\n" +
-            "  /rename [NAME]                 Rename the current session\r\n" +
-            "  /resume [SESSION-ID]           Switch to a different session\r\n" +
-            "  /session [subcommand]          Show session info and workspace summary\r\n" +
-            "  /tasks                         View and manage background tasks and subagents\r\n" +
-            "  /usage                         Show session usage metrics and statistics\r\n\r\n",
-            AppTheme.ColorDefault);
-
-        AppendOutput("  Agents & Research\r\n", AppTheme.ColorMeta);
-        AppendOutput(
-            "  /agent                         Browse and select available agents\r\n" +
-            "  /delegate [PROMPT]             Delegate task to a remote agent (creates PR)\r\n" +
-            "  /fleet [PROMPT]                Run task in parallel with sub-agents\r\n" +
-            "  /pr [view|create|fix|auto]     Operate on pull requests for the current branch\r\n" +
-            "  /research TOPIC                Deep research with GitHub search and web sources\r\n" +
-            "  /review [PROMPT]               Run the code review agent\r\n\r\n",
-            AppTheme.ColorDefault);
-
-        AppendOutput("  Permissions & Paths\r\n", AppTheme.ColorMeta);
-        AppendOutput(
-            "  /add-dir PATH                  Add directory to allowed file access list\r\n" +
-            "  /allow-all, /yolo              Enable all permissions (tools, paths, URLs)\r\n" +
-            "  /list-dirs                     List all allowed directories\r\n" +
-            "  /reset-allowed-tools           Reset the list of allowed tools\r\n\r\n",
-            AppTheme.ColorDefault);
-
-        AppendOutput("  Tools & Integrations\r\n", AppTheme.ColorMeta);
-        AppendOutput(
-            "  /lsp [show|test|reload|help]   Manage language server configuration\r\n" +
-            "  /mcp [show|add|edit|delete|…]  Manage MCP server configuration\r\n" +
-            "  /plugin [install|list|…]       Manage plugins and plugin marketplaces\r\n" +
-            "  /skills [list|add|remove|…]    Manage agent skills\r\n\r\n",
-            AppTheme.ColorDefault);
-
-        AppendOutput("  Configuration\r\n", AppTheme.ColorMeta);
-        AppendOutput(
-            "  /experimental [on|off|show]    Toggle or show experimental features\r\n" +
-            "  /init                          Initialize Copilot custom instructions\r\n" +
-            "  /instructions                  View and toggle custom instruction files\r\n" +
-            "  /keep-alive [on|busy|NUMBERm]  Prevent the machine from going to sleep\r\n" +
-            "  /model, /models [MODEL]        Select the AI model\r\n" +
-            "  /on-air, /streamer-mode        Toggle streamer mode (hides model names)\r\n" +
-            "  /terminal-setup                Configure terminal for multiline input\r\n" +
-            "  /theme [show|set|list]         View or configure the terminal theme\r\n\r\n",
-            AppTheme.ColorDefault);
-
-        AppendOutput("  Info & Sharing\r\n", AppTheme.ColorMeta);
-        AppendOutput(
-            "  /changelog [SUMMARIZE]         Display the CLI changelog\r\n" +
-            "  /context                       Show context window token usage\r\n" +
-            "  /feedback                      Send feedback about the CLI to GitHub\r\n" +
-            "  /help                          Show CLI built-in help\r\n" +
-            "  /remote                        Enable remote access from GitHub.com / Mobile\r\n" +
-            "  /share [file|gist]             Share session as Markdown file or GitHub gist\r\n" +
-            "  /version                       Display version info and check for updates\r\n\r\n",
-            AppTheme.ColorDefault);
-
-        AppendOutput("  Auth & Lifecycle\r\n", AppTheme.ColorMeta);
-        AppendOutput(
-            "  /login                         Log in to Copilot\r\n" +
-            "  /logout                        Log out of Copilot\r\n" +
-            "  /update                        Update the CLI to the latest version\r\n" +
-            "  /user [show|list|switch]       Manage the current GitHub user\r\n" +
-            "  /restart                       Restart the CLI, preserving the session\r\n" +
-            "  /exit, /quit                   Exit the CLI\r\n\r\n",
             AppTheme.ColorDefault);
     }
 

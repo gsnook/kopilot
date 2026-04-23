@@ -92,7 +92,7 @@ public sealed class CopilotService : IAsyncDisposable
     // Kinds approved for the rest of this session via "Approve Similar"
     private readonly HashSet<string> _approvedKinds = new();
     // Latest SDK-registered slash commands from CommandsChangedEvent (main session only)
-    private CommandsChangedDataCommandsItem[] _cachedSdkCommands = [];
+    private CommandsChangedCommand[] _cachedSdkCommands = [];
     // Status message produced by BuildSystemMessage(); emitted once the session ID is known
     private string? _pendingStatusMessage;
 
@@ -448,11 +448,11 @@ public sealed class CopilotService : IAsyncDisposable
         if (_mainSession == null)
             await CreateMainSessionAsync();
 
-        List<UserMessageDataAttachmentsItem>? attachments = null;
+        List<UserMessageAttachment>? attachments = null;
         if (attachmentPaths.Count > 0)
         {
             attachments = attachmentPaths
-                .Select(path => (UserMessageDataAttachmentsItem)new UserMessageDataAttachmentsItemFile
+                .Select(path => (UserMessageAttachment)new UserMessageAttachmentFile
                 {
                     Path = path,
                     DisplayName = Path.GetFileName(path),
@@ -1306,7 +1306,7 @@ public sealed class CopilotService : IAsyncDisposable
             var args = new UserInputEventArgs
             {
                 Question = request.Question ?? "",
-                Choices = request.Choices,
+                Choices = (IReadOnlyList<string>?)request.Choices,
                 AllowFreeform = request.AllowFreeform ?? true,
             };
 

@@ -258,22 +258,22 @@ public partial class MainForm : Form
     // ── Combo population ──────────────────────────────────────────────────────
 
     // Maps each SDK mode enum value to the display name used throughout the app.
-    private static readonly Dictionary<SessionModeGetResultMode, string> _modeDisplayNames =
+    private static readonly Dictionary<SessionMode, string> _modeDisplayNames =
         new()
         {
-            [SessionModeGetResultMode.Interactive] = "Standard",
-            [SessionModeGetResultMode.Plan]        = "Plan",
-            [SessionModeGetResultMode.Autopilot]   = "Autopilot",
+            [SessionMode.Interactive] = "Standard",
+            [SessionMode.Plan]        = "Plan",
+            [SessionMode.Autopilot]   = "Autopilot",
         };
 
     /// <summary>
-    /// Populates comboBoxMode from the SDK SessionModeGetResultMode enum values,
+    /// Populates comboBoxMode from the SDK SessionMode enum values,
     /// using display names that match the rest of the app (Interactive -> "Standard").
     /// </summary>
     private void PopulateModeCombo()
     {
         comboBoxMode.Items.Clear();
-        foreach (var mode in Enum.GetValues<SessionModeGetResultMode>())
+        foreach (var mode in Enum.GetValues<SessionMode>())
         {
             var display = _modeDisplayNames.TryGetValue(mode, out var name) ? name : mode.ToString();
             comboBoxMode.Items.Add(display);

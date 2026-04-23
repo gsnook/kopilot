@@ -1,3 +1,0 @@
-[submodule "libs/copilot-sdk"]
-	path = libs/copilot-sdk
-	url = https://github.com/github/copilot-sdk

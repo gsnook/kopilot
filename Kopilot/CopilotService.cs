@@ -658,6 +658,14 @@ public sealed class CopilotService : IAsyncDisposable
                 "Never create temporary files in the project root or elsewhere.");
         }
 
+        // Tool resilience directive — always present
+        parts.Add(
+            "TOOL RESILIENCE: If a built-in tool operation (create, edit, view, grep, glob) " +
+            "fails or returns an \"interrupted\" error, immediately notify the user of the failure, " +
+            "then retry the operation using equivalent PowerShell commands " +
+            "(e.g., Set-Content, Add-Content, Get-Content, Get-ChildItem, Select-String). " +
+            "Do not retry the same built-in tool that failed.");
+
         // Tiered instructions: Personal -> SkillTree[*] -> Project
         var loadedTiers = new List<string>();
         foreach (var (label, folder) in GetTierFolders())

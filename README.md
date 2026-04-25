@@ -80,6 +80,7 @@ All session-level actions live in the menu bar. Most items have tooltips describ
 | **📝 Summarize** | Request a summary of the session so far. |
 | **🗑 Clear Output** | Clear the output panel (asks for confirmation). The session itself is not reset. |
 | **💤 Refresh ▸** | Submenu — free up context window. See [Refreshing the Session](#refreshing-the-session). |
+| **📋 Past Sessions…** | Browse all persisted Copilot sessions to resume one or delete one or more. See [Past Sessions](#past-sessions). |
 
 The **Refresh** submenu offers:
 
@@ -257,6 +258,36 @@ When the context meter crosses **85%**, Kopilot automatically prompts you to cho
 
 ---
 
+## Past Sessions
+
+Every Copilot session Kopilot creates is given a stable, human-readable ID of the form `{LeafFolder}-{MM-dd-yyyy-HHmmss}` (e.g. `Kopilot-04-24-2026-211734`) and is persisted by the underlying Copilot SDK. Kopilot also records lightweight metadata about each session — workspace folder, model, mode, fleet flag, auto-approve flag, and creation timestamp — in a global `kopilot-sessions.json` file alongside `kopilot.ini` next to the executable.
+
+Choose **Session ▸ 📋 Past Sessions…** to open the **Past Sessions** dialog, which combines browsing, resuming, and deleting in one place.
+
+| Column | Meaning |
+|---|---|
+| **Session ID** | The custom session identifier. Your currently connected session is suffixed `(current)` and shown muted. |
+| **Workspace** | The folder the session was rooted at. |
+| **Model** | The AI model selected when the session was created. |
+| **Mode** | Standard / Plan / Autopilot. |
+| **Created** | Original creation timestamp. |
+
+The dialog supports multi-selection. The status text in the bottom-left shows the current selection count.
+
+| Button | Behaviour |
+|---|---|
+| **Resume** | Enabled only when exactly one row is selected (and it is not the current session). Switches the **Model**, **Mode**, **Fleet**, and **Auto-approve** toolbar controls back to their original values, opens the recorded workspace folder, reconnects via the SDK's `ResumeSessionAsync`, and replays the full conversation history into both the **Rendered** and **Raw** output tabs. The dialog then closes. Double-clicking a row is equivalent. |
+| **Delete** | Enabled when at least one non-current row is selected. After confirmation, deletes each selected session from the Copilot SDK store and Kopilot's local metadata file, then removes the rows from the list. The dialog stays open so you can keep working. The `Delete` key is a shortcut. This action cannot be undone. |
+| **Close** | Dismiss the dialog. `Esc` is a shortcut. |
+
+The currently connected session is always shown for reference but is protected: neither **Resume** nor **Delete** will operate on it. To move on from the current session, start a new one (or use **Session ▸ 💤 Refresh ▸ 🆕 Fresh start**) first, then return to **Past Sessions** to delete the old one.
+
+> **Pruning.** Whenever the dialog opens, Kopilot cross-references its local metadata against the SDK's live session list and silently drops any stale entries whose underlying session no longer exists.
+
+> **Resume vs. Backup.** Backup files (**Session ▸ 💾 Backup…**) are human-readable Markdown documents you attach to a *new* session as context. Resuming, by contrast, reconnects you to the *same* persisted session with its full transcript and tool history intact.
+
+---
+
 ## Modes
 
 Select the execution mode from the **Mode** dropdown:
@@ -362,6 +393,8 @@ kopilot/
 │   ├── ReferenceCache.cs         # Agent/skill discovery across tier folders
 │   ├── ReferenceListDialog.cs    # Agents/Skills picker (List Agents/Skills)
 │   ├── SkillTreeDialog.cs        # Skill Tree editor
+│   ├── SessionListDialog.cs      # Past Sessions dialog (resume + bulk delete)
+│   ├── SessionMetadataStore.cs   # JSON-backed store for persisted-session metadata
 │   ├── PromptHistory.cs          # Prompt navigation history
 │   ├── KopilotSettings.cs        # Persisted user settings
 │   ├── UpdateChecker.cs          # Self-update check

@@ -59,6 +59,8 @@ partial class MainForm
         menuSessionRefreshCompact = new ToolStripMenuItem();
         menuSessionRefreshRestart = new ToolStripMenuItem();
         menuSessionRefreshFresh = new ToolStripMenuItem();
+        menuSessionSeparator1 = new ToolStripSeparator();
+        menuSessionPast = new ToolStripMenuItem();
         menuSkills = new ToolStripMenuItem();
         menuSkillsListAgents = new ToolStripMenuItem();
         menuSkillsListSkills = new ToolStripMenuItem();
@@ -452,7 +454,7 @@ partial class MainForm
         // 
         // menuSession
         // 
-        menuSession.DropDownItems.AddRange(new ToolStripItem[] { menuSessionBackup, menuSessionSummarize, menuSessionClear, menuSessionRefresh });
+        menuSession.DropDownItems.AddRange(new ToolStripItem[] { menuSessionBackup, menuSessionSummarize, menuSessionClear, menuSessionRefresh, menuSessionSeparator1, menuSessionPast });
         menuSession.ForeColor = Color.FromArgb(218, 218, 218);
         menuSession.Name = "menuSession";
         menuSession.Size = new Size(58, 20);
@@ -521,6 +523,22 @@ partial class MainForm
         menuSessionRefreshFresh.Size = new Size(288, 22);
         menuSessionRefreshFresh.Text = "🆕 &Fresh start (no carry-over)";
         menuSessionRefreshFresh.ToolTipText = "Discard all context and open a brand-new session in this folder, as if you had just used Open Folder.";
+        // 
+        // menuSessionSeparator1
+        // 
+        menuSessionSeparator1.BackColor = Color.FromArgb(56, 56, 56);
+        menuSessionSeparator1.ForeColor = Color.FromArgb(218, 218, 218);
+        menuSessionSeparator1.Name = "menuSessionSeparator1";
+        menuSessionSeparator1.Size = new Size(200, 6);
+        // 
+        // menuSessionPast
+        // 
+        menuSessionPast.BackColor = Color.FromArgb(56, 56, 56);
+        menuSessionPast.ForeColor = Color.FromArgb(218, 218, 218);
+        menuSessionPast.Name = "menuSessionPast";
+        menuSessionPast.Size = new Size(200, 22);
+        menuSessionPast.Text = "📋 &Past Sessions...";
+        menuSessionPast.ToolTipText = "Browse persisted sessions to resume or delete them";
         // 
         // menuSkills
         // 
@@ -762,6 +780,8 @@ partial class MainForm
     private System.Windows.Forms.ToolStripMenuItem menuSessionRefreshCompact;
     private System.Windows.Forms.ToolStripMenuItem menuSessionRefreshRestart;
     private System.Windows.Forms.ToolStripMenuItem menuSessionRefreshFresh;
+    private System.Windows.Forms.ToolStripSeparator menuSessionSeparator1;
+    private System.Windows.Forms.ToolStripMenuItem menuSessionPast;
     private System.Windows.Forms.ToolStripMenuItem menuSkills;
     private System.Windows.Forms.ToolStripMenuItem menuSkillsListAgents;
     private System.Windows.Forms.ToolStripMenuItem menuSkillsListSkills;

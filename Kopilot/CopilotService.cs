@@ -469,6 +469,138 @@ public sealed class CopilotService : IAsyncDisposable
             await CreateMainSessionAsync();
     }
 
+    /// <summary>
+    /// Generates a session ID from the workspace leaf folder name, date and time.
+    /// Format: <c>{LeafFolder}-{MM-dd-yyyy-HHmmss}</c>.
+    /// Example: <c>Kopilot-04-24-2026-204941</c>.
+    /// </summary>
+    public string GenerateSessionId()
+    {
+        var leaf = !string.IsNullOrEmpty(WorkingDirectory)
+            ? new DirectoryInfo(WorkingDirectory).Name
+            : "Kopilot";
+        return $"{leaf}-{DateTime.Now:MM-dd-yyyy-HHmmss}";
+    }
+
+    /// <summary>
+    /// Returns the list of persisted session IDs known to the CLI.
+    /// Starts the client if needed.
+    /// </summary>
+    public async Task<IReadOnlyList<string>> ListPersistedSessionsAsync()
+    {
+        await EnsureStartedAsync();
+        try
+        {
+            var sessions = await _client!.ListSessionsAsync();
+            return sessions.Select(s => s.SessionId).ToList();
+        }
+        catch { return []; }
+    }
+
+    /// <summary>
+    /// Permanently deletes a persisted session from the CLI's storage.
+    /// </summary>
+    public async Task DeletePersistedSessionAsync(string sessionId)
+    {
+        await EnsureStartedAsync();
+        await _client!.DeleteSessionAsync(sessionId);
+    }
+
+    /// <summary>
+    /// Resumes a persisted session as the new main session.
+    /// Tears down any existing main session first.
+    /// </summary>
+    public async Task ResumePersistedSessionAsync(string sessionId)
+    {
+        await EnsureStartedAsync();
+
+        // Tear down existing main session if any
+        if (_mainSession != null)
+        {
+            await _mainSession.DisposeAsync();
+            _sessions.Remove(_mainSession.SessionId);
+            _mainSession = null;
+        }
+        _approvedKinds.Clear();
+        _currentInputTokens = 0;
+
+        var agents    = LoadTierAgents();
+        var skillDirs = LoadTierSkillDirectories();
+
+        var session = await _client!.ResumeSessionAsync(sessionId, new ResumeSessionConfig
+        {
+            Model = ActiveModel,
+            Streaming = true,
+            OnPermissionRequest = BuildPermissionHandler(),
+            OnUserInputRequest = BuildUserInputHandler(),
+            SystemMessage = BuildSystemMessage(),
+        });
+
+        _mainSession = session;
+        _sessions[session.SessionId] = session;
+        session.On(evt => HandleSessionEvent(session.SessionId, evt));
+
+        if (FleetMode)
+        {
+            try
+            {
+#pragma warning disable GHCP001
+                var fleetResult = await session.Rpc.Fleet.StartAsync(
+                    prompt: WorkingDirectory != null ? BuildFleetScopeDirective() : null);
+#pragma warning restore GHCP001
+                if (!fleetResult.Started)
+                    throw new InvalidOperationException(
+                        "Fleet mode could not be activated.");
+            }
+            catch
+            {
+                _sessions.Remove(session.SessionId);
+                _mainSession = null;
+                try { await session.DisposeAsync(); } catch { }
+                throw;
+            }
+        }
+
+        SessionCreated?.Invoke(this, new SessionEventArgs
+        {
+            SessionId = session.SessionId,
+            IsSubAgent = false,
+        });
+        EmitPendingStatus(session.SessionId);
+    }
+
+    /// <summary>
+    /// Retrieves the conversation history from the current main session.
+    /// Returns an empty list when no session exists or on error.
+    /// </summary>
+    public async Task<IReadOnlyList<(string Type, string Content)>> GetSessionMessagesAsync()
+    {
+        if (_mainSession == null) return [];
+        try
+        {
+            var messages = await _mainSession.GetMessagesAsync();
+            var result = new List<(string, string)>();
+            foreach (var evt in messages)
+            {
+                switch (evt)
+                {
+                    case UserMessageEvent user
+                        when !string.IsNullOrEmpty(user.Data.Content):
+                        result.Add(("user", user.Data.Content));
+                        break;
+                    case AssistantMessageEvent asst
+                        when !string.IsNullOrEmpty(asst.Data.Content):
+                        result.Add(("assistant", asst.Data.Content));
+                        break;
+                }
+            }
+            return result;
+        }
+        catch { return []; }
+    }
+
+    public string? MainSessionId => _mainSession?.SessionId;
+
     public async Task SendMessageAsync(string prompt, IReadOnlyList<string> attachmentPaths)
     {
         await EnsureStartedAsync();
@@ -596,6 +728,7 @@ public sealed class CopilotService : IAsyncDisposable
 
         var session = await _client!.CreateSessionAsync(new SessionConfig
         {
+            SessionId = GenerateSessionId(),
             Model = ActiveModel,
             Streaming = true,
             OnPermissionRequest = BuildPermissionHandler(),

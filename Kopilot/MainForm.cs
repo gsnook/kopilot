@@ -73,6 +73,7 @@ public partial class MainForm : Form
     private string? _pendingHandoffReason = null;
     private const int AutoRefreshThresholdPercent = 85;
     private KopilotSettings _settings = new();
+    private readonly SessionMetadataStore _sessionStore = new();
 
 
     private readonly string? _startupFolder;
@@ -148,6 +149,7 @@ public partial class MainForm : Form
         menuSessionRefreshCompact.Click += async (_, _) => await RunCompactAsync();
         menuSessionRefreshRestart.Click += async (_, _) => await RunRestartWithSummaryAsync();
         menuSessionRefreshFresh.Click += async (_, _) => await RunFreshStartAsync();
+        menuSessionPast.Click += async (_, _) => await BrowsePastSessionsAsync();
         menuToolsExplorer.Click += (_, _) => OpenExplorer();
         menuToolsVSCode.Click += (_, _) => OpenVSCode();
         menuSkillsTree.Click += (_, _) => EditSkillTree();
@@ -1521,6 +1523,294 @@ public partial class MainForm : Form
         }
     }
 
+    // ── Session persistence ──────────────────────────────────────────────────
+
+    /// <summary>
+    /// Records the current UI settings against the given session ID so the
+    /// session can be restored with the correct workspace, model, and mode.
+    /// </summary>
+    private void SaveSessionMetadata(string sessionId)
+    {
+        _sessionStore.Save(new SessionMetadataEntry
+        {
+            SessionId       = sessionId,
+            WorkspaceFolder = _copilot.WorkingDirectory ?? "",
+            Model           = comboBoxModel.SelectedItem?.ToString() ?? "",
+            Mode            = comboBoxMode.SelectedItem?.ToString()  ?? "Standard",
+            Fleet           = checkBoxFleet.Checked,
+            AutoApprove     = checkBoxAutoApprove.Checked,
+            CreatedAt       = DateTime.Now,
+        });
+    }
+
+    /// <summary>
+    /// Builds the list of rows for the session picker dialog by merging SDK-known
+    /// sessions with locally stored metadata.
+    /// </summary>
+    private async Task<List<SessionListDialog.SessionRow>> BuildSessionRowsAsync()
+    {
+        // Start the client if needed (but don't require a workspace)
+        await _copilot.EnsureStartedAsync();
+        var liveIds = await _copilot.ListPersistedSessionsAsync();
+        var liveSet = new HashSet<string>(liveIds, StringComparer.Ordinal);
+
+        // Prune stale metadata entries
+        _sessionStore.Prune(liveSet);
+
+        var rows = new List<SessionListDialog.SessionRow>();
+        foreach (var id in liveIds)
+        {
+            var meta = _sessionStore.Find(id);
+            rows.Add(new SessionListDialog.SessionRow
+            {
+                SessionId = id,
+                Workspace = meta?.WorkspaceFolder ?? "",
+                Model     = meta?.Model ?? "",
+                Mode      = meta?.Mode ?? "",
+                CreatedAt = meta?.CreatedAt ?? default,
+                Metadata  = meta,
+            });
+        }
+
+        // Most recent first
+        rows.Sort((a, b) => b.CreatedAt.CompareTo(a.CreatedAt));
+        return rows;
+    }
+
+    private async Task BrowsePastSessionsAsync()
+    {
+        List<SessionListDialog.SessionRow> rows;
+        try
+        {
+            rows = await BuildSessionRowsAsync();
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this,
+                $"Could not list sessions:\r\n\r\n{ex.Message}",
+                "Session List Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+
+        if (rows.Count == 0)
+        {
+            MessageBox.Show(this,
+                "No persisted sessions found.",
+                "Past Sessions", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        using var dialog = new SessionListDialog(
+            rows,
+            _mainSessionId,
+            DeleteSessionsFromDialogAsync);
+
+        var result = dialog.ShowDialog(this);
+
+        if (result == DialogResult.OK
+            && dialog.ResumeSelected is { } resumeRow)
+        {
+            await ResumePersistedSessionAsync(resumeRow.SessionId, resumeRow.Metadata);
+        }
+    }
+
+    /// <summary>
+    /// Delete callback handed to <see cref="SessionListDialog"/>. Returns the
+    /// list of session IDs that failed to delete (empty on full success).
+    /// </summary>
+    private async Task<IReadOnlyList<string>> DeleteSessionsFromDialogAsync(
+        IReadOnlyList<string> ids)
+    {
+        var failed = new List<string>();
+        int deleted = 0;
+        foreach (var id in ids)
+        {
+            try
+            {
+                await _copilot.DeletePersistedSessionAsync(id);
+                _sessionStore.Remove(id);
+                deleted++;
+            }
+            catch (Exception ex)
+            {
+                failed.Add(id);
+                AppendOutput($"[Failed to delete {id}: {ex.Message}]\r\n", AppTheme.ColorError);
+            }
+        }
+
+        if (deleted > 0)
+        {
+            AppendOutput(
+                $"[Deleted {deleted} session{(deleted == 1 ? "" : "s")}]\r\n\r\n",
+                AppTheme.ColorMeta);
+        }
+
+        return failed;
+    }
+
+    private async Task ResumePersistedSessionAsync(
+        string sessionId, SessionMetadataEntry? metadata)
+    {
+        SetSendingState(true);
+
+        try
+        {
+            // Determine workspace folder
+            var workspace = metadata?.WorkspaceFolder;
+            if (string.IsNullOrEmpty(workspace) || !Directory.Exists(workspace))
+            {
+                // If metadata has no workspace or it doesn't exist, ask the user
+                using var folderDlg = new FolderBrowserDialog
+                {
+                    Description = "Select the workspace folder for this session",
+                    UseDescriptionForTitle = true,
+                    SelectedPath = workspace ?? "",
+                };
+                if (folderDlg.ShowDialog(this) != DialogResult.OK)
+                {
+                    SetSendingState(false);
+                    return;
+                }
+                workspace = folderDlg.SelectedPath;
+            }
+
+            // Restore UI settings from metadata before connecting
+            if (metadata != null)
+            {
+                // Restore model
+                if (!string.IsNullOrEmpty(metadata.Model))
+                {
+                    var modelIdx = comboBoxModel.Items.Cast<string>()
+                        .Select((m, i) => (m, i))
+                        .Where(x => x.m.Equals(metadata.Model, StringComparison.OrdinalIgnoreCase))
+                        .Select(x => (int?)x.i)
+                        .FirstOrDefault();
+                    if (modelIdx.HasValue)
+                        comboBoxModel.SelectedIndex = modelIdx.Value;
+                }
+
+                // Restore mode
+                if (!string.IsNullOrEmpty(metadata.Mode))
+                {
+                    var modeIdx = comboBoxMode.Items.Cast<string>()
+                        .Select((m, i) => (m, i))
+                        .Where(x => x.m.Equals(metadata.Mode, StringComparison.OrdinalIgnoreCase))
+                        .Select(x => (int?)x.i)
+                        .FirstOrDefault();
+                    if (modeIdx.HasValue)
+                        comboBoxMode.SelectedIndex = modeIdx.Value;
+                }
+
+                // Restore fleet and auto-approve
+                checkBoxFleet.Checked       = metadata.Fleet;
+                checkBoxAutoApprove.Checked = metadata.AutoApprove;
+            }
+
+            // Tear down existing connection and reconnect with the session's workspace
+            if (_copilot.IsConnected)
+            {
+                await _copilot.DisposeAsync();
+                _copilot.Reset();
+            }
+
+            ResetSessionTrackingState();
+            _copilot.WorkingDirectory = workspace;
+            buttonOpenFolder.Enabled = false;
+            toolStripStatusLabelSession.Text = workspace;
+            UpdateTitleBar(workspace);
+
+            // Sync UI state to service
+            _copilot.ActiveMode  = comboBoxMode.SelectedItem?.ToString() ?? "Standard";
+            _copilot.AutoApprove = checkBoxAutoApprove.Checked;
+            _copilot.FleetMode   = checkBoxFleet.Checked;
+
+            AppendOutput($"\r\n📋 Resuming session: {sessionId}\r\n\r\n", AppTheme.ColorMeta);
+
+            // Resume the persisted session (instead of creating a new one)
+            await _copilot.ResumePersistedSessionAsync(sessionId);
+
+            var version = await _copilot.GetVersionAsync();
+            if (!string.IsNullOrEmpty(version))
+                toolStripStatusLabelVersion.Text = $"v{version}";
+
+            // Replay conversation history into the output panel
+            await ReplaySessionHistoryAsync();
+
+            AppendOutput("─────────── session resumed ───────────\r\n\r\n", AppTheme.ColorMeta);
+        }
+        catch (Exception ex)
+        {
+            AppendOutput($"\r\n❌ Resume failed: {ex.Message}\r\n\r\n", AppTheme.ColorError);
+            MessageBox.Show(this,
+                $"Failed to resume session:\r\n\r\n{ex.Message}",
+                "Resume Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            buttonOpenFolder.Enabled = true;
+            SetSendingState(false);
+        }
+    }
+
+    /// <summary>
+    /// Fetches the conversation history from the resumed session and replays
+    /// it into both the Raw and Rendered output panels so the user can see
+    /// what was discussed previously.
+    /// </summary>
+    private async Task ReplaySessionHistoryAsync()
+    {
+        var messages = await _copilot.GetSessionMessagesAsync();
+        if (messages.Count == 0) return;
+
+        AppendOutput("[Restoring conversation history...]\r\n\r\n", AppTheme.ColorMeta);
+
+        foreach (var (type, content) in messages)
+        {
+            switch (type.ToLowerInvariant())
+            {
+                case "user":
+                    AppendOutput($"\U0001f464 You: {Truncate(content, 500)}\r\n\r\n",
+                        AppTheme.ColorUser);
+                    var userBlock = new OutputBlock(BlockKind.User)
+                    {
+                        Label = "\U0001f464 You:",
+                        Content = Truncate(content, 500),
+                        IsComplete = true,
+                    };
+                    _outputBlocks.Add(userBlock);
+                    WebViewAppendBlock(userBlock);
+                    break;
+
+                case "assistant":
+                    AppendOutput($"\U0001f916 Assistant:\r\n{content}\r\n\r\n",
+                        AppTheme.ColorAssistant);
+                    var assistantBlock = new OutputBlock(BlockKind.Assistant)
+                    {
+                        Label = "\U0001f916 Assistant:",
+                        Content = content,
+                        IsComplete = true,
+                    };
+                    _outputBlocks.Add(assistantBlock);
+                    WebViewAppendBlock(assistantBlock);
+                    break;
+
+                default:
+                    // Tool calls, system messages, etc. — show as meta
+                    if (!string.IsNullOrWhiteSpace(content))
+                    {
+                        AppendOutput($"[{type}] {Truncate(content, 200)}\r\n",
+                            AppTheme.ColorMeta);
+                    }
+                    break;
+            }
+        }
+
+        AppendOutput("\r\n", AppTheme.ColorMeta);
+    }
+
+    private static string Truncate(string s, int max) =>
+        s.Length <= max ? s : s[..max] + "...";
+
     // ── Skill Tree configuration ──────────────────────────────────────────────
 
     private void EditSkillTree()
@@ -2021,6 +2311,7 @@ public partial class MainForm : Form
         if (!isSubAgent)
         {
             _mainSessionId = sessionId;
+            SaveSessionMetadata(sessionId);
         }
         else
         {

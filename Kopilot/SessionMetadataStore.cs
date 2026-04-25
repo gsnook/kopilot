@@ -29,6 +29,14 @@ internal sealed class SessionMetadataEntry
 
 	[JsonPropertyName("createdAt")]
 	public DateTime CreatedAt { get; set; }
+
+	/// <summary>
+	/// Brief human-readable description of the session, typically the first
+	/// user prompt truncated to a sentence or two. Shown in the Past Sessions
+	/// list so the user can recognise sessions at a glance.
+	/// </summary>
+	[JsonPropertyName("description")]
+	public string Description { get; set; } = "";
 }
 
 /// <summary>

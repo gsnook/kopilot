@@ -63,7 +63,6 @@ public partial class MainForm : Form
     // never rely on the count being exact across queued sends.
     private int _pendingCount = 0;
     private bool _reconnecting = false; // true while an automatic reconnect is in progress
-    private bool _skipCloseBackupPrompt = false; // set after backup-on-close completes
     private bool _autoRefreshPromptShown = false; // suppresses the 85% nag once per session
     private bool _refreshInProgress = false; // gate to prevent overlapping Compact/Restart calls
     private bool _cliUpdateChecked = false; // ensures the npm CLI check runs only once per session
@@ -145,7 +144,6 @@ public partial class MainForm : Form
         menuSessionSummarize.Click += async (_, _) => await SendQuickCommandAsync(
             "Please provide a concise summary of what we've discussed and accomplished so far in this session.");
         menuSessionClear.Click += (_, _) => ClearActiveOutput();
-        menuSessionBackup.Click += async (_, _) => await BackupSessionAsync();
         menuSessionRefreshCompact.Click += async (_, _) => await RunCompactAsync();
         menuSessionRefreshRestart.Click += async (_, _) => await RunRestartWithSummaryAsync();
         menuSessionRefreshFresh.Click += async (_, _) => await RunFreshStartAsync();
@@ -410,13 +408,13 @@ public partial class MainForm : Form
 
         AppendOutput("  Session\r\n", AppTheme.ColorMeta);
         AppendOutput(
-            "    💾 Backup…        Save a Markdown resume of the session\r\n" +
             "    📝 Summarize      Ask Copilot for a session summary\r\n" +
             "    🗑 Clear Output   Clear the output panel (session not reset)\r\n" +
             "    💤 Refresh ▸      Free context window:\r\n" +
             "       ⚡ Compact        In-place compaction; session ID preserved\r\n" +
             "       🔄 Restart        Save dream file + start fresh session w/ summary\r\n" +
-            "       🆕 Fresh start    Discard all context; new session, same folder\r\n\r\n",
+            "       🆕 Fresh start    Discard all context; new session, same folder\r\n" +
+            "    📋 Past Sessions… Browse persisted sessions to resume or delete\r\n\r\n",
             AppTheme.ColorDefault);
 
         AppendOutput("  Skills & Agents\r\n", AppTheme.ColorMeta);
@@ -486,7 +484,7 @@ public partial class MainForm : Form
             "  • Use Plan mode for big tasks so you can review before Copilot acts.\r\n" +
             "  • Drag files onto the prompt box to attach them.\r\n" +
             "  • Session ▸ 📝 Summarize often to capture progress.\r\n" +
-            "  • Session ▸ 💾 Backup… to save a resume you can attach to a future session.\r\n" +
+            "  • Session ▸ 📋 Past Sessions… to resume an earlier conversation.\r\n" +
             "  • Watch the Context meter in the status bar. At 85% Kopilot will offer to refresh.\r\n\r\n",
             AppTheme.ColorDefault);
     }
@@ -539,6 +537,7 @@ public partial class MainForm : Form
             // Echo user message
             if (_mainSessionId != null)
             {
+                SetSessionDescriptionIfEmpty(_mainSessionId, prompt);
                 AppendOutput($"\U0001f464 You: {prompt}\r\n\r\n", AppTheme.ColorUser);
                 var userBlock = new OutputBlock(BlockKind.User)
                 {
@@ -856,8 +855,8 @@ public partial class MainForm : Form
     /// <summary>
     /// Discards the current session entirely — no summary, no seed — and opens
     /// a fresh session rooted at the same folder.  Behaves like clicking
-    /// Open Folder on the existing path: reconnects, then offers to load any
-    /// backup files and to read the project's README.
+    /// Open Folder on the existing path: reconnects, then offers to read the
+    /// project's README.
     /// </summary>
     private async Task RunFreshStartAsync()
     {
@@ -872,7 +871,7 @@ public partial class MainForm : Form
         var confirm = MessageBox.Show(this,
             "Start a brand-new session in this folder?\r\n\r\n" +
             "All current conversation context will be discarded — no summary will be carried over.\r\n\r\n" +
-            "You will be offered the chance to load a backup file and to have the README read, " +
+            "You will be offered the chance to have the README read, " +
             "just like opening the folder fresh.",
             "Fresh Start", MessageBoxButtons.OKCancel, MessageBoxIcon.Warning,
             MessageBoxDefaultButton.Button2);
@@ -907,7 +906,6 @@ public partial class MainForm : Form
             AppendOutput("─────────── session refreshed ───────────\r\n\r\n", AppTheme.ColorMeta);
             _autoRefreshPromptShown = false;
 
-            await OfferLoadBackupAsync(workingDir);
             await OfferReadReadmeAsync(workingDir);
         }
         catch (Exception ex)
@@ -1109,100 +1107,6 @@ public partial class MainForm : Form
         }
     }
 
-    private async Task BackupSessionAsync()
-    {
-        if (!_copilot.IsConnected || _mainSessionId == null)
-        {
-            MessageBox.Show("No active session to back up. Open a folder and send at least one message first.",
-                "Nothing to Back Up", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
-
-        // Ask user where to save
-        var kopilotDir = _copilot.WorkingDirectory != null
-            ? Path.Combine(_copilot.WorkingDirectory, ".kopilot")
-            : null;
-        var backupInitialDir = kopilotDir != null && Directory.Exists(kopilotDir)
-            ? kopilotDir
-            : _copilot.WorkingDirectory ?? Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments);
-
-        using var saveDialog = new SaveFileDialog
-        {
-            Title = "Save Session Backup",
-            Filter = "Markdown files (*.md)|*.md|All files (*.*)|*.*",
-            DefaultExt = "md",
-            FileName = $"copilot-session-{DateTime.Now:yyyy-MM-dd-HHmm}.md",
-            InitialDirectory = backupInitialDir,
-        };
-
-        if (saveDialog.ShowDialog(this) != DialogResult.OK) return;
-
-        var filePath = saveDialog.FileName;
-
-        menuSessionBackup.Enabled = false;
-        menuSessionBackup.Text = "⏳ Backing up…";
-
-        const string backupPrompt =
-            """
-            Write a brief session-resume note in Markdown — use ONLY what is already in our conversation history. Do NOT use any tools, do NOT read any files or directories.
-
-            Structure it as:
-
-            # Session Resume
-
-            ## Goal
-            One or two sentences: what we set out to accomplish.
-
-            ## What Was Done
-            Short bullet list of the key things completed or decided this session.
-
-            ## Current State
-            One paragraph describing exactly where things stand right now.
-
-            ## Next Step
-            The single most important thing to do when resuming.
-
-            ## Context to Remember
-            Any non-obvious decisions, constraints, or gotchas a new session needs to know.
-
-            Keep the whole document under one page. Draw entirely from our conversation — do not invoke tools.
-            """;
-
-        try
-        {
-            SetSendingState(true);
-
-            // Echo the backup request in the output
-            AppendOutput("💾 Generating session backup document…\r\n\r\n", AppTheme.ColorMeta);
-
-            var markdown = await _copilot.SendAndCaptureResponseAsync(backupPrompt, TimeSpan.FromMinutes(5));
-
-            var model = comboBoxModel.SelectedItem?.ToString() ?? string.Empty;
-            var mode  = comboBoxMode.SelectedItem?.ToString()  ?? string.Empty;
-            var metadata =
-                $"\r\n<!-- kopilot-model: {model} -->\r\n" +
-                $"<!-- kopilot-mode: {mode} -->\r\n";
-
-            await File.WriteAllTextAsync(filePath, markdown + metadata);
-
-            AppendOutput($"[Backup saved to: {filePath}]\r\n\r\n", AppTheme.ColorMeta);
-
-            MessageBox.Show($"Session backup saved to:\n{filePath}",
-                "Backup Complete", MessageBoxButtons.OK, MessageBoxIcon.Information);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Backup failed:\n\n{ex.Message}",
-                "Backup Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
-        }
-        finally
-        {
-            menuSessionBackup.Enabled = true;
-            menuSessionBackup.Text = "💾 Backup...";
-            SetSendingState(false);
-        }
-    }
-
     /// <summary>
     /// When a workspace folder is opened, look for README.md (preferred) then
     /// README.txt in the project root. If found, prompt the user for permission
@@ -1288,146 +1192,6 @@ public partial class MainForm : Form
         }
     }
 
-    private async Task OfferLoadBackupAsync(string projectRoot)
-    {
-        var kopilotDir = Path.Combine(projectRoot, ".kopilot");
-        if (!Directory.Exists(kopilotDir)) return;
-
-        var newest = Directory.GetFiles(kopilotDir, "*.md")
-            .OrderByDescending(f => File.GetLastWriteTimeUtc(f))
-            .FirstOrDefault();
-
-        if (newest == null) return;
-
-        var fileName = Path.GetFileName(newest);
-        var modified = File.GetLastWriteTime(newest);
-
-        string content;
-        try
-        {
-            content = await File.ReadAllTextAsync(newest);
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Could not read backup file:\r\n\r\n{ex.Message}",
-                "Load Failed", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return;
-        }
-
-        var goalSummary = ExtractGoalSummary(content);
-        var goalLine = string.IsNullOrWhiteSpace(goalSummary)
-            ? string.Empty
-            : $"  Goal: {goalSummary}\r\n";
-
-        var (savedModel, savedMode) = ExtractBackupSettings(content);
-        var modelLine = string.IsNullOrWhiteSpace(savedModel) ? string.Empty : $"  Model: {savedModel}\r\n";
-        var modeLine  = string.IsNullOrWhiteSpace(savedMode)  ? string.Empty : $"  Mode:  {savedMode}\r\n";
-
-        var result = MessageBox.Show(
-            $"A session backup was found in .kopilot:\r\n\r\n" +
-            $"  {fileName}\r\n" +
-            $"  Saved: {modified:g}\r\n" +
-            goalLine + modelLine + modeLine + "\r\n" +
-            "Load it to continue the previous session?",
-            "Resume Previous Session?",
-            MessageBoxButtons.YesNo,
-            MessageBoxIcon.Question,
-            MessageBoxDefaultButton.Button1);
-
-        if (result != DialogResult.Yes) return;
-
-        // Restore model selection if the saved model is still available.
-        if (!string.IsNullOrWhiteSpace(savedModel))
-        {
-            var modelIdx = comboBoxModel.Items.Cast<string>()
-                .Select((m, i) => (m, i))
-                .Where(x => x.m.Equals(savedModel, StringComparison.OrdinalIgnoreCase))
-                .Select(x => (int?)x.i)
-                .FirstOrDefault();
-            if (modelIdx.HasValue)
-                comboBoxModel.SelectedIndex = modelIdx.Value;
-        }
-
-        // Restore mode selection if the saved mode is still available.
-        if (!string.IsNullOrWhiteSpace(savedMode))
-        {
-            var modeIdx = comboBoxMode.Items.Cast<string>()
-                .Select((m, i) => (m, i))
-                .Where(x => x.m.Equals(savedMode, StringComparison.OrdinalIgnoreCase))
-                .Select(x => (int?)x.i)
-                .FirstOrDefault();
-            if (modeIdx.HasValue)
-                comboBoxMode.SelectedIndex = modeIdx.Value;
-        }
-
-        AppendOutput($"[Loading session backup: {fileName}]\r\n\r\n", AppTheme.ColorMeta);
-
-        await DispatchPromptAsync(
-            "I am providing a session resume document from our last session. " +
-            "Please read it and confirm you understand the context so we can continue where we left off.\r\n\r\n" +
-            content);
-    }
-
-    private static string ExtractGoalSummary(string markdown)
-    {
-        if (string.IsNullOrEmpty(markdown)) return string.Empty;
-
-        var lines = markdown.Replace("\r\n", "\n").Split('\n');
-        int start = -1;
-        for (int i = 0; i < lines.Length; i++)
-        {
-            var trimmed = lines[i].TrimStart();
-            if (trimmed.StartsWith("##", StringComparison.Ordinal) &&
-                trimmed.TrimStart('#').Trim().Equals("Goal", StringComparison.OrdinalIgnoreCase))
-            {
-                start = i + 1;
-                break;
-            }
-        }
-
-        if (start < 0) return string.Empty;
-
-        var body = new System.Text.StringBuilder();
-        for (int i = start; i < lines.Length; i++)
-        {
-            if (lines[i].TrimStart().StartsWith("#", StringComparison.Ordinal)) break;
-            body.Append(lines[i].Trim()).Append(' ');
-        }
-
-        var text = System.Text.RegularExpressions.Regex.Replace(body.ToString(), @"\s+", " ").Trim();
-        if (text.Length == 0) return string.Empty;
-
-        // Take first one or two sentences.
-        var matches = System.Text.RegularExpressions.Regex.Matches(text, @"[^.!?]+[.!?]+");
-        if (matches.Count == 0) return text;
-
-        var first = matches[0].Value.Trim();
-        if (matches.Count == 1) return first;
-        var second = matches[1].Value.Trim();
-        return (first + " " + second).Trim();
-    }
-
-    /// <summary>
-    /// Extracts the kopilot-model and kopilot-mode values written as HTML comments
-    /// at the end of a backup file, e.g. &lt;!-- kopilot-model: claude-opus-4.7 --&gt;.
-    /// Returns empty strings for any value that is absent.
-    /// </summary>
-    private static (string model, string mode) ExtractBackupSettings(string markdown)
-    {
-        var modelMatch = System.Text.RegularExpressions.Regex.Match(
-            markdown, @"<!--\s*kopilot-model:\s*(.+?)\s*-->",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        var modeMatch = System.Text.RegularExpressions.Regex.Match(
-            markdown, @"<!--\s*kopilot-mode:\s*(.+?)\s*-->",
-            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
-
-        return (
-            modelMatch.Success ? modelMatch.Groups[1].Value.Trim() : string.Empty,
-            modeMatch.Success  ? modeMatch.Groups[1].Value.Trim()  : string.Empty
-        );
-    }
-
     private async Task OpenFolderAndConnectAsync()
     {
         using var dialog = new FolderBrowserDialog
@@ -1505,8 +1269,6 @@ public partial class MainForm : Form
 
             AppendOutput("\r\n", AppTheme.ColorMeta);
 
-            await OfferLoadBackupAsync(folderPath);
-
             await OfferReadReadmeAsync(folderPath);
         }
         catch (Exception ex)
@@ -1531,16 +1293,81 @@ public partial class MainForm : Form
     /// </summary>
     private void SaveSessionMetadata(string sessionId)
     {
+        var existing = _sessionStore.Find(sessionId);
+
+        // Prefer the live WorkingDirectory, but never overwrite a previously
+        // stored non-empty workspace with an empty one (sessions can be
+        // created before a folder is opened, and we don't want to lose the
+        // workspace later when SaveSessionMetadata is re-invoked with a
+        // null WorkingDirectory).
+        var liveWorkspace = _copilot.WorkingDirectory ?? "";
+        var workspace = !string.IsNullOrEmpty(liveWorkspace)
+            ? liveWorkspace
+            : existing?.WorkspaceFolder ?? "";
+
         _sessionStore.Save(new SessionMetadataEntry
         {
             SessionId       = sessionId,
-            WorkspaceFolder = _copilot.WorkingDirectory ?? "",
+            WorkspaceFolder = workspace,
             Model           = comboBoxModel.SelectedItem?.ToString() ?? "",
             Mode            = comboBoxMode.SelectedItem?.ToString()  ?? "Standard",
             Fleet           = checkBoxFleet.Checked,
             AutoApprove     = checkBoxAutoApprove.Checked,
-            CreatedAt       = DateTime.Now,
+            CreatedAt       = existing?.CreatedAt is { } prior && prior != default
+                ? prior
+                : DateTime.Now,
+            Description     = existing?.Description ?? "",
         });
+    }
+
+    /// <summary>
+    /// Records a brief description (typically the first user prompt) against
+    /// the given session so it can be shown in the Past Sessions picker. No-op
+    /// if a description has already been stored for this session.
+    /// </summary>
+    private void SetSessionDescriptionIfEmpty(string sessionId, string description)
+    {
+        if (string.IsNullOrWhiteSpace(description)) return;
+
+        // The metadata row is normally seeded by OnSessionCreated, but that
+        // handler is queued via BeginInvoke and may not have run yet on the
+        // first prompt of a brand-new session. Create a stub entry on the
+        // fly so the description is never silently dropped due to ordering.
+        var existing = _sessionStore.Find(sessionId);
+        if (existing == null)
+        {
+            existing = new SessionMetadataEntry
+            {
+                SessionId       = sessionId,
+                WorkspaceFolder = _copilot.WorkingDirectory ?? "",
+                Model           = comboBoxModel.SelectedItem?.ToString() ?? "",
+                Mode            = comboBoxMode.SelectedItem?.ToString()  ?? "Standard",
+                Fleet           = checkBoxFleet.Checked,
+                AutoApprove     = checkBoxAutoApprove.Checked,
+                CreatedAt       = DateTime.Now,
+                Description     = "",
+            };
+        }
+        else if (!string.IsNullOrWhiteSpace(existing.Description))
+        {
+            return;
+        }
+
+        existing.Description = SummariseForDescription(description);
+        _sessionStore.Save(existing);
+    }
+
+    /// <summary>
+    /// Trims and condenses a prompt down to one or two sentences suitable for
+    /// the Description column in the Past Sessions list.
+    /// </summary>
+    private static string SummariseForDescription(string text)
+    {
+        var collapsed = System.Text.RegularExpressions.Regex.Replace(
+            text.Trim(), @"\s+", " ");
+        const int max = 240;
+        if (collapsed.Length <= max) return collapsed;
+        return collapsed.Substring(0, max - 1).TrimEnd() + "\u2026";
     }
 
     /// <summary>
@@ -1568,6 +1395,7 @@ public partial class MainForm : Form
                 Model     = meta?.Model ?? "",
                 Mode      = meta?.Mode ?? "",
                 CreatedAt = meta?.CreatedAt ?? default,
+                Description = meta?.Description ?? "",
                 Metadata  = meta,
             });
         }
@@ -3155,7 +2983,8 @@ public partial class MainForm : Form
         toolStripStatusLabelAgentStatus.Text = msg;
     }
 
-    // Used only by BackupSessionAsync which needs to block the UI exclusively
+    // Used by long-running operations (e.g. session refresh handoff) which need
+    // to block the UI exclusively
     private void SetSendingState(bool isSending)
     {
         buttonSend.Enabled = !isSending && _copilot.IsConnected;
@@ -3299,40 +3128,6 @@ public partial class MainForm : Form
     }
 
     // ── Cleanup ───────────────────────────────────────────────────────────────
-
-    protected override void OnFormClosing(FormClosingEventArgs e)
-    {
-        base.OnFormClosing(e);
-
-        if (_skipCloseBackupPrompt) return;
-        if (!_copilot.IsConnected || _mainSessionId == null) return;
-
-        var result = MessageBox.Show(
-            "Would you like to save a Backup before closing?\r\n\r\n" +
-            "A backup lets you resume this session later.",
-            "Save Backup?",
-            MessageBoxButtons.YesNoCancel,
-            MessageBoxIcon.Question);
-
-        if (result == DialogResult.Cancel)
-        {
-            e.Cancel = true;
-            return;
-        }
-
-        if (result == DialogResult.Yes)
-        {
-            e.Cancel = true;
-            _ = BackupThenCloseAsync();
-        }
-    }
-
-    private async Task BackupThenCloseAsync()
-    {
-        await BackupSessionAsync();
-        _skipCloseBackupPrompt = true;
-        Close();
-    }
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {

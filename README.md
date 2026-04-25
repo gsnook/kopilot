@@ -76,7 +76,6 @@ All session-level actions live in the menu bar. Most items have tooltips describ
 
 | Item | Description |
 |---|---|
-| **💾 Backup…** | Ask Copilot to write a Markdown session-resume document to disk. |
 | **📝 Summarize** | Request a summary of the session so far. |
 | **🗑 Clear Output** | Clear the output panel (asks for confirmation). The session itself is not reset. |
 | **💤 Refresh ▸** | Submenu — free up context window. See [Refreshing the Session](#refreshing-the-session). |
@@ -250,7 +249,7 @@ Long sessions accumulate context until model accuracy degrades. The **Session �
 |---|---|---|
 | **⚡ Compact (fast)** | Calls the CLI's in-place compaction (`session.history.compact`). Session ID is preserved; conversation continues seamlessly. | First choice. Fast, cheap, keeps everything intact. |
 | **🔄 Restart with summary** | Asks Copilot to write a one-page Markdown summary, saves it to `.kopilot\dreams\dream-{timestamp}.md`, opens a fresh session in the same folder, and seeds it with the summary. | When Compact isn't enough or you want a truly clean window. |
-| **🆕 Fresh start (no carry-over)** | Discards all context with no summary, opens a brand-new session in the same folder, then offers to load a backup file and read the README — exactly like clicking **📂 Open Folder…** on the current path. | When you want to switch tasks completely and start clean, with no memory of the previous conversation. |
+| **🆕 Fresh start (no carry-over)** | Discards all context with no summary, opens a brand-new session in the same folder, then offers to read the README — exactly like clicking **📂 Open Folder…** on the current path. | When you want to switch tasks completely and start clean, with no memory of the previous conversation. |
 
 When the context meter crosses **85%**, Kopilot automatically prompts you to choose Compact or Restart (or dismiss for the rest of the session). After either action, a `─── session refreshed ───` divider is written to the output panel — your transcript is never cleared.
 
@@ -283,8 +282,6 @@ The dialog supports multi-selection. The status text in the bottom-left shows th
 The currently connected session is always shown for reference but is protected: neither **Resume** nor **Delete** will operate on it. To move on from the current session, start a new one (or use **Session ▸ 💤 Refresh ▸ 🆕 Fresh start**) first, then return to **Past Sessions** to delete the old one.
 
 > **Pruning.** Whenever the dialog opens, Kopilot cross-references its local metadata against the SDK's live session list and silently drops any stale entries whose underlying session no longer exists.
-
-> **Resume vs. Backup.** Backup files (**Session ▸ 💾 Backup…**) are human-readable Markdown documents you attach to a *new* session as context. Resuming, by contrast, reconnects you to the *same* persisted session with its full transcript and tool history intact.
 
 ---
 
@@ -429,7 +426,7 @@ kopilot/
 - **Use Plan mode** for big tasks so you can review the plan before Copilot acts.
 - **Summarize often** — **Session ▸ 📝 Summarize** captures progress before starting a new topic.
 - **Watch the Context meter** — when it goes amber (60%) plan to refresh; at 85% Kopilot will offer to do it for you.
-- **Backup your session** — **Session ▸ 💾 Backup…** saves a Markdown resume file you can attach to a future session.
+- **Resume previous work** — **Session ▸ 📋 Past Sessions…** lists every persisted session so you can reconnect with full history.
 - **Reference anything** — drag files/folders onto the prompt, or right-click the prompt for `List Agents…` / `List Skills…` to insert `@agent:…` / `@skill:…` tokens.
 - **Switch to the Raw tab** if you want to copy unformatted text, or if a rendered block isn't displaying as you expect.
 - **Zoom into diagrams** — for big Mermaid charts, hover and click **Full** (or use the wheel to zoom) so you can read every node.

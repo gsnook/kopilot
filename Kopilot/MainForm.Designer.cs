@@ -52,7 +52,6 @@ partial class MainForm
         richTextBoxOutput = new RichTextBox();
         menuStripMain = new MenuStrip();
         menuSession = new ToolStripMenuItem();
-        menuSessionBackup = new ToolStripMenuItem();
         menuSessionSummarize = new ToolStripMenuItem();
         menuSessionClear = new ToolStripMenuItem();
         menuSessionRefresh = new ToolStripMenuItem();
@@ -454,20 +453,11 @@ partial class MainForm
         // 
         // menuSession
         // 
-        menuSession.DropDownItems.AddRange(new ToolStripItem[] { menuSessionBackup, menuSessionSummarize, menuSessionClear, menuSessionRefresh, menuSessionSeparator1, menuSessionPast });
+        menuSession.DropDownItems.AddRange(new ToolStripItem[] { menuSessionSummarize, menuSessionClear, menuSessionRefresh, menuSessionSeparator1, menuSessionPast });
         menuSession.ForeColor = Color.FromArgb(218, 218, 218);
         menuSession.Name = "menuSession";
         menuSession.Size = new Size(58, 20);
         menuSession.Text = "&Session";
-        // 
-        // menuSessionBackup
-        // 
-        menuSessionBackup.BackColor = Color.FromArgb(56, 56, 56);
-        menuSessionBackup.ForeColor = Color.FromArgb(218, 218, 218);
-        menuSessionBackup.Name = "menuSessionBackup";
-        menuSessionBackup.Size = new Size(157, 22);
-        menuSessionBackup.Text = "💾 &Backup...";
-        menuSessionBackup.ToolTipText = "Ask Copilot to write a session-resume document to a Markdown file";
         // 
         // menuSessionSummarize
         // 
@@ -773,7 +763,6 @@ partial class MainForm
     private System.Windows.Forms.ToolStripMenuItem menuToolsExplorer;
     private System.Windows.Forms.ToolStripMenuItem menuToolsVSCode;
     private System.Windows.Forms.ToolStripMenuItem menuSession;
-    private System.Windows.Forms.ToolStripMenuItem menuSessionBackup;
     private System.Windows.Forms.ToolStripMenuItem menuSessionSummarize;
     private System.Windows.Forms.ToolStripMenuItem menuSessionClear;
     private System.Windows.Forms.ToolStripMenuItem menuSessionRefresh;

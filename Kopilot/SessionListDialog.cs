@@ -29,6 +29,7 @@ internal sealed class SessionListDialog : Form
 		public string Model { get; init; } = "";
 		public string Mode { get; init; } = "";
 		public DateTime CreatedAt { get; init; }
+		public string Description { get; init; } = "";
 		public SessionMetadataEntry? Metadata { get; init; }
 	}
 
@@ -93,23 +94,12 @@ internal sealed class SessionListDialog : Form
 		_list.DrawSubItem += (_, e) => e.DrawDefault = true;
 		_list.DrawItem    += (_, e) => e.DrawDefault = true;
 
-		_list.Columns.Add("Session ID", 280);
-		_list.Columns.Add("Workspace", 200);
-		_list.Columns.Add("Model", 140);
-		_list.Columns.Add("Mode", 80);
-		_list.Columns.Add("Created", 140);
-
-		void SizeLastColumnToFill()
-		{
-			if (_list.Columns.Count == 0) return;
-			int fixedWidth = 0;
-			for (int i = 0; i < _list.Columns.Count - 1; i++)
-				fixedWidth += _list.Columns[i].Width;
-			int remaining = _list.ClientSize.Width - fixedWidth
-				- SystemInformation.VerticalScrollBarWidth;
-			_list.Columns[^1].Width = Math.Max(remaining, 80);
-		}
-		_list.Resize += (_, _) => SizeLastColumnToFill();
+		_list.Columns.Add("Session ID",  280);
+		_list.Columns.Add("Workspace",   200);
+		_list.Columns.Add("Model",       140);
+		_list.Columns.Add("Mode",         80);
+		_list.Columns.Add("Created",     140);
+		_list.Columns.Add("Description", 500);
 
 		foreach (var row in rows)
 			_list.Items.Add(BuildItem(row));
@@ -224,7 +214,6 @@ internal sealed class SessionListDialog : Form
 			}
 		};
 
-		SizeLastColumnToFill();
 		UpdateButtonState();
 	}
 
@@ -239,6 +228,7 @@ internal sealed class SessionListDialog : Form
 		item.SubItems.Add(row.Model);
 		item.SubItems.Add(row.Mode);
 		item.SubItems.Add(row.CreatedAt == default ? "" : row.CreatedAt.ToString("g"));
+		item.SubItems.Add(row.Description ?? "");
 		if (isCurrent)
 			item.ForeColor = AppTheme.TextMuted;
 		return item;

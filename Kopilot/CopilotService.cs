@@ -338,13 +338,22 @@ public sealed class CopilotService : IAsyncDisposable
         StartKeepAlive();
     }
 
+    /// <summary>
+    /// True when the CLI binary was resolved from PATH; false when the SDK is using its bundled copy.
+    /// Set on each call to <see cref="ConnectAsync"/>.
+    /// </summary>
+    public bool IsCliFromPath { get; private set; }
+
     private async Task ConnectAsync()
     {
         ConnectionStateChanged?.Invoke(this, "Connecting...");
 
+        var cliPath = ResolveCliFromPath();
+        IsCliFromPath = cliPath != null;
+
         _client = new CopilotClient(new CopilotClientOptions
         {
-            CliPath = ResolveCliFromPath(),
+            CliPath = cliPath,
             Cwd = WorkingDirectory,
             Environment = BuildCliEnvironment(),
         });

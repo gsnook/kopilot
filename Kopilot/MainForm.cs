@@ -66,6 +66,7 @@ public partial class MainForm : Form
     private bool _skipCloseBackupPrompt = false; // set after backup-on-close completes
     private bool _autoRefreshPromptShown = false; // suppresses the 85% nag once per session
     private bool _refreshInProgress = false; // gate to prevent overlapping Compact/Restart calls
+    private bool _cliUpdateChecked = false; // ensures the npm CLI check runs only once per session
     // Reason a deferred handoff is pending (e.g. mode/fleet change). When non-null,
     // the next DispatchPromptAsync runs an automatic summary-and-restart before
     // forwarding the user's prompt, so context survives the option change.
@@ -2965,9 +2966,6 @@ public partial class MainForm : Form
             AppendOutput(
                 $"[Update available: SDK v{current} -> v{latest}]\r\n",
                 AppTheme.ColorTool);
-
-            using var dlg = new UpdateNotificationDialog(current, latest);
-            dlg.ShowDialog(this);
         }
         else
         {
@@ -2979,8 +2977,34 @@ public partial class MainForm : Form
     private async Task ShowCliVersionAsync()
     {
         var version = await _copilot.GetVersionAsync();
-        if (!string.IsNullOrEmpty(version))
+        if (string.IsNullOrEmpty(version)) return;
+
+        if (_cliUpdateChecked || !_copilot.IsCliFromPath)
+        {
             AppendOutput($"[Copilot CLI v{version}]\r\n", AppTheme.ColorMeta);
+            return;
+        }
+
+        _cliUpdateChecked = true;
+
+        var latest = await UpdateChecker.GetLatestCliVersionAsync();
+
+        if (latest == null)
+        {
+            AppendOutput($"[Copilot CLI v{version} — update check unavailable]\r\n", AppTheme.ColorMeta);
+            return;
+        }
+
+        if (UpdateChecker.IsNewer(version, latest))
+        {
+            AppendOutput(
+                $"[Copilot CLI update available: v{version} -> v{latest} — open a Copilot terminal and run /update]\r\n",
+                AppTheme.ColorTool);
+        }
+        else
+        {
+            AppendOutput($"[Copilot CLI v{version} — up to date]\r\n", AppTheme.ColorMeta);
+        }
     }
 
     // ── Cleanup ───────────────────────────────────────────────────────────────

@@ -6,12 +6,18 @@ using System.Text.Json.Serialization;
 namespace Kopilot;
 
 /// <summary>
-/// Checks NuGet for newer versions of the GitHub.Copilot.SDK package.
+/// Checks NuGet for newer versions of the GitHub.Copilot.SDK package
+/// and npm for newer versions of the Copilot CLI binary.
 /// </summary>
 internal static class UpdateChecker
 {
 	private const string NuGetUrl =
 		"https://api.nuget.org/v3-flatcontainer/github.copilot.sdk/index.json";
+
+	// All platform-specific CLI packages share the same version number, so win32-x64
+	// is used as a stable reference regardless of the current machine architecture.
+	private const string NpmCliUrl =
+		"https://registry.npmjs.org/@github%2Fcopilot-win32-x64/latest";
 
 	private static readonly HttpClient _http = new()
 	{
@@ -111,5 +117,33 @@ internal static class UpdateChecker
 	{
 		[JsonPropertyName("versions")]
 		public List<string>? Versions { get; set; }
+	}
+
+	// ── CLI version check ─────────────────────────────────────────────────────
+
+	/// <summary>
+	/// Fetches the latest <c>@github/copilot-win32-x64</c> version from the npm
+	/// registry. Returns null if the check fails or the network is unavailable.
+	/// </summary>
+	public static async Task<string?> GetLatestCliVersionAsync()
+	{
+		try
+		{
+			var pkg = await _http
+				.GetFromJsonAsync<NpmPackage>(NpmCliUrl)
+				.ConfigureAwait(false);
+
+			return pkg?.Version;
+		}
+		catch
+		{
+			return null;
+		}
+	}
+
+	private sealed class NpmPackage
+	{
+		[JsonPropertyName("version")]
+		public string? Version { get; set; }
 	}
 }

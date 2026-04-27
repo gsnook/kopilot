@@ -961,11 +961,20 @@ public sealed class CopilotService : IAsyncDisposable
     /// </summary>
     internal IEnumerable<(string Label, string Path)> GetTierFolders()
     {
-        var personal = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".copilot");
-        if (!string.IsNullOrEmpty(personal) && Directory.Exists(personal))
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        var personal = Path.Combine(userProfile, ".copilot");
+        if (!string.IsNullOrEmpty(personal) && Directory.Exists(personal) && seen.Add(personal))
             yield return ("PERSONAL", personal);
 
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase) { personal };
+        // The user's default ~/.github folder is consulted automatically by the
+        // Copilot CLI / SDK, so surface its agents/ and skills/ in our lists too.
+        var personalGithub = Path.Combine(userProfile, ".github");
+        if (!string.IsNullOrEmpty(personalGithub) && Directory.Exists(personalGithub) && seen.Add(personalGithub))
+            yield return ("PERSONAL_GITHUB", personalGithub);
+
         int index = 1;
         foreach (var folder in SkillTreeFolders)
         {
@@ -976,8 +985,17 @@ public sealed class CopilotService : IAsyncDisposable
             index++;
         }
 
-        if (!string.IsNullOrEmpty(WorkingDirectory) && Directory.Exists(WorkingDirectory))
+        if (!string.IsNullOrEmpty(WorkingDirectory) && Directory.Exists(WorkingDirectory) && seen.Add(WorkingDirectory))
             yield return ("PROJECT", WorkingDirectory);
+
+        // The project's .github folder is also consulted automatically by the
+        // Copilot CLI / SDK, so include its agents/ and skills/ as well.
+        if (!string.IsNullOrEmpty(WorkingDirectory))
+        {
+            var projectGithub = Path.Combine(WorkingDirectory, ".github");
+            if (Directory.Exists(projectGithub) && seen.Add(projectGithub))
+                yield return ("PROJECT_GITHUB", projectGithub);
+        }
     }
 
     /// <summary>

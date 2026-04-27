@@ -1936,7 +1936,7 @@ public partial class MainForm : Form
     /// attachments to Copilot. Raw PNG/JPEG payloads are written as-is;
     /// metafile/DIB payloads are re-encoded to PNG through GDI+.
     /// </summary>
-    private static IReadOnlyList<string> ExtractEmbeddedImagesToTemp(string rtf)
+    private static IReadOnlyList<string> ExtractEmbeddedImagesToTemp(string? rtf)
     {
         var results = new List<string>();
         if (string.IsNullOrEmpty(rtf)) return results;

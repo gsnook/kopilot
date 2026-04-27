@@ -1399,7 +1399,6 @@ public sealed class CopilotService : IAsyncDisposable
                     Kind             = MessageKind.ToolStart,
                     ToolCallId       = toolCallId,
                     ToolArgSummary   = SummariseArguments(tool.Data.Arguments),
-                    ParentToolCallId = tool.Data.ParentToolCallId,
                 });
                 break;
 
@@ -1417,7 +1416,6 @@ public sealed class CopilotService : IAsyncDisposable
                     ToolCallId        = completedId,
                     ToolSuccess       = tool.Data.Success,
                     ToolResultSummary = resultSummary,
-                    ParentToolCallId  = tool.Data.ParentToolCallId,
                 });
                 break;
 
@@ -1530,7 +1528,6 @@ public sealed class CopilotService : IAsyncDisposable
                 // instead, so we accept both.  Use an allow-list so any future
                 // non-user initiator type stays correctly excluded.
                 if (sessionId == _mainSession?.SessionId
-                    && usage.Data.ParentToolCallId == null
                     && IsUserInitiatedUsage(usage.Data.Initiator)
                     && usage.Data.InputTokens.HasValue)
                 {
@@ -1661,7 +1658,7 @@ public sealed class CopilotService : IAsyncDisposable
             {
                 Kind = approved
                     ? PermissionRequestResultKind.Approved
-                    : PermissionRequestResultKind.DeniedInteractivelyByUser,
+                    : PermissionRequestResultKind.Rejected,
             };
         };
     }

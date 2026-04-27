@@ -117,7 +117,7 @@ internal sealed class SessionListDialog : Form
 		_list.SelectedIndexChanged += (_, _) => UpdateButtonState();
 		_list.DoubleClick          += (_, _) =>
 		{
-			if (_resumeBtn.Enabled) DoResume();
+			if (_resumeBtn!.Enabled) DoResume();
 		};
 
 		// Button panel

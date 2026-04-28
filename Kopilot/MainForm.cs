@@ -2922,18 +2922,59 @@ public partial class MainForm : Form
     }
 
     /// <summary>Wraps a string as a JS string literal, escaping special characters.</summary>
+    /// <remarks>
+    /// Line endings are normalized to LF (\n) and stray C0 control characters
+    /// (other than \t and \n) are dropped. Otherwise the WebView's pre-wrap
+    /// rendering shows lone CR / control bytes as tofu boxes.
+    /// </remarks>
     private static string JsString(string? value)
     {
         if (value == null) return "\"\"";
-        var escaped = value
+        var sanitized = SanitizeForJs(value);
+        var escaped = sanitized
             .Replace("\\", "\\\\")
             .Replace("\"", "\\\"")
-            .Replace("\r", "\\r")
             .Replace("\n", "\\n")
             .Replace("\t", "\\t")
             .Replace("<", "\\x3c")
             .Replace(">", "\\x3e");
         return $"\"{escaped}\"";
+    }
+
+    /// <summary>
+    /// Normalizes CRLF/CR to LF and strips C0 control characters (except \t, \n)
+    /// so they don't render as tofu boxes in the WebView's pre-wrap blocks.
+    /// </summary>
+    private static string SanitizeForJs(string value)
+    {
+        var sb = new System.Text.StringBuilder(value.Length);
+        for (int i = 0; i < value.Length; i++)
+        {
+            var c = value[i];
+            if (c == '\r')
+            {
+                // Collapse CRLF and bare CR to a single LF.
+                sb.Append('\n');
+                if (i + 1 < value.Length && value[i + 1] == '\n') i++;
+                continue;
+            }
+            if (c == '\n' || c == '\t')
+            {
+                sb.Append(c);
+                continue;
+            }
+            // VT (0x0B, RichTextBox Shift+Enter soft break), FF (0x0C),
+            // NEL (0x85), Unicode line/paragraph separators -> LF.
+            if (c == '\v' || c == '\f' || c == '\u0085' || c == '\u2028' || c == '\u2029')
+            {
+                sb.Append('\n');
+                continue;
+            }
+            // Drop other C0 control chars (0x00-0x1F) and DEL (0x7F).
+            if (c < 0x20 || c == 0x7F) continue;
+            sb.Append(c);
+        }
+        return sb.ToString();
     }
 
     /// <summary>Escapes text for safe insertion into HTML within JS calls.</summary>

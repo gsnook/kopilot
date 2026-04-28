@@ -3120,8 +3120,7 @@ public partial class MainForm : Form
         Invoke(() =>
         {
             SoundService.PlayDialog();
-            using var dialog = new PermissionDialog(args);
-            dialog.ShowDialog(this);
+            ShowFloatingDialog(new PermissionDialog(args));
         });
     }
 
@@ -3131,9 +3130,25 @@ public partial class MainForm : Form
         Invoke(() =>
         {
             SoundService.PlayDialog();
-            using var dialog = new UserInputDialog(args);
-            dialog.ShowDialog(this);
+            ShowFloatingDialog(new UserInputDialog(args));
         });
+    }
+
+    /// <summary>
+    /// Shows a Copilot-driven question/permission dialog modelessly so the user
+    /// can still scroll and interact with the output panel while answering.
+    /// The dialog floats above the main window (TopMost + Owner) and disposes
+    /// itself on close. Result is communicated back to the SDK through the
+    /// TaskCompletionSource on its event-args, not via DialogResult.
+    /// </summary>
+    private void ShowFloatingDialog(Form dialog)
+    {
+        dialog.Owner    = this;
+        dialog.TopMost  = true;
+        dialog.ShowInTaskbar = false;
+        dialog.FormClosed += (_, _) => dialog.Dispose();
+        dialog.Show(this);
+        dialog.Activate();
     }
 
     // ── Update checking ───────────────────────────────────────────────────────

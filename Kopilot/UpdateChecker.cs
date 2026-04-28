@@ -14,10 +14,13 @@ internal static class UpdateChecker
 	private const string NuGetUrl =
 		"https://api.nuget.org/v3-flatcontainer/github.copilot.sdk/index.json";
 
-	// All platform-specific CLI packages share the same version number, so win32-x64
-	// is used as a stable reference regardless of the current machine architecture.
-	private const string NpmCliUrl =
-		"https://registry.npmjs.org/@github%2Fcopilot-win32-x64/latest";
+	// The GitHub Releases page is the source of truth for the Copilot CLI version.
+	// The npm @github/copilot-* packages have been observed to publish ahead of the
+	// official release (e.g. npm at 1.0.38 while Releases is still at v1.0.37), which
+	// produced spurious "update available" notifications. /releases/latest excludes
+	// drafts and pre-releases automatically, matching what users see on the website.
+	private const string GitHubLatestReleaseUrl =
+		"https://api.github.com/repos/github/copilot-cli/releases/latest";
 
 	private static readonly HttpClient _http = new()
 	{
@@ -122,18 +125,24 @@ internal static class UpdateChecker
 	// ── CLI version check ─────────────────────────────────────────────────────
 
 	/// <summary>
-	/// Fetches the latest <c>@github/copilot-win32-x64</c> version from the npm
-	/// registry. Returns null if the check fails or the network is unavailable.
+	/// Fetches the latest Copilot CLI release tag from the GitHub Releases API
+	/// (<c>github/copilot-cli</c>). The leading <c>v</c> in the tag (e.g. <c>v1.0.37</c>)
+	/// is stripped so the result is directly comparable to the running CLI's version
+	/// string. Returns null if the check fails or the network is unavailable.
 	/// </summary>
 	public static async Task<string?> GetLatestCliVersionAsync()
 	{
 		try
 		{
-			var pkg = await _http
-				.GetFromJsonAsync<NpmPackage>(NpmCliUrl)
+			var release = await _http
+				.GetFromJsonAsync<GitHubRelease>(GitHubLatestReleaseUrl)
 				.ConfigureAwait(false);
 
-			return pkg?.Version;
+			var tag = release?.TagName;
+			if (string.IsNullOrEmpty(tag))
+				return null;
+
+			return tag.StartsWith('v') || tag.StartsWith('V') ? tag[1..] : tag;
 		}
 		catch
 		{
@@ -141,9 +150,9 @@ internal static class UpdateChecker
 		}
 	}
 
-	private sealed class NpmPackage
+	private sealed class GitHubRelease
 	{
-		[JsonPropertyName("version")]
-		public string? Version { get; set; }
+		[JsonPropertyName("tag_name")]
+		public string? TagName { get; set; }
 	}
 }

@@ -136,6 +136,12 @@ public sealed class CopilotService : IAsyncDisposable
     public IList<string> SkillTreeFolders { get; set; } = new List<string>();
     public bool AutoApprove { get; set; } = false;
     public bool FleetMode   { get; set; } = false;
+    /// <summary>
+    /// When true, every new session's system message includes a directive
+    /// instructing the model to respond in token-minimal "caveman speak".
+    /// Mirrored from Kopilot's Session menu and persisted in kopilot.ini.
+    /// </summary>
+    public bool CavemanMode { get; set; } = false;
     public bool IsConnected => _client?.State == ConnectionState.Connected;
 
     // ── Reference cache (populated by LoadTier* during session creation) ────
@@ -853,6 +859,20 @@ public sealed class CopilotService : IAsyncDisposable
         if (FleetMode && WorkingDirectory != null)
         {
             parts.Add(BuildFleetScopeDirective());
+        }
+
+        // Caveman directive — instructs the model to also minimise its output
+        // tokens. Baked in at session creation so it survives compaction; the
+        // mid-session toggle in MainForm sends a separate one-shot instruction.
+        if (CavemanMode)
+        {
+            parts.Add(
+                "CAVEMAN MODE: Use caveman speak. Maximize information density. Fewest tokens. " +
+                "Speak primitive. Use nouns and verbs. No grammar filler (the, is, are, of). " +
+                "Keep words short. Save tokens. Be blunt. " +
+                "Skip openers. Skip closures. Skip preambles. Skip filler transitions. " +
+                "Apply this to all prose responses; preserve code, file paths, command syntax, " +
+                "and tool output verbatim.");
         }
 
         if (parts.Count == 0) return null;

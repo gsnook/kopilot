@@ -88,6 +88,8 @@ public partial class MainForm : Form
         // Load persisted settings and sync with service
         _settings = KopilotSettings.Load();
         _copilot.SkillTreeFolders = _settings.SkillTreeFolders;
+        _copilot.CavemanMode      = _settings.CavemanMode;
+        menuSessionCaveman.Checked = _settings.CavemanMode;
         UpdateSkillTreeTooltip();
 
         // Populate mode combo from the SDK enum and select the first entry
@@ -148,6 +150,30 @@ public partial class MainForm : Form
         menuSessionRefreshRestart.Click += async (_, _) => await RunRestartWithSummaryAsync();
         menuSessionRefreshFresh.Click += async (_, _) => await RunFreshStartAsync();
         menuSessionPast.Click += async (_, _) => await BrowsePastSessionsAsync();
+        menuSessionCaveman.CheckedChanged += async (_, _) =>
+        {
+            var enabled = menuSessionCaveman.Checked;
+            _copilot.CavemanMode = enabled;
+            _settings.CavemanMode = enabled;
+            try { _settings.Save(); } catch { /* best-effort persist */ }
+
+            // If a session is active, fire a one-shot side instruction so the
+            // change takes effect immediately. We deliberately do NOT trigger a
+            // ScheduleHandoff: the directive is also baked into BuildSystemMessage,
+            // so any future session/restart already inherits the new style.
+            if (_copilot.IsConnected && _mainSessionId != null)
+            {
+                var instruction = enabled
+                    ? "CAVEMAN MODE ON. From now on: caveman speak. Fewest tokens. Nouns and verbs. " +
+                      "No grammar filler (the, is, are, of). Short words. Be blunt. " +
+                      "Skip openers, closures, preambles, filler transitions. " +
+                      "Preserve code, paths, command syntax, and tool output verbatim."
+                    : "CAVEMAN MODE OFF. From now on: respond normally with proper grammar, " +
+                      "complete sentences, and your usual level of explanation.";
+                try { await DispatchPromptAsync(instruction); }
+                catch { /* best-effort; surface nothing to the user */ }
+            }
+        };
         menuToolsExplorer.Click += (_, _) => OpenExplorer();
         menuToolsVSCode.Click += (_, _) => OpenVSCode();
         menuSkillsTree.Click += (_, _) => EditSkillTree();
@@ -380,7 +406,17 @@ public partial class MainForm : Form
         }
         richTextBoxPrompt.Clear();
 
-        await DispatchPromptAsync(prompt, pastedImages);
+        (int OriginalChars, int CavemanChars)? cavemanStats = null;
+        if (menuSessionCaveman.Checked && !string.IsNullOrEmpty(prompt))
+        {
+            var (caveman, originalChars, cavemanChars) =
+                CavemanTransformer.TransformWithStats(prompt);
+            prompt = caveman;
+            if (originalChars > 0)
+                cavemanStats = (originalChars, cavemanChars);
+        }
+
+        await DispatchPromptAsync(prompt, pastedImages, cavemanStats);
     }
 
     private async Task StopAsync()
@@ -517,7 +553,10 @@ public partial class MainForm : Form
         await DispatchPromptAsync(prompt);
     }
 
-    private async Task DispatchPromptAsync(string prompt, IReadOnlyList<string>? extraAttachments = null)
+    private async Task DispatchPromptAsync(
+        string prompt,
+        IReadOnlyList<string>? extraAttachments = null,
+        (int OriginalChars, int CavemanChars)? cavemanStats = null)
     {
         _copilot.ActiveMode  = comboBoxMode.SelectedItem?.ToString()  ?? "Standard";
         _copilot.AutoApprove = checkBoxAutoApprove.Checked;
@@ -559,6 +598,19 @@ public partial class MainForm : Form
                 };
                 _outputBlocks.Add(userBlock);
                 WebViewAppendBlock(userBlock);
+
+                // C2 - Caveman before/after meter, written immediately after the
+                // user echo block so it visually attaches to the prompt it describes.
+                // Only SendPromptAsync supplies stats, so STOP and auto-handoff
+                // paths naturally skip this.
+                if (cavemanStats is { } stats && stats.OriginalChars > 0)
+                {
+                    var saved   = stats.OriginalChars - stats.CavemanChars;
+                    var percent = (int)Math.Round(100.0 * saved / stats.OriginalChars);
+                    AppendOutput(
+                        $"\U0001f9b4 Caveman: {stats.OriginalChars} -> {stats.CavemanChars} chars ({percent:+0;-0;0}%, saved {saved})\r\n\r\n",
+                        AppTheme.ColorMeta);
+                }
             }
         }
         catch (Exception ex)

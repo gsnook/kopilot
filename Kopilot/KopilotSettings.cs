@@ -29,6 +29,13 @@ internal sealed class KopilotSettings
 	/// </summary>
 	public List<string> SkillTreeFolders { get; set; } = new();
 
+	/// <summary>
+	/// When true, every user prompt is reduced by <see cref="CavemanTransformer"/>
+	/// before being sent to the model. Persisted under the <c>[Caveman]</c>
+	/// section as <c>Enabled=true|false</c>.
+	/// </summary>
+	public bool CavemanMode { get; set; }
+
 	/// <summary>Loads settings from kopilot.ini; returns defaults if the file does not exist.</summary>
 	public static KopilotSettings Load()
 	{
@@ -71,6 +78,14 @@ internal sealed class KopilotSettings
 				{
 					legacyOrgFolder = val;
 				}
+				else if (section == "caveman" && key == "enabled")
+				{
+					settings.CavemanMode =
+						val.Equals("true", System.StringComparison.OrdinalIgnoreCase)
+						|| val == "1"
+						|| val.Equals("yes", System.StringComparison.OrdinalIgnoreCase)
+						|| val.Equals("on",  System.StringComparison.OrdinalIgnoreCase);
+				}
 			}
 		}
 		catch { /* best-effort; return defaults on any read error */ }
@@ -98,6 +113,9 @@ internal sealed class KopilotSettings
 			if (!seen.Add(trimmed)) continue;
 			sb.Append($"Folder={trimmed}\r\n");
 		}
+
+		sb.Append("\r\n[Caveman]\r\n");
+		sb.Append($"Enabled={(CavemanMode ? "true" : "false")}\r\n");
 
 		File.WriteAllText(IniPath, sb.ToString(), Encoding.ASCII);
 	}

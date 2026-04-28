@@ -59,6 +59,7 @@ partial class MainForm
         menuSessionRefreshRestart = new ToolStripMenuItem();
         menuSessionRefreshFresh = new ToolStripMenuItem();
         menuSessionSeparator1 = new ToolStripSeparator();
+        menuSessionCaveman = new ToolStripMenuItem();
         menuSessionPast = new ToolStripMenuItem();
         menuSkills = new ToolStripMenuItem();
         menuSkillsListAgents = new ToolStripMenuItem();
@@ -453,7 +454,7 @@ partial class MainForm
         // 
         // menuSession
         // 
-        menuSession.DropDownItems.AddRange(new ToolStripItem[] { menuSessionSummarize, menuSessionClear, menuSessionRefresh, menuSessionSeparator1, menuSessionPast });
+        menuSession.DropDownItems.AddRange(new ToolStripItem[] { menuSessionSummarize, menuSessionCaveman, menuSessionClear, menuSessionRefresh, menuSessionSeparator1, menuSessionPast });
         menuSession.ForeColor = Color.FromArgb(218, 218, 218);
         menuSession.Name = "menuSession";
         menuSession.Size = new Size(58, 20);
@@ -464,7 +465,7 @@ partial class MainForm
         menuSessionSummarize.BackColor = Color.FromArgb(56, 56, 56);
         menuSessionSummarize.ForeColor = Color.FromArgb(218, 218, 218);
         menuSessionSummarize.Name = "menuSessionSummarize";
-        menuSessionSummarize.Size = new Size(157, 22);
+        menuSessionSummarize.Size = new Size(180, 22);
         menuSessionSummarize.Text = "📝 S&ummarize";
         menuSessionSummarize.ToolTipText = "Ask Copilot to summarize the session so far";
         // 
@@ -473,7 +474,7 @@ partial class MainForm
         menuSessionClear.BackColor = Color.FromArgb(56, 56, 56);
         menuSessionClear.ForeColor = Color.FromArgb(218, 218, 218);
         menuSessionClear.Name = "menuSessionClear";
-        menuSessionClear.Size = new Size(157, 22);
+        menuSessionClear.Size = new Size(180, 22);
         menuSessionClear.Text = "🗑 &Clear Output";
         menuSessionClear.ToolTipText = "Clear the current output window";
         // 
@@ -483,7 +484,7 @@ partial class MainForm
         menuSessionRefresh.DropDownItems.AddRange(new ToolStripItem[] { menuSessionRefreshCompact, menuSessionRefreshRestart, menuSessionRefreshFresh });
         menuSessionRefresh.ForeColor = Color.FromArgb(218, 218, 218);
         menuSessionRefresh.Name = "menuSessionRefresh";
-        menuSessionRefresh.Size = new Size(157, 22);
+        menuSessionRefresh.Size = new Size(180, 22);
         menuSessionRefresh.Text = "💤 &Refresh";
         menuSessionRefresh.ToolTipText = "Free up context window — Compact (in place) or Restart with summary";
         // 
@@ -519,14 +520,24 @@ partial class MainForm
         menuSessionSeparator1.BackColor = Color.FromArgb(56, 56, 56);
         menuSessionSeparator1.ForeColor = Color.FromArgb(218, 218, 218);
         menuSessionSeparator1.Name = "menuSessionSeparator1";
-        menuSessionSeparator1.Size = new Size(200, 6);
+        menuSessionSeparator1.Size = new Size(177, 6);
+        // 
+        // menuSessionCaveman
+        // 
+        menuSessionCaveman.BackColor = Color.FromArgb(56, 56, 56);
+        menuSessionCaveman.CheckOnClick = true;
+        menuSessionCaveman.ForeColor = Color.FromArgb(218, 218, 218);
+        menuSessionCaveman.Name = "menuSessionCaveman";
+        menuSessionCaveman.Size = new Size(180, 22);
+        menuSessionCaveman.Text = "\U0001f9b4 Ca&veman Mode";
+        menuSessionCaveman.ToolTipText = "Reduce each prompt to caveman speak before sending. Saves tokens; may lose nuance.";
         // 
         // menuSessionPast
         // 
         menuSessionPast.BackColor = Color.FromArgb(56, 56, 56);
         menuSessionPast.ForeColor = Color.FromArgb(218, 218, 218);
         menuSessionPast.Name = "menuSessionPast";
-        menuSessionPast.Size = new Size(200, 22);
+        menuSessionPast.Size = new Size(180, 22);
         menuSessionPast.Text = "📋 &Past Sessions...";
         menuSessionPast.ToolTipText = "Browse persisted sessions to resume or delete them";
         // 
@@ -770,6 +781,7 @@ partial class MainForm
     private System.Windows.Forms.ToolStripMenuItem menuSessionRefreshRestart;
     private System.Windows.Forms.ToolStripMenuItem menuSessionRefreshFresh;
     private System.Windows.Forms.ToolStripSeparator menuSessionSeparator1;
+    private System.Windows.Forms.ToolStripMenuItem menuSessionCaveman;
     private System.Windows.Forms.ToolStripMenuItem menuSessionPast;
     private System.Windows.Forms.ToolStripMenuItem menuSkills;
     private System.Windows.Forms.ToolStripMenuItem menuSkillsListAgents;

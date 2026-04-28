@@ -2,6 +2,29 @@
 
 **Kopilot** (nicknamed *Kopi*) is a Windows desktop GUI for the [GitHub Copilot SDK](libs/copilot-sdk). It wraps the Copilot CLI experience in a friendly WinForms interface so you can chat with Copilot, approve tool operations, and manage your session — all without leaving a graphical window.
 
+## Features
+
+- Multi-line prompt editor — Enter inserts a newline; Ctrl+Enter (or the Send button) submits, so prompts are never sent by accident.
+- Drag & drop files or folders onto the prompt. Right-click to insert file, folder, skill, or agent references.
+- Paste images from the clipboard directly into a prompt (with preview); attached as PNGs on send.
+- Browse, resume, and bulk-delete previous sessions from the Past Sessions dialog.
+- Context is automatically carried into a fresh session when Model, Mode, Fleet, or the Skill Tree changes.
+- Optional Caveman mode to reduce tokens on both input (client-side rewrite) and output (model directive).
+- Rendered and Raw output tabs — Markdown, Mermaid diagrams, and syntax-highlighted code in Rendered; plain transcript in Raw.
+- Pan and zoom for oversized content — Mermaid diagrams, wide code blocks, and large tables get a scrollable, zoomable viewport with a fullscreen mode.
+- Accurate context meter (green / amber / red) with an offer to compact or restart when usage crosses 85%.
+- Manual session refresh — fast in-place compact, restart-with-summary (saved as a dream file), or fresh start with no carry-over.
+- Skill Tree — an ordered list of folders that contribute `skills/`, `agents/`, and a silent `kopilot-instructions.md` to every session.
+- Custom agents and skills are auto-discovered from the Skill Tree and inserted as `@agent:name` / `@skill:name` tokens via picker dialogs.
+- Plan and Autopilot modes in addition to Standard conversational chat.
+- Fleet mode for spawning parallel sub-agents on large, decomposable tasks.
+- Tool permission dialog with Allow / Approve Similar / Deny, plus an Auto-approve toggle for trusted runs.
+- Prompt history navigation with the ▲ / ▼ buttons beside the prompt box.
+- Quick-launch external tools rooted at the workspace — PowerShell, File Explorer, and VS Code.
+- Dark theme throughout — menus, tabs, dialogs, and the rendered output panel.
+- CLI launch argument to open and connect to a workspace folder at startup.
+- On-demand session summarize (Session ▸ 📝 Summarize) to capture progress before switching topics.
+- Self-update check with an in-app notification when a new release is available.
 
 ## Why this exists
 
@@ -79,6 +102,7 @@ All session-level actions live in the menu bar. Most items have tooltips describ
 | **📝 Summarize** | Request a summary of the session so far. |
 | **🗑 Clear Output** | Clear the output panel (asks for confirmation). The session itself is not reset. |
 | **💤 Refresh ▸** | Submenu — free up context window. See [Refreshing the Session](#refreshing-the-session). |
+| **🦴 Caveman Mode** | Toggle. When checked, every prompt you send is reduced to "caveman speak" (stopwords, fillers, pleasantries dropped; commas stripped; digits one–ten written as 1–10) before being sent to the model. The reduced text is what gets echoed in the output panel so you can see exactly what the AI received. Negations (`not`, `no`, `never`, `don't`, …) are always preserved, and fenced code blocks, inline `` ` ` ``, `@references`, and URLs are left untouched. State is persisted in `kopilot.ini`. See [Caveman Mode](#caveman-mode). |
 | **📋 Past Sessions…** | Browse all persisted Copilot sessions to resume one or delete one or more. See [Past Sessions](#past-sessions). |
 
 The **Refresh** submenu offers:
@@ -257,7 +281,57 @@ When the context meter crosses **85%**, Kopilot automatically prompts you to cho
 
 ---
 
-## Past Sessions
+## Caveman Mode
+
+Toggle **Session ▸ 🦴 Caveman Mode** to make Kopilot rewrite every prompt you send into a token-minimal "caveman" form before it reaches the model. The transform is deterministic, runs entirely client-side, and the reduced text is what appears in the output panel as your `👤 You:` echo — there is no hidden rewrite.
+
+**What gets stripped**
+
+- Articles and determiners — `a`, `an`, `the`
+- Common prepositions — `of`, `in`, `on`, `at`
+- Auxiliaries and modals — `is`, `are`, `was`, `were`, `be`, `been`, `being`, `will`, `would`, `could`, `should`, `shall`, `may`, `might`, `must`, `do`, `does`, `did`, `have`, `has`, `had`
+- Filler words — `very`, `really`, `so`, `just`, `like`, `uh`, `um`, `ah`, `er`, `well`
+- Pleasantries — `hi`, `hello`, `hey`, `thanks`, `please`, `cheers`, `sorry`, plus phrases `thank you`, `thank you very much`, `you're welcome`, `i'm sorry`, `i mean`, `you know`, `kind of`, `sort of`, `going to`, `able to`
+- Dummy / expletive `it` before a copula or stative verb — `it is`, `it was`, `it's`, `it seems`, `it appears` (only the pronoun is dropped; referential `it` elsewhere and the possessive `its` are left intact)
+- Sentence-initial subjects — leading `I`, `we`, `I'll`, `I'm`, `we'll`, `we're`
+- `-ly` adverbs (with a small whitelist that keeps `only`, `early`, `likely`)
+- Commas, semicolons, em/en dashes between words, and any non-ASCII decorative emoji
+- `do/does/did not` (and `n't` contractions) collapse to a single `not`
+- Polite-clause openers — `Could/Can/Would/Will you (please)`, `If you don't mind`, `If you could`, `If you would`
+- Hedges — `I think/believe/guess/feel/suppose/reckon (that)`, `In my opinion`, `maybe`, `perhaps`, `possibly`, `probably`, `somewhat`, `presumably`, `arguably`
+- Trailing punctuation runs (`!!!`, `???`, `?!?`, `...`) collapse to a single `?` (if the run contains `?`) or `.` otherwise
+- Lines that contain only punctuation after stripping (e.g. `Thanks!` becoming a lone `!`) are dropped entirely
+
+**What is preserved**
+
+- Negations: `not`, `no`, `never`, `none`, `nothing`, `don't`, `won't`, `can't`, `cannot`
+- Fenced code blocks (` ``` `), inline backticks (`` ` ``), `@references`, and URLs (`http://…`, `https://…`) are extracted, kept verbatim, and re-inserted after the rewrite
+- **No-touch lines** — any line whose first non-whitespace characters are `!!` is passed through exactly as you typed it (with the `!!` marker stripped). Use this when one paragraph absolutely must reach the model unmodified.
+- Line breaks are normalised to plain LF (`\n`); blank-line runs collapse to a single blank line
+
+**What is converted**
+
+- Digits one–twenty are written as `1`–`20`, plus `thirty`–`ninety` → `30`–`90`, and `hundred` / `thousand` / `million` / `billion` → `100` / `1000` / `1000000` / `1000000000`
+
+**Reduction meter**
+
+After every send, Kopilot writes a discreet meta line to the output panel showing the before/after character count, e.g. `🦴 Caveman: 142 -> 87 chars (-39%, saved 55)`. Use this to gauge whether the mode is actually helping for the prompts you write — for code-heavy prompts the saving will often be near zero.
+
+**Caveats**
+
+- Token savings on prompts are typically modest (around 10–20 % for prose-heavy prompts). For short prompts or those dominated by code/paths, savings may be near zero.
+- Removing modals can subtly change tense or conditionality. If the AI starts asking unexpected clarifying questions, switch the mode off.
+- The toggle is persisted in `kopilot.ini` under `[Caveman]` (`Enabled=true|false`).
+
+**Effect on the model's replies**
+
+Caveman is a two-sided agreement: it minimises **your** tokens by rewriting prompts client-side, and it asks the model to minimise **its** tokens by replying in the same primitive style.
+
+- When the toggle is on, every new Copilot session Kopilot creates includes a `CAVEMAN MODE` directive in its system message instructing the model to reply with the same density rules, while preserving code, file paths, command syntax, and tool output verbatim. Because the directive is baked into the system message, it survives `Refresh ▸ Compact` and is re-applied on `Restart with summary` / `Fresh start`.
+- Toggling Caveman **mid-session** does *not* force a session handoff. Instead, Kopilot sends a single side instruction (`CAVEMAN MODE ON.` or `CAVEMAN MODE OFF.`) so the model switches style on its very next reply. The instruction is visible in the transcript as a `👤 You:` block so you always know when the change took effect.
+
+---
+
 
 Every Copilot session Kopilot creates is given a stable, human-readable ID of the form `{LeafFolder}-{MM-dd-yyyy-HHmmss}` (e.g. `Kopilot-04-24-2026-211734`) and is persisted by the underlying Copilot SDK. Kopilot also records lightweight metadata about each session — workspace folder, model, mode, fleet flag, auto-approve flag, and creation timestamp — in a global `kopilot-sessions.json` file alongside `kopilot.ini` next to the executable.
 

@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Text.RegularExpressions;
 
 namespace Kopilot;
@@ -7,27 +10,37 @@ namespace Kopilot;
 /// (e.g. <c>screenshot.png</c>, <c>assets/diagram.svg</c>,
 /// <c>@docs/img/foo.jpg</c>, or <c>C:\path\to\bar.png</c>) and appends
 /// an inline thumbnail beneath each unique reference by injecting a
-/// standard <c>![alt](url)</c> markdown line. The original path text
-/// is preserved verbatim.
+/// standard <c>![alt](data:...)</c> markdown line. The original path
+/// text is preserved verbatim.
 ///
 /// References inside <em>inline</em> backtick spans are still detected
 /// (Copilot routinely formats file paths as <c>`path`</c>); only
 /// fenced code blocks and existing markdown image syntax are skipped.
 ///
-/// Resolution rules:
+/// Files are loaded from disk and inlined as base64 data URIs. This
+/// avoids all WebView2 virtual-host setup, multi-instance collisions,
+/// and workspace-switch lifecycle hazards. Resolution rules:
 /// <list type="bullet">
-///   <item>Relative paths are served from the workspace via the
-///         workspace virtual host.</item>
-///   <item>Absolute local paths (drive-letter or rooted) are served via
-///         the matching per-drive virtual host.</item>
+///   <item>Relative paths are resolved against the open workspace.</item>
+///   <item>Absolute local paths are used as-is.</item>
 ///   <item>Remote URLs (<c>http://</c>, <c>https://</c>, <c>file://</c>)
-///         are intentionally <em>not</em> rewritten — emitting them as
-///         &lt;img&gt; tags would let the model exfiltrate data through
-///         crafted URLs or expose arbitrary files via file://.</item>
+///         are intentionally ignored — emitting them as &lt;img&gt;
+///         tags would let the model fetch arbitrary external content
+///         or expose unrelated files.</item>
+///   <item>Files larger than <see cref="MaxFileBytes"/> or that fail
+///         to read are silently skipped; nothing is injected.</item>
 /// </list>
 /// </summary>
 internal static class ImageReferenceTransformer
 {
+	/// <summary>
+	/// Maximum on-disk size of an image that will be inlined as a
+	/// data URI. Larger files are skipped to keep the rendered DOM
+	/// from ballooning. Big screenshots (~MB) fit comfortably; raw
+	/// camera output usually does not.
+	/// </summary>
+	public const long MaxFileBytes = 4L * 1024 * 1024;
+
 	private const string ImageExtensions = @"png|jpe?g|gif|webp|svg|bmp|ico|tiff?|avif";
 
 	private static readonly Regex CodeFenceRegex = new(
@@ -59,17 +72,12 @@ internal static class ImageReferenceTransformer
 
 	/// <summary>
 	/// Returns <paramref name="content"/> with thumbnail-injection markdown
-	/// appended after each unique image reference. <paramref name="workspaceVirtualHost"/>
-	/// serves files under <paramref name="workspaceRoot"/>; <paramref name="driveHostFormat"/>
-	/// is a <see cref="string.Format(string, object?)"/> template used to build a per-drive
-	/// host name (e.g. <c>"kopilot-drive-{0}.local"</c> where <c>{0}</c> is the lowercase
-	/// drive letter).
+	/// appended after each unique image reference. References that don't
+	/// resolve to a readable file under <see cref="MaxFileBytes"/> are
+	/// left alone (no thumbnail is injected, but the original text is
+	/// preserved).
 	/// </summary>
-	public static string Apply(
-		string? content,
-		string? workspaceRoot,
-		string? workspaceVirtualHost,
-		string? driveHostFormat)
+	public static string Apply(string? content, string? workspaceRoot)
 	{
 		if (string.IsNullOrEmpty(content)) return content ?? "";
 
@@ -77,7 +85,7 @@ internal static class ImageReferenceTransformer
 		// existing markdown images). Inline `code` spans are intentionally
 		// NOT masked: Copilot routinely formats file paths as `path`, and
 		// we still want to detect those.
-		var masks = new System.Collections.Generic.List<string>();
+		var masks = new List<string>();
 		string Mask(Match m)
 		{
 			var token = "\u0000KPMASK" + masks.Count + "\u0000";
@@ -88,17 +96,22 @@ internal static class ImageReferenceTransformer
 		var masked = CodeFenceRegex.Replace(content, Mask);
 		masked = MarkdownImageRegex.Replace(masked, Mask);
 
-		// Step 2 — detect image refs, dedupe per block, and stash thumbnails.
-		var thumbs = new System.Collections.Generic.List<(string Reference, string Url)>();
-		var seen = new System.Collections.Generic.HashSet<string>(System.StringComparer.OrdinalIgnoreCase);
+		// Step 2 — detect image refs, dedupe per block (by resolved path),
+		// and stash the encoded data URIs.
+		var thumbs = new List<(string Reference, string DataUri)>();
+		var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
 		masked = ImageReferenceRegex.Replace(masked, match =>
 		{
 			var reference = match.Groups[2].Value;
-			var url = ResolveUrl(reference, workspaceRoot, workspaceVirtualHost, driveHostFormat);
-			if (url == null) return match.Value;
-			if (!seen.Add(url)) return match.Value;
-			thumbs.Add((reference, url));
+			var resolvedPath = ResolveDiskPath(reference, workspaceRoot);
+			if (resolvedPath == null) return match.Value;
+			if (!seen.Add(resolvedPath)) return match.Value;
+
+			var dataUri = TryEncodeDataUri(resolvedPath);
+			if (dataUri == null) return match.Value;
+
+			thumbs.Add((reference, dataUri));
 			return match.Value + "\u0000KPTHUMB" + (thumbs.Count - 1) + "\u0000";
 		});
 
@@ -113,74 +126,90 @@ internal static class ImageReferenceTransformer
 		{
 			var t = thumbs[int.Parse(m.Groups[1].Value)];
 			var alt = t.Reference.Replace("[", "").Replace("]", "");
-			return "\n\n![" + alt + "](" + t.Url + ")\n\n";
+			return "\n\n![" + alt + "](" + t.DataUri + ")\n\n";
 		});
 
 		return masked;
 	}
 
-	private static string? ResolveUrl(
-		string reference,
-		string? workspaceRoot,
-		string? workspaceVirtualHost,
-		string? driveHostFormat)
+	/// <summary>
+	/// Maps a textual image reference to an absolute, existing path on
+	/// disk. Returns null when the reference is a remote URL, a rooted
+	/// path with no drive letter, a relative path with no workspace,
+	/// or a path that simply doesn't exist.
+	/// </summary>
+	private static string? ResolveDiskPath(string reference, string? workspaceRoot)
 	{
 		var s = reference;
 		if (s.Length > 0 && s[0] == '@') s = s.Substring(1);
 
-		// Remote URLs and file:// URIs are intentionally not rewritten.
-		// http(s) would let the model fetch arbitrary external content
-		// (potential exfiltration vector); file:// is redundant with the
-		// drive-host path below and would bypass our scoping.
+		// Remote URLs and file:// URIs are intentionally not handled.
 		if (Regex.IsMatch(s, @"^(https?|file)://", RegexOptions.IgnoreCase))
 			return null;
 
-		var fwd = s.Replace('\\', '/');
-		bool hasDrive = Regex.IsMatch(fwd, @"^[A-Za-z]:/");
-		bool isAbsolute = hasDrive || (fwd.Length > 0 && fwd[0] == '/');
+		string candidate;
+		var fwd = s.Replace('/', '\\');
+		bool hasDrive = fwd.Length >= 2 && char.IsLetter(fwd[0]) && fwd[1] == ':';
+		bool isAbsolute = hasDrive || (fwd.Length > 0 && fwd[0] == '\\');
 
 		if (isAbsolute)
 		{
-			// 1) If the path lives inside the open workspace, prefer the
-			//    workspace host so the URL is short and stable.
-			if (!string.IsNullOrEmpty(workspaceRoot) && !string.IsNullOrEmpty(workspaceVirtualHost))
-			{
-				var rootFwd = workspaceRoot.Replace('\\', '/').TrimEnd('/');
-				if (string.Equals(fwd, rootFwd, System.StringComparison.OrdinalIgnoreCase))
-					return "https://" + workspaceVirtualHost + "/";
-				if (fwd.Length > rootFwd.Length + 1 &&
-					fwd.StartsWith(rootFwd + "/", System.StringComparison.OrdinalIgnoreCase))
-				{
-					var rel = fwd.Substring(rootFwd.Length + 1);
-					return "https://" + workspaceVirtualHost + "/" + EncodePathSegments(rel);
-				}
-			}
-
-			// 2) Otherwise route through the per-drive virtual host.
-			if (!string.IsNullOrEmpty(driveHostFormat) && hasDrive)
-			{
-				var letter = char.ToLowerInvariant(fwd[0]);
-				var afterDrive = fwd.Substring(3); // skip "X:/"
-				var host = string.Format(driveHostFormat, letter);
-				return "https://" + host + "/" + EncodePathSegments(afterDrive);
-			}
-
-			// Rooted paths without a drive letter ("/foo/bar.png") are not
-			// supportable on Windows without further info; skip them.
-			return null;
+			if (!hasDrive) return null;   // Bare \-rooted path is ambiguous on Windows.
+			candidate = fwd;
+		}
+		else
+		{
+			if (string.IsNullOrEmpty(workspaceRoot)) return null;
+			var rel = fwd.StartsWith(@".\") ? fwd.Substring(2) : fwd;
+			candidate = Path.Combine(workspaceRoot, rel);
 		}
 
-		// Relative path — served from the workspace root.
-		if (string.IsNullOrEmpty(workspaceVirtualHost)) return null;
-		var relative = fwd.StartsWith("./") ? fwd.Substring(2) : fwd;
-		return "https://" + workspaceVirtualHost + "/" + EncodePathSegments(relative);
+		try
+		{
+			candidate = Path.GetFullPath(candidate);
+			return File.Exists(candidate) ? candidate : null;
+		}
+		catch
+		{
+			return null;
+		}
 	}
 
-	private static string EncodePathSegments(string path)
+	/// <summary>
+	/// Reads <paramref name="path"/> from disk and returns a base64 data
+	/// URI suitable for use as an &lt;img src&gt;. Returns null when the
+	/// file is too large or cannot be read.
+	/// </summary>
+	private static string? TryEncodeDataUri(string path)
 	{
-		var parts = path.Split('/');
-		for (int i = 0; i < parts.Length; i++)
-			parts[i] = System.Uri.EscapeDataString(parts[i]);
-		return string.Join("/", parts);
+		try
+		{
+			var info = new FileInfo(path);
+			if (!info.Exists || info.Length == 0 || info.Length > MaxFileBytes)
+				return null;
+
+			var mime = MimeFromExtension(info.Extension);
+			var bytes = File.ReadAllBytes(path);
+			return "data:" + mime + ";base64," + Convert.ToBase64String(bytes);
+		}
+		catch
+		{
+			return null;
+		}
 	}
+
+	private static string MimeFromExtension(string extension) =>
+		extension.ToLowerInvariant() switch
+		{
+			".png"            => "image/png",
+			".jpg" or ".jpeg" => "image/jpeg",
+			".gif"            => "image/gif",
+			".webp"           => "image/webp",
+			".svg"            => "image/svg+xml",
+			".bmp"            => "image/bmp",
+			".ico"            => "image/x-icon",
+			".tif" or ".tiff" => "image/tiff",
+			".avif"           => "image/avif",
+			_                 => "application/octet-stream",
+		};
 }

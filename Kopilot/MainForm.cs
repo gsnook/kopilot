@@ -314,12 +314,24 @@ public partial class MainForm : Form
     /// Queries the Copilot SDK for available models and populates comboBoxModel.
     /// Selects the highest-available Claude Opus model by default, falling back to
     /// the highest-available Claude Sonnet model if no Opus model is present.
-    /// Falls back silently if the SDK is unavailable.
+    /// Falls back to the service's current ActiveModel if the SDK returns nothing.
     /// </summary>
     private async Task PopulateModelsAsync()
     {
         var ids = await _copilot.ListModelsAsync();
-        if (ids.Count == 0) return;
+
+        // If the SDK returned nothing (e.g. not yet authenticated), seed the
+        // combo with the model the service is already configured to use so the
+        // dropdown is never left empty.
+        if (ids.Count == 0)
+        {
+            if (comboBoxModel.Items.Count == 0)
+            {
+                comboBoxModel.Items.Add(_copilot.ActiveModel);
+                comboBoxModel.SelectedIndex = 0;
+            }
+            return;
+        }
 
         comboBoxModel.BeginUpdate();
         try

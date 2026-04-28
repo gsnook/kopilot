@@ -170,7 +170,8 @@ public sealed class CopilotService : IAsyncDisposable
 
     /// <summary>
     /// Starts the client if needed and returns the available model IDs from the SDK.
-    /// Returns an empty list on any error (e.g., not authenticated).
+    /// Returns an empty list on any error (e.g., not authenticated); fires
+    /// <see cref="ConnectionStateChanged"/> with the error message so the UI can surface it.
     /// </summary>
     public async Task<IReadOnlyList<string>> ListModelsAsync()
     {
@@ -197,7 +198,11 @@ public sealed class CopilotService : IAsyncDisposable
                 .Where(id => !string.IsNullOrEmpty(id))
                 .ToList();
         }
-        catch { return []; }
+        catch (Exception ex)
+        {
+            ConnectionStateChanged?.Invoke(this, $"Model list unavailable: {ex.Message}");
+            return [];
+        }
     }
 
     /// <summary>

@@ -589,7 +589,9 @@ public partial class MainForm : Form
             if (_mainSessionId != null)
             {
                 SetSessionDescriptionIfEmpty(_mainSessionId, prompt);
-                AppendOutput($"\U0001f464 You: {prompt}\r\n\r\n", AppTheme.ColorUser);
+                // Raw tab only: the Rendered tab gets the structured User block via
+                // WebViewAppendBlock below, so mirroring here would duplicate the prompt.
+                AppendRaw($"\U0001f464 You: {prompt}\r\n\r\n", AppTheme.ColorUser);
                 var userBlock = new OutputBlock(BlockKind.User)
                 {
                     Label = "\U0001f464 You:",
@@ -1661,7 +1663,8 @@ public partial class MainForm : Form
             switch (type.ToLowerInvariant())
             {
                 case "user":
-                    AppendOutput($"\U0001f464 You: {Truncate(content, 500)}\r\n\r\n",
+                    // Raw tab only -- the structured User block below populates the Rendered tab.
+                    AppendRaw($"\U0001f464 You: {Truncate(content, 500)}\r\n\r\n",
                         AppTheme.ColorUser);
                     var userBlock = new OutputBlock(BlockKind.User)
                     {
@@ -1674,7 +1677,8 @@ public partial class MainForm : Form
                     break;
 
                 case "assistant":
-                    AppendOutput($"\U0001f916 Assistant:\r\n{content}\r\n\r\n",
+                    // Raw tab only -- structured Assistant block below populates the Rendered tab.
+                    AppendRaw($"\U0001f916 Assistant:\r\n{content}\r\n\r\n",
                         AppTheme.ColorAssistant);
                     var assistantBlock = new OutputBlock(BlockKind.Assistant)
                     {
@@ -2243,29 +2247,29 @@ public partial class MainForm : Form
             case MessageKind.AssistantDelta:
                 if (!_streamingSessions.Contains(args.SessionId))
                 {
-                    AppendOutput("🤖 Assistant:\r\n", AppTheme.ColorAssistant);
+                    AppendRaw("🤖 Assistant:\r\n", AppTheme.ColorAssistant);
                     _streamingSessions.Add(args.SessionId);
                 }
-                AppendOutput(args.Content, AppTheme.ColorDefault);
+                AppendRaw(args.Content, AppTheme.ColorDefault);
                 scrollNeeded = true;
                 break;
 
             case MessageKind.AssistantFinal:
                 if (!_streamingSessions.Contains(args.SessionId))
-                    AppendOutput($"🤖 Assistant:\r\n{args.Content}\r\n\r\n", AppTheme.ColorAssistant);
+                    AppendRaw($"🤖 Assistant:\r\n{args.Content}\r\n\r\n", AppTheme.ColorAssistant);
                 scrollNeeded = true;
                 break;
 
             case MessageKind.Reasoning:
-                AppendOutput($"💭 Reasoning:\r\n{args.Content}\r\n\r\n", AppTheme.ColorReasoning);
+                AppendRaw($"💭 Reasoning:\r\n{args.Content}\r\n\r\n", AppTheme.ColorReasoning);
                 scrollNeeded = true;
                 break;
 
             case MessageKind.SubAgentStart:
             {
                 if (_streamingSessions.Remove(args.SessionId))
-                    AppendOutput("\r\n", AppTheme.ColorDefault);
-                AppendOutput("\r\n", AppTheme.ColorDefault);
+                    AppendRaw("\r\n", AppTheme.ColorDefault);
+                AppendRaw("\r\n", AppTheme.ColorDefault);
                 if (!string.IsNullOrEmpty(args.ToolCallId))
                 {
                     _activeSubAgents[args.ToolCallId] = args.SubAgentDisplayName ?? args.Content;
@@ -2274,7 +2278,7 @@ public partial class MainForm : Form
                 var saName = args.SubAgentDisplayName ?? args.Content;
                 var saDesc = string.IsNullOrEmpty(args.SubAgentDescription) ? ""
                     : $" — {(args.SubAgentDescription.Length > 60 ? args.SubAgentDescription[..60] + "…" : args.SubAgentDescription)}";
-                AppendOutput($"○ {saName}{saDesc}\r\n", AppTheme.ColorSubAgent);
+                AppendRaw($"○ {saName}{saDesc}\r\n", AppTheme.ColorSubAgent);
                 UpdateAgentStatus();
                 scrollNeeded = true;
                 break;
@@ -2301,7 +2305,7 @@ public partial class MainForm : Form
                 var stats = FormatSubAgentStats(args);
                 if (stats != null)
                 {
-                    AppendOutput($"  ↳ {stats}\r\n", AppTheme.ColorToolDim);
+                    AppendRaw($"  ↳ {stats}\r\n", AppTheme.ColorToolDim);
                     scrollNeeded = true;
                 }
                 if (_mainSessionIdle && _activeSubAgents.Count == 0)
@@ -2334,13 +2338,13 @@ public partial class MainForm : Form
                 }
                 if (!string.IsNullOrEmpty(args.Content))
                 {
-                    AppendOutput($"  ✗ {args.SubAgentDisplayName}: {args.Content}\r\n", AppTheme.ColorError);
+                    AppendRaw($"  ✗ {args.SubAgentDisplayName}: {args.Content}\r\n", AppTheme.ColorError);
                     scrollNeeded = true;
                 }
                 var failStats = FormatSubAgentStats(args);
                 if (failStats != null)
                 {
-                    AppendOutput($"  ↳ {failStats}\r\n", AppTheme.ColorToolDim);
+                    AppendRaw($"  ↳ {failStats}\r\n", AppTheme.ColorToolDim);
                     scrollNeeded = true;
                 }
                 if (_mainSessionIdle && _activeSubAgents.Count == 0)
@@ -2356,25 +2360,25 @@ public partial class MainForm : Form
             case MessageKind.SkillInvoked:
             {
                 if (_streamingSessions.Remove(args.SessionId))
-                    AppendOutput("\r\n", AppTheme.ColorDefault);
+                    AppendRaw("\r\n", AppTheme.ColorDefault);
                 var desc = string.IsNullOrEmpty(args.SubAgentDescription) ? ""
                     : $" — {args.SubAgentDescription}";
-                AppendOutput($"  📚 Skill: {args.Content}{desc}\r\n", AppTheme.ColorMeta);
+                AppendRaw($"  📚 Skill: {args.Content}{desc}\r\n", AppTheme.ColorMeta);
                 scrollNeeded = true;
                 break;
             }
 
             case MessageKind.CustomAgentsUpdated:
-                AppendOutput($"[{args.Content}]\r\n\r\n", AppTheme.ColorMeta);
+                AppendRaw($"[{args.Content}]\r\n\r\n", AppTheme.ColorMeta);
                 scrollNeeded = true;
                 break;
 
             case MessageKind.ToolStart:
             {
                 if (_streamingSessions.Remove(args.SessionId))
-                    AppendOutput("\r\n", AppTheme.ColorDefault);
+                    AppendRaw("\r\n", AppTheme.ColorDefault);
                 var argPart = string.IsNullOrEmpty(args.ToolArgSummary) ? "" : $"  {args.ToolArgSummary}";
-                AppendOutput($"  🔧 {args.Content}{argPart}", AppTheme.ColorTool);
+                AppendRaw($"  🔧 {args.Content}{argPart}", AppTheme.ColorTool);
                 if (!string.IsNullOrEmpty(args.ToolCallId))
                     _toolStartPositions[args.ToolCallId] = richTextBoxOutput.TextLength;
                 scrollNeeded = true;
@@ -2384,7 +2388,7 @@ public partial class MainForm : Form
             case MessageKind.ToolProgress:
                 if (!string.IsNullOrEmpty(args.Content))
                 {
-                    AppendOutput($"\r\n  │ {args.Content}", AppTheme.ColorToolDim);
+                    AppendRaw($"\r\n  │ {args.Content}", AppTheme.ColorToolDim);
                     scrollNeeded = true;
                 }
                 break;
@@ -2412,13 +2416,13 @@ public partial class MainForm : Form
                     if (!string.IsNullOrEmpty(args.ToolResultSummary))
                     {
                         var rc = args.ToolSuccess ? AppTheme.ColorToolDim : AppTheme.ColorError;
-                        AppendOutput($"  └ {args.ToolResultSummary}\r\n", rc);
+                        AppendRaw($"  └ {args.ToolResultSummary}\r\n", rc);
                         scrollNeeded = true;
                     }
                 }
                 else
                 {
-                    AppendOutput(args.ToolSuccess ? "  ✓\r\n" : "  ✗\r\n",
+                    AppendRaw(args.ToolSuccess ? "  ✓\r\n" : "  ✗\r\n",
                         args.ToolSuccess ? AppTheme.ColorAssistant : AppTheme.ColorError);
                     scrollNeeded = true;
                 }
@@ -2432,10 +2436,10 @@ public partial class MainForm : Form
 
             case MessageKind.Error:
                 if (_streamingSessions.Remove(args.SessionId))
-                    AppendOutput("\r\n", AppTheme.ColorDefault);
-                AppendOutput($"\r\n❌ Error: {args.Content}\r\n\r\n", AppTheme.ColorError);
+                    AppendRaw("\r\n", AppTheme.ColorDefault);
+                AppendRaw($"\r\n❌ Error: {args.Content}\r\n\r\n", AppTheme.ColorError);
                 if (args.Content.Contains("CAPIError: 400") || args.Content.Contains("400 Bad Request"))
-                    AppendOutput(
+                    AppendRaw(
                         "💡 Tip: This usually means the session's context window is full. " +
                         "Try changing the mode or model to start a fresh session.\r\n\r\n",
                         AppTheme.ColorMeta);
@@ -2443,7 +2447,7 @@ public partial class MainForm : Form
                 break;
 
             case MessageKind.Status:
-                AppendOutput($"[{args.Content}]\r\n", AppTheme.ColorMeta);
+                AppendRaw($"[{args.Content}]\r\n", AppTheme.ColorMeta);
                 scrollNeeded = true;
                 break;
         }
@@ -2928,6 +2932,22 @@ public partial class MainForm : Form
 
     private void AppendOutput(string text, Color color)
     {
+        AppendRaw(text, color);
+
+        // Mirror to the Rendered (WebView) tab so both tabs show the same content.
+        MirrorMetaToWebView(text, color);
+    }
+
+    /// <summary>
+    /// Appends to the Raw RichTextBox only -- does NOT mirror to the Rendered
+    /// (WebView2) tab.  Used from <see cref="AppendMessage"/>, where the
+    /// Rendered tab is already populated by <see cref="AppendRenderedMessage"/>
+    /// with a properly structured (Markdown / tool / sub-agent) block.
+    /// Mirroring here would duplicate the assistant response as a plain-text
+    /// Status block immediately under its Markdown rendering.
+    /// </summary>
+    private void AppendRaw(string text, Color color)
+    {
         // Suppress redraws for the entire append + scroll sequence.
         // ScrollToCaret must happen while WM_SETREDRAW is still false so the scroll
         // position is already at the bottom when painting resumes.  If ScrollToCaret
@@ -2945,9 +2965,6 @@ public partial class MainForm : Form
             SendMessage(richTextBoxOutput.Handle, WM_SETREDRAW, true, 0);
             richTextBoxOutput.Invalidate();
         }
-
-        // Mirror to the Rendered (WebView) tab so both tabs show the same content.
-        MirrorMetaToWebView(text, color);
     }
 
     /// <summary>

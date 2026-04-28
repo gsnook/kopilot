@@ -24,6 +24,15 @@
 	var renderTimers = {};
 	var RENDER_DEBOUNCE_MS = 40;
 
+	// Hide broken thumbnails (e.g. when the model mentions a path that
+	// doesn't exist yet). 'error' doesn't bubble, so listen in capture phase.
+	document.addEventListener("error", function (e) {
+		var t = e.target;
+		if (t && t.tagName === "IMG" && t.closest && t.closest(".block-assistant")) {
+			t.classList.add("kp-img-broken");
+		}
+	}, true);
+
 	// ── Marked configuration ───────────────────────────────────────
 
 	marked.setOptions({

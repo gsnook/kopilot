@@ -260,6 +260,10 @@ public partial class MainForm : Form
             {
                 webViewOutput.CoreWebView2.Navigate(new Uri(htmlPath).AbsoluteUri);
                 _webViewReady = true;
+                // Apply the initial workspace mapping (if a folder is already
+                // set) so image references in assistant markdown can resolve.
+                UpdateWebViewWorkspaceMapping();
+                RegisterDriveVirtualHosts();
             }
             else
             {
@@ -1284,6 +1288,7 @@ public partial class MainForm : Form
         ResetSessionTrackingState();
 
         _copilot.WorkingDirectory = folderPath;
+        UpdateWebViewWorkspaceMapping();
         buttonOpenFolder.Enabled = false;
         toolStripStatusLabelSession.Text = folderPath;
         UpdateTitleBar(folderPath);
@@ -1609,6 +1614,7 @@ public partial class MainForm : Form
 
             ResetSessionTrackingState();
             _copilot.WorkingDirectory = workspace;
+            UpdateWebViewWorkspaceMapping();
             buttonOpenFolder.Enabled = false;
             toolStripStatusLabelSession.Text = workspace;
             UpdateTitleBar(workspace);
@@ -2868,23 +2874,26 @@ public partial class MainForm : Form
     private void WebViewAppendBlockInternal(OutputBlock block)
     {
         if (!_webViewReady) return;
+        var content = TransformBlockContentForRender(block, block.Content);
         var js = $"appendBlock({JsString(block.Id)}, {JsString(block.CssKind)}, " +
-                 $"{JsString(block.Label)}, {JsString(block.Content)}, {(block.IsMarkdown ? "true" : "false")})";
+                 $"{JsString(block.Label)}, {JsString(content)}, {(block.IsMarkdown ? "true" : "false")})";
         _ = webViewOutput.CoreWebView2.ExecuteScriptAsync(js);
     }
 
     private void WebViewUpdateBlock(OutputBlock block)
     {
         if (!_webViewReady) return;
-        var js = $"updateBlock({JsString(block.Id)}, {JsString(block.Content)})";
+        var content = TransformBlockContentForRender(block, block.Content);
+        var js = $"updateBlock({JsString(block.Id)}, {JsString(content)})";
         _ = webViewOutput.CoreWebView2.ExecuteScriptAsync(js);
     }
 
     private void WebViewFinalizeBlock(OutputBlock block)
     {
         if (!_webViewReady) return;
+        var content = TransformBlockContentForRender(block, block.Content);
         // Flush content one last time, then finalize
-        var js = $"updateBlock({JsString(block.Id)}, {JsString(block.Content)}); " +
+        var js = $"updateBlock({JsString(block.Id)}, {JsString(content)}); " +
                  $"finalizeBlock({JsString(block.Id)})";
         _ = webViewOutput.CoreWebView2.ExecuteScriptAsync(js);
     }
@@ -2901,6 +2910,106 @@ public partial class MainForm : Form
         _currentMetaBlock = null;
         if (!_webViewReady) return;
         _ = webViewOutput.CoreWebView2.ExecuteScriptAsync("clearAll()");
+    }
+
+    /// <summary>
+    /// Returns the markdown that should be rendered in the WebView2 tab for a
+    /// given block. For assistant markdown, bare image-file references are
+    /// detected and supplemented with inline <c>![alt](url)</c> thumbnails
+    /// (resolved through the WebView2 virtual host mapping). Other block kinds
+    /// and the Raw transcript are unaffected, so the Raw tab always shows
+    /// exactly what Copilot emitted.
+    /// </summary>
+    private string TransformBlockContentForRender(OutputBlock block, string? content)
+    {
+        if (content == null) return "";
+        if (!block.IsMarkdown || block.Kind != BlockKind.Assistant) return content;
+        return ImageReferenceTransformer.Apply(
+            content,
+            _copilot.WorkingDirectory,
+            WebViewWorkspaceHost,
+            WebViewDriveHostFormat);
+    }
+
+    /// <summary>
+    /// Virtual host name that maps to the current workspace folder. Image
+    /// references inside the workspace use a short URL form
+    /// (<c>https://kopilot-workspace.local/relative/path</c>).
+    /// </summary>
+    private const string WebViewWorkspaceHost = "kopilot-workspace.local";
+
+    /// <summary>
+    /// Format string for per-drive virtual host names. Absolute image
+    /// paths outside the workspace (e.g. <c>D:\photos\foo.png</c>) are
+    /// rewritten to <c>https://kopilot-drive-d.local/photos/foo.png</c>.
+    /// </summary>
+    private const string WebViewDriveHostFormat = "kopilot-drive-{0}.local";
+
+    /// <summary>
+    /// Re-points the WebView2 virtual host at the current workspace folder so
+    /// that image thumbnails injected into assistant markdown can be served
+    /// from disk. Safe to call before WebView2 is ready (no-op until then).
+    /// </summary>
+    private void UpdateWebViewWorkspaceMapping()
+    {
+        if (!_webViewReady) return;
+        var dir = _copilot.WorkingDirectory;
+
+        try
+        {
+            if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+            {
+                webViewOutput.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                    WebViewWorkspaceHost,
+                    dir,
+                    Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+            }
+            else
+            {
+                webViewOutput.CoreWebView2.ClearVirtualHostNameToFolderMapping(WebViewWorkspaceHost);
+            }
+        }
+        catch
+        {
+            // Mapping is a nice-to-have; failures here just mean image
+            // thumbnails won't resolve. Don't disrupt the rest of the UI.
+        }
+    }
+
+    /// <summary>
+    /// Registers a virtual host mapping for every fixed/removable drive root
+    /// so that absolute image paths anywhere on the local machine can be
+    /// rendered as inline thumbnails. Called once when WebView2 is ready.
+    /// Drive roots rarely change at runtime, so eager registration is fine.
+    /// </summary>
+    private void RegisterDriveVirtualHosts()
+    {
+        if (!_webViewReady) return;
+        try
+        {
+            foreach (var drive in DriveInfo.GetDrives())
+            {
+                if (!drive.IsReady) continue;
+                var letter = char.ToLowerInvariant(drive.Name[0]);
+                var host = string.Format(WebViewDriveHostFormat, letter);
+                try
+                {
+                    webViewOutput.CoreWebView2.SetVirtualHostNameToFolderMapping(
+                        host,
+                        drive.RootDirectory.FullName,
+                        Microsoft.Web.WebView2.Core.CoreWebView2HostResourceAccessKind.Allow);
+                }
+                catch
+                {
+                    // Skip drives we can't map (network, permission, etc.).
+                }
+            }
+        }
+        catch
+        {
+            // DriveInfo enumeration failed — thumbnails outside the workspace
+            // simply won't resolve. Not worth disrupting startup over.
+        }
     }
 
     /// <summary>Wraps a string as a JS string literal, escaping special characters.</summary>

@@ -49,6 +49,21 @@ html, body {
 	color: #d2d2d2;
 }
 
+/* Auto-detected image thumbnails appended beneath image-path mentions. */
+.block-assistant .block-content img {
+	max-width: 320px;
+	max-height: 240px;
+	margin: 4px 0;
+	border: 1px solid #333;
+	border-radius: 4px;
+	background: #1a1a1a;
+	display: block;
+	cursor: zoom-in;
+}
+.block-assistant .block-content img.kp-img-broken {
+	display: none;
+}
+
 /* Reasoning */
 .block-reasoning .block-label {
 	color: #9494d2;

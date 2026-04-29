@@ -796,21 +796,21 @@ public partial class MainForm : Form
 
         if (max <= 0)
         {
-            text     = "Context: \u2014 / \u2014 (\u2014)";
+            text     = "Prompt: \u2014 / \u2014 (\u2014)";
             color    = Color.FromArgb(148, 148, 148);
             barValue = 0;
             barColor = Color.FromArgb(96, 96, 96);
         }
         else if (input <= 0)
         {
-            text     = $"Context: 0 / {FormatTokens(max)} (0%)";
+            text     = $"Prompt: 0 / {FormatTokens(max)} (0%)";
             color    = Color.FromArgb(148, 220, 148); // green
             barValue = 0;
             barColor = Color.FromArgb(148, 220, 148);
         }
         else
         {
-            text = $"Context: {FormatTokens(input)} / {FormatTokens(max)} ({pct:0}%)";
+            text = $"Prompt: {FormatTokens(input)} / {FormatTokens(max)} ({pct:0}%)";
             color = pct < 60  ? Color.FromArgb(148, 220, 148)  // green
                   : pct < 85  ? Color.FromArgb(232, 200, 110)  // amber
                               : Color.FromArgb(240, 120, 120); // red
@@ -824,8 +824,8 @@ public partial class MainForm : Form
         toolStripProgressBarContext.ForeColor = barColor;
         toolTipMain.SetToolTip(statusStrip,
             max > 0
-                ? $"Context window usage: {input:N0} / {max:N0} prompt tokens ({pct:0.0}%)\nClick \ud83d\udca4 Refresh to free space."
-                : "Context window usage will appear here after the first response.");
+                ? $"Prompt window usage: {input:N0} / {max:N0} prompt tokens ({pct:0.0}%)\nClick \ud83d\udca4 Refresh to free space."
+                : "Prompt window usage will appear here after the first response.");
 
         UpdateRefreshButtonAffordance(max > 0 ? pct : 0);
 
@@ -862,12 +862,12 @@ public partial class MainForm : Form
         if (pct >= 85)
         {
             glyph = "\ud83d\udd25"; // fire
-            tip   = $"Context at {pct:0}% \u2014 strongly recommend Compact or Restart now.";
+            tip   = $"Prompt window at {pct:0}% \u2014 strongly recommend Compact or Restart now.";
         }
         else if (pct >= 60)
         {
             glyph = "\u26a0\ufe0f"; // warning sign
-            tip   = $"Context at {pct:0}% \u2014 consider Compact or Restart soon.";
+            tip   = $"Prompt window at {pct:0}% \u2014 consider Compact or Restart soon.";
         }
         else
         {
@@ -888,12 +888,12 @@ public partial class MainForm : Form
             : 0;
 
         var result = MessageBox.Show(this,
-            $"Context window is at {pct:0}% — accuracy may start to degrade.\r\n\r\n" +
+            $"Prompt window is at {pct:0}% — accuracy may start to degrade.\r\n\r\n" +
             "Refresh now?\r\n\r\n" +
             "  Yes  – Compact in place (fast, keeps session ID)\r\n" +
             "  No   – Restart with summary (clean window, new session)\r\n" +
             "  Cancel – Don't ask again this session",
-            "Context Window Filling Up",
+            "Prompt Window Filling Up",
             MessageBoxButtons.YesNoCancel,
             MessageBoxIcon.Warning,
             MessageBoxDefaultButton.Button1);

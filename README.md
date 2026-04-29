@@ -260,7 +260,7 @@ The bar at the bottom of the window shows:
 - **Connection status** — folder path once connected, or "Not connected"
 - **Copilot version**
 - **Agent status** — live activity message (e.g., "Ready for next command")
-- **Context meter** — current prompt-token usage as `Context: 42K / 200K (21%)`. Coloured green below 60%, amber at 60–85%, red above 85%.
+- **Context meter** — current prompt-token usage as `Prompt: 42K / 200K (21%)`. This uses the Copilot SDK's per-model prompt-token ceiling (which may be smaller than the vendor-published context window). Coloured green below 60%, amber at 60–85%, red above 85%.
 - **Session info**
 
 ---
@@ -499,7 +499,7 @@ kopilot/
 - **Start simple** — open a folder and ask *"What does this project do?"* to orient yourself.
 - **Use Plan mode** for big tasks so you can review the plan before Copilot acts.
 - **Summarize often** — **Session ▸ 📝 Summarize** captures progress before starting a new topic.
-- **Watch the Context meter** — when it goes amber (60%) plan to refresh; at 85% Kopilot will offer to do it for you.
+- **Watch the Context meter** — this is based on prompt-token usage for the active model. When it goes amber (60%) plan to refresh; at 85% Kopilot will offer to do it for you.
 - **Resume previous work** — **Session ▸ 📋 Past Sessions…** lists every persisted session so you can reconnect with full history.
 - **Reference anything** — drag files/folders onto the prompt, or right-click the prompt for `List Agents…` / `List Skills…` to insert `@agent:…` / `@skill:…` tokens.
 - **Switch to the Raw tab** if you want to copy unformatted text, or if a rendered block isn't displaying as you expect.

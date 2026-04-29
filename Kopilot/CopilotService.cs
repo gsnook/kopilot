@@ -93,8 +93,8 @@ public sealed class CopilotService : IAsyncDisposable
     private readonly HashSet<string> _approvedKinds = new();
     // Latest SDK-registered slash commands from CommandsChangedEvent (main session only)
     private CommandsChangedCommand[] _cachedSdkCommands = [];
-    // Status message produced by BuildSystemMessage(); emitted once the session ID is known
-    private string? _pendingStatusMessage;
+    // Status messages produced before the session ID is known; emitted once the session is created.
+    private readonly Queue<string> _pendingStatusMessages = new();
 
     private CancellationTokenSource? _keepAliveCts;
     private const int KeepAliveIntervalSeconds = 30;
@@ -120,6 +120,7 @@ public sealed class CopilotService : IAsyncDisposable
     // Cache of per-model prompt-token limits, populated by ListModelsAsync.
     private readonly Dictionary<string, double> _modelPromptLimits =
         new(StringComparer.OrdinalIgnoreCase);
+    private bool _modelLimitsLogged = false;
 
     public double CurrentInputTokens     => _currentInputTokens;
     public double CurrentMaxPromptTokens => _currentMaxPromptTokens;
@@ -186,7 +187,7 @@ public sealed class CopilotService : IAsyncDisposable
             await EnsureStartedAsync();
             var models = await _client!.ListModelsAsync();
 
-            // Capture per-model prompt-token ceiling for the context meter.
+            // Capture per-model prompt-token ceiling for the prompt-window meter.
             foreach (var m in models)
             {
                 if (string.IsNullOrEmpty(m.Id)) continue;
@@ -195,9 +196,19 @@ public sealed class CopilotService : IAsyncDisposable
                        ?? (limits.MaxContextWindowTokens > 0 ? limits.MaxContextWindowTokens : 0);
                 if (max > 0) _modelPromptLimits[m.Id] = max;
             }
+
             // Reflect the current model's limit immediately so the meter has a
             // denominator before the first turn arrives.
             _currentMaxPromptTokens = LookupMaxPromptTokens(ActiveModel);
+
+            if (!_modelLimitsLogged && _modelPromptLimits.Count > 0)
+            {
+                _modelLimitsLogged = true;
+                var summary = string.Join(", ", _modelPromptLimits
+                    .OrderBy(kvp => kvp.Key)
+                    .Select(kvp => $"{kvp.Key}={FormatTokensShort(kvp.Value)}"));
+                EmitStatus($"Model prompt limits loaded: {summary}");
+            }
 
             return models
                 .Select(m => m.Id)
@@ -212,20 +223,16 @@ public sealed class CopilotService : IAsyncDisposable
     }
 
     /// <summary>
-    /// Returns the prompt-token ceiling for <paramref name="modelId"/>.  Prefers the
-    /// SDK-reported value; otherwise picks a reasonable default based on the model
-    /// family prefix; otherwise falls back to a generic 200K window.
+    /// Returns the prompt-token ceiling for <paramref name="modelId"/>.
+    /// Only trusts SDK-reported limits gathered from ListModelsAsync.
+    /// If the SDK has not reported limits yet, returns 0 so the UI shows an unknown denominator
+    /// rather than guessing (different accounts/models can have different caps).
     /// </summary>
     private double LookupMaxPromptTokens(string? modelId)
     {
-        if (string.IsNullOrEmpty(modelId)) return 200_000;
+        if (string.IsNullOrEmpty(modelId)) return 0;
         if (_modelPromptLimits.TryGetValue(modelId, out var v) && v > 0) return v;
-
-        // Family-level fallbacks for models the SDK has not reported limits for.
-        if (modelId.StartsWith("gpt-4.1",  StringComparison.OrdinalIgnoreCase)) return 1_000_000;
-        if (modelId.StartsWith("gpt-5",    StringComparison.OrdinalIgnoreCase)) return 200_000;
-        if (modelId.StartsWith("claude-",  StringComparison.OrdinalIgnoreCase)) return 200_000;
-        return 200_000;
+        return 0;
     }
 
     // True when an AssistantUsageEvent represents a top-level user-driven
@@ -331,6 +338,19 @@ public sealed class CopilotService : IAsyncDisposable
     {
         ActiveModel = model;
         _currentMaxPromptTokens = LookupMaxPromptTokens(model);
+
+        // Immediately refresh the UI meter against the new denominator.
+        ContextUsageChanged?.Invoke(this, new ContextUsageEventArgs
+        {
+            SessionId       = _mainSession?.SessionId ?? "",
+            InputTokens     = _currentInputTokens,
+            MaxPromptTokens = _currentMaxPromptTokens,
+        });
+
+        EmitStatus(_currentMaxPromptTokens > 0
+            ? $"Model set to {model}. Prompt window: {FormatTokensShort(_currentMaxPromptTokens)} tokens."
+            : $"Model set to {model}. Prompt window limit not yet known.");
+
         if (_mainSession != null)
         {
             try { await _mainSession.SetModelAsync(model); }
@@ -786,15 +806,40 @@ public sealed class CopilotService : IAsyncDisposable
 
     private void EmitPendingStatus(string sessionId)
     {
-        if (_pendingStatusMessage == null) return;
-        var msg = _pendingStatusMessage;
-        _pendingStatusMessage = null;
-        MessageReceived?.Invoke(this, new SessionMessageEventArgs
+        while (_pendingStatusMessages.Count > 0)
         {
-            SessionId = sessionId,
-            Content   = msg,
-            Kind      = MessageKind.Status,
-        });
+            var msg = _pendingStatusMessages.Dequeue();
+            MessageReceived?.Invoke(this, new SessionMessageEventArgs
+            {
+                SessionId = sessionId,
+                Content   = msg,
+                Kind      = MessageKind.Status,
+            });
+        }
+    }
+
+    private void EmitStatus(string message)
+    {
+        if (_mainSession?.SessionId is string sid && !string.IsNullOrEmpty(sid))
+        {
+            MessageReceived?.Invoke(this, new SessionMessageEventArgs
+            {
+                SessionId = sid,
+                Content   = message,
+                Kind      = MessageKind.Status,
+            });
+            return;
+        }
+
+        // If we don't have a session ID yet, queue the status to emit once the session is created.
+        _pendingStatusMessages.Enqueue(message);
+    }
+
+    private static string FormatTokensShort(double tokens)
+    {
+        if (tokens >= 1_000_000) return $"{tokens / 1_000_000:0.#}M";
+        if (tokens >= 1_000)     return $"{tokens / 1_000:0.#}K";
+        return ((int)tokens).ToString();
     }
 
     private SystemMessageConfig? BuildSystemMessage()
@@ -837,7 +882,7 @@ public sealed class CopilotService : IAsyncDisposable
             catch { /* best-effort; skip if unreadable */ }
         }
         if (loadedTiers.Count > 0)
-            _pendingStatusMessage = $"Instructions loaded: {string.Join(", ", loadedTiers)}";
+            _pendingStatusMessages.Enqueue($"Instructions loaded: {string.Join(", ", loadedTiers)}");
 
         // Mode-specific directive
         switch (ActiveMode)

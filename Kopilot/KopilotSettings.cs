@@ -36,6 +36,15 @@ internal sealed class KopilotSettings
 	/// </summary>
 	public bool CavemanMode { get; set; }
 
+	/// <summary>
+	/// Controls whether Reasoning and Tool group sections in the Rendered tab
+	/// stay expanded after they finish (true) or auto-collapse to a smart
+	/// summary (false, default). Persisted under <c>[UI]</c> as
+	/// <c>DetailsDefaultOpen=true|false</c>.  Mid-session changes take effect
+	/// for newly emitted sections only.
+	/// </summary>
+	public bool DetailsDefaultOpen { get; set; }
+
 	/// <summary>Loads settings from kopilot.ini; returns defaults if the file does not exist.</summary>
 	public static KopilotSettings Load()
 	{
@@ -80,11 +89,11 @@ internal sealed class KopilotSettings
 				}
 				else if (section == "caveman" && key == "enabled")
 				{
-					settings.CavemanMode =
-						val.Equals("true", System.StringComparison.OrdinalIgnoreCase)
-						|| val == "1"
-						|| val.Equals("yes", System.StringComparison.OrdinalIgnoreCase)
-						|| val.Equals("on",  System.StringComparison.OrdinalIgnoreCase);
+					settings.CavemanMode = ParseBool(val);
+				}
+				else if (section == "ui" && key == "detailsdefaultopen")
+				{
+					settings.DetailsDefaultOpen = ParseBool(val);
 				}
 			}
 		}
@@ -117,6 +126,15 @@ internal sealed class KopilotSettings
 		sb.Append("\r\n[Caveman]\r\n");
 		sb.Append($"Enabled={(CavemanMode ? "true" : "false")}\r\n");
 
+		sb.Append("\r\n[UI]\r\n");
+		sb.Append($"DetailsDefaultOpen={(DetailsDefaultOpen ? "true" : "false")}\r\n");
+
 		File.WriteAllText(IniPath, sb.ToString(), Encoding.ASCII);
 	}
+
+	private static bool ParseBool(string val) =>
+		val.Equals("true", System.StringComparison.OrdinalIgnoreCase)
+		|| val == "1"
+		|| val.Equals("yes", System.StringComparison.OrdinalIgnoreCase)
+		|| val.Equals("on",  System.StringComparison.OrdinalIgnoreCase);
 }

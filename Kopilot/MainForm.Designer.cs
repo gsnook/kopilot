@@ -61,6 +61,7 @@ partial class MainForm
         menuSessionSeparator1 = new ToolStripSeparator();
         menuSessionCaveman = new ToolStripMenuItem();
         menuSessionPast = new ToolStripMenuItem();
+        menuSessionShowSteps = new ToolStripMenuItem();
         menuSkills = new ToolStripMenuItem();
         menuSkillsListAgents = new ToolStripMenuItem();
         menuSkillsListSkills = new ToolStripMenuItem();
@@ -454,7 +455,7 @@ partial class MainForm
         // 
         // menuSession
         // 
-        menuSession.DropDownItems.AddRange(new ToolStripItem[] { menuSessionSummarize, menuSessionCaveman, menuSessionClear, menuSessionRefresh, menuSessionSeparator1, menuSessionPast });
+        menuSession.DropDownItems.AddRange(new ToolStripItem[] { menuSessionSummarize, menuSessionCaveman, menuSessionShowSteps, menuSessionClear, menuSessionRefresh, menuSessionSeparator1, menuSessionPast });
         menuSession.ForeColor = Color.FromArgb(218, 218, 218);
         menuSession.Name = "menuSession";
         menuSession.Size = new Size(58, 20);
@@ -531,6 +532,16 @@ partial class MainForm
         menuSessionCaveman.Size = new Size(180, 22);
         menuSessionCaveman.Text = "\U0001f9b4 Ca&veman Mode";
         menuSessionCaveman.ToolTipText = "Reduce each prompt to caveman speak before sending. Saves tokens; may lose nuance.";
+        // 
+        // menuSessionShowSteps
+        // 
+        menuSessionShowSteps.BackColor = Color.FromArgb(56, 56, 56);
+        menuSessionShowSteps.CheckOnClick = true;
+        menuSessionShowSteps.ForeColor = Color.FromArgb(218, 218, 218);
+        menuSessionShowSteps.Name = "menuSessionShowSteps";
+        menuSessionShowSteps.Size = new Size(180, 22);
+        menuSessionShowSteps.Text = "\U0001f441 S&how Working Steps";
+        menuSessionShowSteps.ToolTipText = "Keep Reasoning and Tool sections expanded after they finish (off = auto-collapse to a one-line summary).";
         // 
         // menuSessionPast
         // 
@@ -782,6 +793,7 @@ partial class MainForm
     private System.Windows.Forms.ToolStripMenuItem menuSessionRefreshFresh;
     private System.Windows.Forms.ToolStripSeparator menuSessionSeparator1;
     private System.Windows.Forms.ToolStripMenuItem menuSessionCaveman;
+    private System.Windows.Forms.ToolStripMenuItem menuSessionShowSteps;
     private System.Windows.Forms.ToolStripMenuItem menuSessionPast;
     private System.Windows.Forms.ToolStripMenuItem menuSkills;
     private System.Windows.Forms.ToolStripMenuItem menuSkillsListAgents;

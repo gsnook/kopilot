@@ -74,6 +74,23 @@ public partial class MainForm : Form
     private KopilotSettings _settings = new();
     private readonly SessionMetadataStore _sessionStore = new();
 
+    // Phase 4.5 - Collapsible sections in the Rendered tab.
+    // One open Reasoning section and one open Tool section may be active per
+    // sessionId at a time. The next event of a different kind (or session.idle)
+    // closes them with a smart summary. Keyed by SessionId so main and sub-agent
+    // sessions never bleed into each other's groups.
+    private readonly Dictionary<string, OpenReasoningSection> _openReasoningSections = new();
+    private readonly Dictionary<string, OpenToolSection>      _openToolSections      = new();
+    // Maps tool-call id -> tracking metadata for ToolProgress / ToolComplete routing.
+    // Lines stay registered here even after completion until the parent section closes,
+    // so smart-summary categorisation has access to all the line metadata.
+    private readonly Dictionary<string, OpenToolLine>         _openToolLines         = new();
+    private int _nextSectionId = 0;
+    // Active "Thinking..." pill id for the current main-session turn, if any.
+    // Set immediately after Send; cleared on the first session message of the turn.
+    private string? _activeThinkingId;
+    private int _nextThinkingId = 0;
+
 
     private readonly string? _startupFolder;
 
@@ -90,6 +107,7 @@ public partial class MainForm : Form
         _copilot.SkillTreeFolders = _settings.SkillTreeFolders;
         _copilot.CavemanMode      = _settings.CavemanMode;
         menuSessionCaveman.Checked = _settings.CavemanMode;
+        menuSessionShowSteps.Checked = _settings.DetailsDefaultOpen;
         UpdateSkillTreeTooltip();
 
         // Populate mode combo from the SDK enum and select the first entry
@@ -173,6 +191,13 @@ public partial class MainForm : Form
                 try { await DispatchPromptAsync(instruction); }
                 catch { /* best-effort; surface nothing to the user */ }
             }
+        };
+        menuSessionShowSteps.CheckedChanged += (_, _) =>
+        {
+            _settings.DetailsDefaultOpen = menuSessionShowSteps.Checked;
+            try { _settings.Save(); } catch { /* best-effort persist */ }
+            // Affects newly-emitted sections only; existing closed/open sections
+            // are not retroactively reopened or recollapsed.
         };
         menuToolsExplorer.Click += (_, _) => OpenExplorer();
         menuToolsVSCode.Click += (_, _) => OpenVSCode();
@@ -601,6 +626,17 @@ public partial class MainForm : Form
                 _outputBlocks.Add(userBlock);
                 WebViewAppendBlock(userBlock);
 
+                // Phase 4.5: show animated "Thinking..." pill for the dead air
+                // between Send and the very first event of the turn arriving back.
+                // Removed automatically by AppendRenderedMessage on the first
+                // non-BytesUpdate event for the main session.
+                if (_activeThinkingId != null)
+                {
+                    WebViewRemoveThinking(_activeThinkingId);
+                }
+                _activeThinkingId = $"th{System.Threading.Interlocked.Increment(ref _nextThinkingId)}";
+                WebViewAppendThinking(_activeThinkingId);
+
                 // C2 - Caveman before/after meter, written immediately after the
                 // user echo block so it visually attaches to the prompt it describes.
                 // Only SendPromptAsync supplies stats, so STOP and auto-handoff
@@ -643,8 +679,8 @@ public partial class MainForm : Form
             // Clear the Rendered tab
             _outputBlocks.Clear();
             _streamingBlocks.Clear();
-            _renderedToolBlocks.Clear();
             _renderedSubAgentBlocks.Clear();
+            ClearSectionTrackers();
             WebViewClearAll();
         }
     }
@@ -2458,6 +2494,11 @@ public partial class MainForm : Form
 
     private void OnSessionIdle(string sessionId)
     {
+        // Phase 4.5: idle is the authoritative trailing-case signal -- close any
+        // open Reasoning/Tool sections for this session so they collapse with
+        // a smart summary instead of being left visually mid-stream.
+        CloseAnyOpenSectionsForSession(sessionId);
+
         if (_streamingSessions.Remove(sessionId))
             AppendOutput("\r\n\r\n", AppTheme.ColorDefault);
 
@@ -2574,6 +2615,7 @@ public partial class MainForm : Form
         _streamingSessions.Clear();
         _toolStartPositions.Clear();
         _subAgentStartPositions.Clear();
+        ClearSectionTrackers();
     }
 
     private void CompleteMainSession()
@@ -2627,10 +2669,25 @@ public partial class MainForm : Form
     {
         if (!_webViewReady) return;
 
+        // Phase 4.5: any session message means the model is responding -- if a
+        // "Thinking..." pill is up, take it down before painting the first event.
+        // BytesUpdate fires from network plumbing without UI implication, so don't
+        // count it as the first real event of the turn.
+        if (_activeThinkingId != null && args.Kind != MessageKind.BytesUpdate)
+        {
+            WebViewRemoveThinking(_activeThinkingId);
+            _activeThinkingId = null;
+        }
+
         switch (args.Kind)
         {
             case MessageKind.AssistantDelta:
             {
+                // Assistant text begins -- close any open Reasoning/Tool sections
+                // for this session so they get a smart summary BEFORE the reply
+                // streams in.  Errors must always be surfaced top-level too.
+                CloseAnyOpenSectionsForSession(args.SessionId);
+
                 if (!_streamingBlocks.TryGetValue(args.SessionId, out var block))
                 {
                     block = new OutputBlock(BlockKind.Assistant) { Label = "\U0001f916 Assistant:" };
@@ -2645,6 +2702,7 @@ public partial class MainForm : Form
 
             case MessageKind.AssistantFinal:
             {
+                CloseAnyOpenSectionsForSession(args.SessionId);
                 if (_streamingBlocks.TryGetValue(args.SessionId, out var block))
                 {
                     block.IsComplete = true;
@@ -2669,20 +2727,33 @@ public partial class MainForm : Form
 
             case MessageKind.Reasoning:
             {
-                var block = new OutputBlock(BlockKind.Reasoning)
+                // Reasoning closes any open Tool section first (different kind).
+                CloseToolSection(args.SessionId);
+
+                if (!_openReasoningSections.TryGetValue(args.SessionId, out var sec))
                 {
-                    Label = "\U0001f4ad Reasoning:",
-                    Content = args.Content,
-                    IsComplete = true
-                };
-                _outputBlocks.Add(block);
-                WebViewAppendBlock(block);
+                    sec = new OpenReasoningSection
+                    {
+                        SectionId    = $"r{System.Threading.Interlocked.Increment(ref _nextSectionId)}",
+                        SessionId    = args.SessionId,
+                        StartedAtUtc = DateTime.UtcNow,
+                    };
+                    _openReasoningSections[args.SessionId] = sec;
+                    WebViewAppendSection(sec.SectionId, "reasoning", "\U0001f4ad Reasoning...");
+                }
+                sec.Chunks++;
+                if (sec.Content.Length > 0)
+                    sec.Content.Append("\r\n\r\n");
+                sec.Content.Append(args.Content);
+                // Pass raw markdown to JS; the renderer parses it inside setSectionContent.
+                WebViewSetSectionContent(sec.SectionId, sec.Content.ToString(), isMarkdown: true);
                 break;
             }
 
             case MessageKind.SubAgentStart:
             {
                 FinalizeStreamingBlock(args.SessionId);
+                CloseAnyOpenSectionsForSession(args.SessionId);
                 var saName = args.SubAgentDisplayName ?? args.Content;
                 var saDesc = string.IsNullOrEmpty(args.SubAgentDescription) ? ""
                     : $" -- {(args.SubAgentDescription.Length > 60 ? args.SubAgentDescription[..60] + "..." : args.SubAgentDescription)}";
@@ -2699,6 +2770,7 @@ public partial class MainForm : Form
 
             case MessageKind.SubAgentComplete:
             {
+                CloseAnyOpenSectionsForSession(args.SessionId);
                 if (!string.IsNullOrEmpty(args.ToolCallId) &&
                     _renderedSubAgentBlocks.TryGetValue(args.ToolCallId, out var saBlock))
                 {
@@ -2713,6 +2785,7 @@ public partial class MainForm : Form
 
             case MessageKind.SubAgentFailed:
             {
+                CloseAnyOpenSectionsForSession(args.SessionId);
                 if (!string.IsNullOrEmpty(args.ToolCallId) &&
                     _renderedSubAgentBlocks.TryGetValue(args.ToolCallId, out var saBlock))
                 {
@@ -2728,6 +2801,7 @@ public partial class MainForm : Form
             case MessageKind.SkillInvoked:
             {
                 FinalizeStreamingBlock(args.SessionId);
+                CloseAnyOpenSectionsForSession(args.SessionId);
                 var desc = string.IsNullOrEmpty(args.SubAgentDescription) ? ""
                     : $" -- {args.SubAgentDescription}";
                 var block = new OutputBlock(BlockKind.Status)
@@ -2742,6 +2816,7 @@ public partial class MainForm : Form
 
             case MessageKind.CustomAgentsUpdated:
             {
+                CloseAnyOpenSectionsForSession(args.SessionId);
                 var block = new OutputBlock(BlockKind.Status)
                 {
                     Content = $"[{args.Content}]",
@@ -2754,16 +2829,33 @@ public partial class MainForm : Form
 
             case MessageKind.ToolStart:
             {
+                // Tools close any open Reasoning section first (different kind).
                 FinalizeStreamingBlock(args.SessionId);
-                var argPart = string.IsNullOrEmpty(args.ToolArgSummary) ? "" : $"  {args.ToolArgSummary}";
-                var block = new OutputBlock(BlockKind.Tool)
+                CloseReasoningSection(args.SessionId);
+
+                if (!_openToolSections.TryGetValue(args.SessionId, out var sec))
                 {
-                    Content = $"\U0001f527 {args.Content}{argPart}"
+                    sec = new OpenToolSection
+                    {
+                        SectionId    = $"t{System.Threading.Interlocked.Increment(ref _nextSectionId)}",
+                        SessionId    = args.SessionId,
+                        StartedAtUtc = DateTime.UtcNow,
+                    };
+                    _openToolSections[args.SessionId] = sec;
+                    WebViewAppendSection(sec.SectionId, "tools", "\U0001f527 Working...");
+                }
+                var lineId = !string.IsNullOrEmpty(args.ToolCallId)
+                    ? args.ToolCallId
+                    : $"l{System.Threading.Interlocked.Increment(ref _nextSectionId)}";
+                var line = new OpenToolLine
+                {
+                    LineId     = lineId,
+                    ToolName   = args.Content ?? "",
+                    ArgSummary = args.ToolArgSummary ?? "",
                 };
-                _outputBlocks.Add(block);
-                if (!string.IsNullOrEmpty(args.ToolCallId))
-                    _renderedToolBlocks[args.ToolCallId] = block;
-                WebViewAppendBlock(block);
+                sec.Lines.Add(line);
+                _openToolLines[lineId] = line;
+                WebViewAppendSectionLine(sec.SectionId, lineId, RebuildToolLineHtml(line));
                 break;
             }
 
@@ -2771,10 +2863,10 @@ public partial class MainForm : Form
             {
                 if (!string.IsNullOrEmpty(args.Content) &&
                     !string.IsNullOrEmpty(args.ToolCallId) &&
-                    _renderedToolBlocks.TryGetValue(args.ToolCallId, out var tBlock))
+                    _openToolLines.TryGetValue(args.ToolCallId, out var line))
                 {
-                    WebViewAppendToolStatus(tBlock,
-                        $"<br/><span class=\"tool-dim\">\u2502 {EscapeForJs(args.Content)}</span>");
+                    line.ProgressMessages.Add(args.Content);
+                    WebViewUpdateSectionLine(line.LineId, RebuildToolLineHtml(line));
                 }
                 break;
             }
@@ -2782,28 +2874,26 @@ public partial class MainForm : Form
             case MessageKind.ToolComplete:
             {
                 if (!string.IsNullOrEmpty(args.ToolCallId) &&
-                    _renderedToolBlocks.TryGetValue(args.ToolCallId, out var tBlock))
+                    _openToolLines.TryGetValue(args.ToolCallId, out var line))
                 {
-                    _renderedToolBlocks.Remove(args.ToolCallId);
-                    tBlock.IsComplete = true;
-                    var tick = args.ToolSuccess
-                        ? "<span class=\"tool-success\"> \u2713</span>"
-                        : "<span class=\"tool-failure\"> \u2717</span>";
-                    WebViewAppendToolStatus(tBlock, tick);
-
-                    if (!string.IsNullOrEmpty(args.ToolResultSummary))
-                    {
-                        var cls = args.ToolSuccess ? "tool-dim" : "tool-failure";
-                        WebViewAppendToolStatus(tBlock,
-                            $"<br/><span class=\"{cls}\">\u2514 {EscapeForJs(args.ToolResultSummary)}</span>");
-                    }
+                    line.Success       = args.ToolSuccess;
+                    line.ResultSummary = args.ToolResultSummary;
+                    var section = FindToolSectionContaining(line);
+                    if (section != null && !args.ToolSuccess)
+                        section.HasFailure = true;
+                    WebViewUpdateSectionLine(line.LineId, RebuildToolLineHtml(line));
+                    if (!args.ToolSuccess)
+                        WebViewMarkSectionLineFailed(line.LineId);
                 }
                 break;
             }
 
             case MessageKind.Error:
             {
+                // Errors are NEVER inside a collapsible. Close any open sections
+                // for this session cleanly first, then surface the error top-level.
                 FinalizeStreamingBlock(args.SessionId);
+                CloseAnyOpenSectionsForSession(args.SessionId);
                 var block = new OutputBlock(BlockKind.Error)
                 {
                     Content = $"\u274C Error: {args.Content}",
@@ -2828,6 +2918,7 @@ public partial class MainForm : Form
 
             case MessageKind.Status:
             {
+                CloseAnyOpenSectionsForSession(args.SessionId);
                 var block = new OutputBlock(BlockKind.Status)
                 {
                     Content = $"[{args.Content}]",
@@ -2840,8 +2931,7 @@ public partial class MainForm : Form
         }
     }
 
-    // Maps toolCallId -> rendered block for tool and sub-agent tracking
-    private readonly Dictionary<string, OutputBlock> _renderedToolBlocks = new();
+    // Maps toolCallId -> rendered block for sub-agent tracking
     private readonly Dictionary<string, OutputBlock> _renderedSubAgentBlocks = new();
 
     private void FinalizeStreamingBlock(string sessionId)
@@ -2904,6 +2994,284 @@ public partial class MainForm : Form
         _currentMetaBlock = null;
         if (!_webViewReady) return;
         _ = webViewOutput.CoreWebView2.ExecuteScriptAsync("clearAll()");
+    }
+
+    // ── Phase 4.5: Collapsible sections (Reasoning / Tool group) ─────────────
+
+    /// <summary>Tracks an in-flight Reasoning section grouping consecutive
+    /// AssistantReasoningEvents from a single session.</summary>
+    private sealed class OpenReasoningSection
+    {
+        public string SectionId    = "";
+        public string SessionId    = "";
+        public DateTime StartedAtUtc;
+        public int Chunks;
+        public System.Text.StringBuilder Content = new();
+    }
+
+    /// <summary>Tracks an in-flight Tool group section grouping consecutive
+    /// tool-call events from a single session.</summary>
+    private sealed class OpenToolSection
+    {
+        public string SectionId    = "";
+        public string SessionId    = "";
+        public DateTime StartedAtUtc;
+        public List<OpenToolLine> Lines = new();
+        public bool HasFailure;
+    }
+
+    /// <summary>Per-tool-call line state inside an OpenToolSection.</summary>
+    private sealed class OpenToolLine
+    {
+        public string LineId        = "";
+        public string ToolName      = "";
+        public string ArgSummary    = "";
+        public List<string> ProgressMessages = new();
+        public bool? Success;       // null = still running
+        public string? ResultSummary;
+    }
+
+    private OpenToolSection? FindToolSectionContaining(OpenToolLine line)
+    {
+        foreach (var sec in _openToolSections.Values)
+            if (sec.Lines.Contains(line)) return sec;
+        return null;
+    }
+
+    /// <summary>Closes any open Reasoning and Tool sections for the given
+    /// session id, replacing each section's summary with a smart one-liner.
+    /// Called by every non-grouped event handler so transitions are clean.</summary>
+    private void CloseAnyOpenSectionsForSession(string sessionId)
+    {
+        CloseReasoningSection(sessionId);
+        CloseToolSection(sessionId);
+    }
+
+    private void CloseReasoningSection(string sessionId)
+    {
+        if (!_openReasoningSections.TryGetValue(sessionId, out var sec)) return;
+        _openReasoningSections.Remove(sessionId);
+        var summary = SummariseReasoningSection(sec);
+        var collapse = !_settings.DetailsDefaultOpen;
+        WebViewCloseSection(sec.SectionId, summary, collapse, hasFailure: false);
+    }
+
+    private void CloseToolSection(string sessionId)
+    {
+        if (!_openToolSections.TryGetValue(sessionId, out var sec)) return;
+        _openToolSections.Remove(sessionId);
+        // Drop tool-line tracking for any in-flight or completed lines belonging
+        // to this section. The DOM lines themselves remain visible inside the
+        // collapsible until the user manually re-opens the section.
+        foreach (var line in sec.Lines)
+            _openToolLines.Remove(line.LineId);
+        var summary = SummariseToolSection(sec);
+        var collapse = !_settings.DetailsDefaultOpen;
+        WebViewCloseSection(sec.SectionId, summary, collapse, sec.HasFailure);
+    }
+
+    private void ClearSectionTrackers()
+    {
+        // Politely close any sections still open in the DOM before dropping
+        // C# tracking. This handles disconnect/reset paths that keep the
+        // existing transcript visible -- without this, orphaned sections
+        // would keep their streaming-pulse animation forever.
+        foreach (var sec in _openReasoningSections.Values)
+            WebViewCloseSection(sec.SectionId, "\U0001f4ad Reasoning (interrupted)",
+                collapse: !_settings.DetailsDefaultOpen, hasFailure: false);
+        foreach (var sec in _openToolSections.Values)
+            WebViewCloseSection(sec.SectionId, "\U0001f527 Working... (interrupted)",
+                collapse: !_settings.DetailsDefaultOpen, hasFailure: sec.HasFailure);
+
+        _openReasoningSections.Clear();
+        _openToolSections.Clear();
+        _openToolLines.Clear();
+        if (_activeThinkingId != null)
+        {
+            WebViewRemoveThinking(_activeThinkingId);
+            _activeThinkingId = null;
+        }
+    }
+
+    /// <summary>Builds the inner HTML of a single tool line, suitable for
+    /// passing to appendSectionLine / updateSectionLine. All user-supplied
+    /// strings are HTML-escaped via <see cref="EscapeForJs"/>.</summary>
+    private static string RebuildToolLineHtml(OpenToolLine line)
+    {
+        var sb = new System.Text.StringBuilder();
+        sb.Append("\U0001f527 ").Append(EscapeForJs(line.ToolName ?? ""));
+        if (!string.IsNullOrEmpty(line.ArgSummary))
+            sb.Append("  ").Append(EscapeForJs(line.ArgSummary));
+        if (line.Success.HasValue)
+        {
+            var cls  = line.Success.Value ? "tool-success" : "tool-failure";
+            var tick = line.Success.Value ? "\u2713"       : "\u2717";
+            sb.Append(" <span class=\"").Append(cls).Append("\">").Append(tick).Append("</span>");
+        }
+        foreach (var msg in line.ProgressMessages)
+        {
+            sb.Append("<br/><span class=\"tool-dim\">\u2502 ")
+              .Append(EscapeForJs(msg))
+              .Append("</span>");
+        }
+        if (!string.IsNullOrEmpty(line.ResultSummary))
+        {
+            var cls = (line.Success == false) ? "tool-failure" : "tool-dim";
+            sb.Append("<br/><span class=\"").Append(cls).Append("\">\u2514 ")
+              .Append(EscapeForJs(line.ResultSummary))
+              .Append("</span>");
+        }
+        return sb.ToString();
+    }
+
+    /// <summary>Generates the closed-state summary for a Reasoning section
+    /// (e.g. "Reasoning (12s, 145 words)" or "Thought 3 times (4s, 245 words)").</summary>
+    private static string SummariseReasoningSection(OpenReasoningSection sec)
+    {
+        var content = sec.Content.ToString();
+        int words = content.Split(
+            new[] { ' ', '\t', '\r', '\n' },
+            StringSplitOptions.RemoveEmptyEntries).Length;
+        var dur = (int)Math.Round((DateTime.UtcNow - sec.StartedAtUtc).TotalSeconds);
+
+        string label = sec.Chunks <= 1
+            ? "Reasoning"
+            : (sec.Chunks == 2 ? "Thought twice" : $"Thought {sec.Chunks} times");
+
+        var statBits = new List<string>();
+        if (dur >= 1)  statBits.Add($"{dur}s");
+        if (words > 0) statBits.Add($"{words} word{(words == 1 ? "" : "s")}");
+        var stats = statBits.Count > 0 ? $" ({string.Join(", ", statBits)})" : "";
+        return $"\U0001f4ad {label}{stats}";
+    }
+
+    /// <summary>Generates the closed-state summary for a Tool group section
+    /// using actual tool-name categories (e.g. "Read 3 files, edited 1 file (8s)").
+    /// Failures are appended as a suffix in red on the JS side.</summary>
+    private static string SummariseToolSection(OpenToolSection sec)
+    {
+        if (sec.Lines.Count == 0) return "\U0001f527 No tool calls";
+
+        // Preserve the order tools first appeared in by iterating the list.
+        var orderedCategories = new List<string>();
+        var categoryCounts    = new Dictionary<string, int>(StringComparer.Ordinal);
+        int failed = 0;
+        foreach (var line in sec.Lines)
+        {
+            if (line.Success == false) failed++;
+            var cat = CategoriseTool(line.ToolName);
+            if (!categoryCounts.ContainsKey(cat))
+            {
+                categoryCounts[cat] = 0;
+                orderedCategories.Add(cat);
+            }
+            categoryCounts[cat]++;
+        }
+
+        var parts = new List<string>();
+        foreach (var cat in orderedCategories)
+            parts.Add(FormatCategory(cat, categoryCounts[cat]));
+
+        var dur = (int)Math.Round((DateTime.UtcNow - sec.StartedAtUtc).TotalSeconds);
+        var sumDur = dur >= 1 ? $" ({dur}s)" : "";
+        var sumFail = failed > 0 ? $" -- {failed} failed" : "";
+        return $"\U0001f527 {string.Join(", ", parts)}{sumDur}{sumFail}";
+    }
+
+    private static string CategoriseTool(string? name)
+    {
+        var n = (name ?? "").ToLowerInvariant();
+        // Order matters: more-specific verbs before generic substrings.
+        if (n.Contains("apply_patch") || n.Contains("str_replace")
+            || n.Contains("write")    || n.Contains("edit")
+            || n.Contains("create")   || n.Contains("update"))      return "edit";
+        if (n.Contains("delete") || n.Contains("remove") || n.Contains("rm_")) return "delete";
+        if (n.Contains("read")   || n.Contains("view")   || n.Contains("cat_")
+            || n.Contains("get_content"))                            return "read";
+        if (n.Contains("shell")     || n.Contains("bash")
+            || n.Contains("powershell") || n.Contains("terminal")
+            || n.Contains("execute")    || n.Contains("run_in")
+            || n.Contains("exec_")      || n.Contains("invoke"))     return "run";
+        if (n.Contains("search") || n.Contains("grep")
+            || n.Contains("find")   || n.Contains("glob"))           return "search";
+        if (n.Contains("fetch") || n.Contains("http") || n.Contains("url")
+            || n.Contains("download"))                                return "fetch";
+        if (n.Contains("ask_user") || n.Contains("input"))           return "ask";
+        return "other";
+    }
+
+    private static string FormatCategory(string cat, int n) => cat switch
+    {
+        "edit"   => $"Edited {n} file{(n == 1 ? "" : "s")}",
+        "delete" => $"Deleted {n} file{(n == 1 ? "" : "s")}",
+        "read"   => $"Read {n} file{(n == 1 ? "" : "s")}",
+        "run"    => $"Ran {n} command{(n == 1 ? "" : "s")}",
+        "search" => $"Searched {n} time{(n == 1 ? "" : "s")}",
+        "fetch"  => $"Fetched {n} URL{(n == 1 ? "" : "s")}",
+        "ask"    => $"Asked {n} question{(n == 1 ? "" : "s")}",
+        _        => $"Used {n} tool{(n == 1 ? "" : "s")}",
+    };
+
+    // ── WebView2 JS bridge: section + thinking helpers ───────────────────────
+
+    private void WebViewAppendSection(string sectionId, string sectionKind, string summaryText)
+    {
+        if (!_webViewReady) return;
+        // Sections always start open while streaming so the user can watch
+        // content arrive. The collapse decision happens at close time and is
+        // governed by the menu setting "Show Working Steps".
+        var js = $"appendSection({JsString(sectionId)}, {JsString(sectionKind)}, " +
+                 $"{JsString(summaryText)}, true)";
+        _ = webViewOutput.CoreWebView2.ExecuteScriptAsync(js);
+    }
+
+    private void WebViewSetSectionContent(string sectionId, string content, bool isMarkdown)
+    {
+        if (!_webViewReady) return;
+        var js = $"setSectionContent({JsString(sectionId)}, {JsString(content)}, " +
+                 $"{(isMarkdown ? "true" : "false")})";
+        _ = webViewOutput.CoreWebView2.ExecuteScriptAsync(js);
+    }
+
+    private void WebViewAppendSectionLine(string sectionId, string lineId, string html)
+    {
+        if (!_webViewReady) return;
+        var js = $"appendSectionLine({JsString(sectionId)}, {JsString(lineId)}, {JsString(html)})";
+        _ = webViewOutput.CoreWebView2.ExecuteScriptAsync(js);
+    }
+
+    private void WebViewUpdateSectionLine(string lineId, string html)
+    {
+        if (!_webViewReady) return;
+        var js = $"updateSectionLine({JsString(lineId)}, {JsString(html)})";
+        _ = webViewOutput.CoreWebView2.ExecuteScriptAsync(js);
+    }
+
+    private void WebViewMarkSectionLineFailed(string lineId)
+    {
+        if (!_webViewReady) return;
+        var js = $"markSectionLineFailed({JsString(lineId)})";
+        _ = webViewOutput.CoreWebView2.ExecuteScriptAsync(js);
+    }
+
+    private void WebViewCloseSection(string sectionId, string summary, bool collapse, bool hasFailure)
+    {
+        if (!_webViewReady) return;
+        var js = $"closeSection({JsString(sectionId)}, {JsString(summary)}, " +
+                 $"{(collapse ? "true" : "false")}, {(hasFailure ? "true" : "false")})";
+        _ = webViewOutput.CoreWebView2.ExecuteScriptAsync(js);
+    }
+
+    private void WebViewAppendThinking(string id)
+    {
+        if (!_webViewReady) return;
+        _ = webViewOutput.CoreWebView2.ExecuteScriptAsync($"appendThinking({JsString(id)})");
+    }
+
+    private void WebViewRemoveThinking(string id)
+    {
+        if (!_webViewReady) return;
+        _ = webViewOutput.CoreWebView2.ExecuteScriptAsync($"removeThinking({JsString(id)})");
     }
 
     /// <summary>
